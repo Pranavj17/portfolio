@@ -8,8 +8,8 @@
 body {
     font-family: 'Poppins', sans-serif;
     line-height: 1.6;
-    color: #e0e0e0;
-    background-color: #1a1a1a;
+    color: #1a1a1a;
+    background-color: #f5f6fa;
     overflow-x: hidden;
 }
 
@@ -21,7 +21,7 @@ body {
     z-index: 1000;
     cursor: pointer;
     padding: 12px;
-    background: #2d2d2d;
+    background: #f8f9fa;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     transition: all 0.3s ease;
@@ -39,7 +39,7 @@ body {
     position: absolute;
     height: 2px;
     width: 100%;
-    background: #ffd700;
+    background: #3498db;
     border-radius: 2px;
     transition: all 0.3s ease;
     left: 0;
@@ -68,11 +68,11 @@ body {
     left: 0;
     width: 300px;
     height: 100vh;
-    background: #2d2d2d;
+    background: #ffffff;
     padding: 2rem;
     display: flex;
     flex-direction: column;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
     z-index: 999;
 }
 
@@ -90,7 +90,7 @@ body {
     text-align: center;
     font-weight: 700;
     font-size: 1.2rem;
-    color: #e0e0e0;
+    color: #1a1a1a;
     margin-bottom: 1rem;
 }
 
@@ -103,18 +103,18 @@ body {
 
 .sidebar-nav-item {
     text-decoration: none;
-    color: #e0e0e0;
+    color: #1a1a1a;
     font-weight: 500;
     padding: 0.5rem 0;
     transition: color 0.3s ease;
 }
 
 .sidebar-nav-item:hover {
-    color: #ffd700;
+    color: #3498db;
 }
 
 .sidebar-nav-item.active {
-    color: #ffd700;
+    color: #3498db;
     font-weight: 600;
 }
 
@@ -141,7 +141,7 @@ body {
 main {
     margin-left: 300px;
     padding: 2rem;
-    background-color: #1a1a1a;
+    background-color: #f5f6fa;
 }
 
 /* Hero Section */
@@ -312,7 +312,7 @@ section h2 {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #ffd700;
+    color: #1a1a1a;
     position: relative;
 }
 
@@ -324,12 +324,13 @@ section h2::after {
     transform: translateX(-50%);
     width: 50px;
     height: 3px;
-    background-color: #ffd700;
+    background-color: #3498db;
 }
 
 /* About Section */
 .about {
     background-color: #1a1a1a;
+    padding: 4rem 2rem;
 }
 
 .about-content {
@@ -350,7 +351,7 @@ section h2::after {
 
 .skills h3 {
     margin-bottom: 1rem;
-    color: #ffd700;
+    color: #1a1a1a;
 }
 
 .skill-tags {
@@ -361,17 +362,17 @@ section h2::after {
 }
 
 .skill-tag {
-    background-color: #2d2d2d;
-    color: #ffd700;
+    background-color: #ffffff;
+    color: #3498db;
     padding: 0.5rem 1rem;
     border-radius: 20px;
     font-size: 0.9rem;
-    border: 1px solid #ffd700;
+    border: 1px solid #3498db;
 }
 
 /* Resume Section */
 .resume {
-    background-color: #2d2d2d;
+    background-color: #ffffff;
 }
 
 .resume-content {
@@ -384,33 +385,35 @@ section h2::after {
 }
 
 .resume-section h3 {
-    color: #ffd700;
+    color: #3498db;
     margin-bottom: 1rem;
     font-size: 1.5rem;
 }
 
 .resume-item {
-    background: #1a1a1a;
+    background: #f5f6fa;
     padding: 1.5rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     margin-bottom: 1rem;
+    color: #1a1a1a;
 }
 
 .resume-item h4 {
-    color: #ffd700;
+    color: #3498db;
     margin-bottom: 0.5rem;
 }
 
 .resume-item .company,
 .resume-item .institution,
 .resume-item .location {
-    color: #e0e0e0;
+    color: #1a1a1a;
     font-style: italic;
 }
 
 .resume-item .date,
 .resume-item .cgpa {
-    color: #999;
+    color: #666;
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
@@ -418,11 +421,12 @@ section h2::after {
 .resume-item ul {
     list-style-position: inside;
     margin-top: 0.5rem;
+    color: #1a1a1a;
 }
 
 /* Projects Section */
 .projects {
-    background-color: #1a1a1a;
+    background-color: #f5f6fa;
     padding: 4rem 2rem;
 }
 
@@ -435,17 +439,18 @@ section h2::after {
 }
 
 .project-item {
-    background: #2d2d2d;
+    background: #ffffff;
+    border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .project-item h3 {
-    color: #ffd700;
+    color: #3498db;
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #ffd700;
+    border-bottom: 2px solid #3498db;
 }
 
 .project-item ul {
@@ -456,25 +461,25 @@ section h2::after {
 .project-item li {
     margin-bottom: 1rem;
     padding: 1rem;
-    background: #1a1a1a;
+    background: #f5f6fa;
     border-radius: 8px;
-    color: #e0e0e0;
+    color: #1a1a1a;
 }
 
 .project-item a {
-    color: #ffd700;
+    color: #3498db;
     text-decoration: none;
     font-weight: 500;
 }
 
 .project-item a:hover {
-    color: #ffd700;
+    color: #2980b9;
     text-decoration: underline;
 }
 
 /* Contact Section */
 .contact {
-    background-color: #1a1a1a;
+    background-color: #f5f6fa;
     text-align: center;
 }
 
@@ -489,25 +494,26 @@ section h2::after {
     justify-content: center;
     margin: 1rem 0;
     font-size: 1.1rem;
-    background: #2d2d2d;
+    background: #ffffff;
     padding: 1rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    color: #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    color: #1a1a1a;
 }
 
 .contact-item i {
     margin-right: 1rem;
-    color: #ffd700;
+    color: #3498db;
     font-size: 1.3rem;
 }
 
 .contact-item a {
-    color: #e0e0e0;
+    color: #1a1a1a;
     text-decoration: none;
 }
 
 .contact-item a:hover {
-    color: #ffd700;
+    color: #3498db;
 }
 
 .contact .social-links {
@@ -585,4 +591,37 @@ footer {
 .resume-item,
 .contact-item {
     border-radius: 8px;
+}
+
+.home-tagline {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 2rem;
+    text-align: center;
+    line-height: 1.2;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.tagline-text {
+    color: #3498db;
+}
+
+.pipe-operator {
+    color: #6B4E71;
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.elixir-text {
+    color: #6B4E71;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(107, 78, 113, 0.3);
+    font-family: 'Fira Code', monospace;
+    letter-spacing: 1px;
 }
