@@ -1,3 +1,36 @@
+// Prioritize LCP elements
+document.addEventListener('DOMContentLoaded', function() {
+    // Set highest priority for hero section
+    const hero = document.querySelector('.hero');
+    if (hero) {
+        hero.style.contentVisibility = 'auto';
+        hero.style.containIntrinsicSize = '100vh';
+    }
+
+    // Defer loading of non-critical resources
+    requestIdleCallback(() => {
+        // Load non-critical CSS
+        const nonCriticalCSS = document.createElement('link');
+        nonCriticalCSS.rel = 'stylesheet';
+        nonCriticalCSS.href = 'styles.css';
+        nonCriticalCSS.media = 'print';
+        nonCriticalCSS.onload = function() {
+            nonCriticalCSS.media = 'all';
+        };
+        document.head.appendChild(nonCriticalCSS);
+
+        // Load Font Awesome
+        const fontAwesome = document.createElement('link');
+        fontAwesome.rel = 'stylesheet';
+        fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
+        fontAwesome.media = 'print';
+        fontAwesome.onload = function() {
+            fontAwesome.media = 'all';
+        };
+        document.head.appendChild(fontAwesome);
+    });
+});
+
 // Hamburger Menu Functionality
 const hamburger = document.querySelector('.hamburger-menu');
 const sideNav = document.querySelector('.side-nav');

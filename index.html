@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style">
+
     <!-- Primary Meta Tags -->
     <title>Pranav Jagadish | Software Engineer & Full Stack Developer</title>
     <meta name="title" content="Pranav Jagadish | Software Engineer & Full Stack Developer">
@@ -46,12 +51,56 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
 
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Fonts with display swap -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    </noscript>
 
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    </noscript>
+
+    <!-- Preload Hero Background -->
+    <link rel="preload" href="assets/images/hero-bg.jpg" as="image" type="image/webp">
+
+    <!-- Inline Critical CSS -->
+    <style>
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 0 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-content {
+            max-width: 800px;
+            position: relative;
+            z-index: 1;
+            color: #e0e0e0;
+            padding: 2rem;
+        }
+        .hero h1 {
+            color: #ffd700;
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-weight: 700;
+        }
+        .hero-description {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            color: #e0e0e0;
+        }
+    </style>
 </head>
 <body>
     <div class="hamburger-menu">
@@ -82,20 +131,13 @@
     <div class="overlay"></div>
 
     <main>
-        <section id="home" class="about">
-            <div class="about-content">
-                <div class="about-text">
-                    <p class="home-tagline">
-                        <span class="tagline-text">Engineering with Distributed Systems</span>
-                    </p>
-                    <div class="skills">
-                        <h3>Skills</h3>
-                        <div class="skill-tags">
-                            <span class="skill-tag">Elixir</span>
-                            <span class="skill-tag">Ruby</span>
-                            <span class="skill-tag">JavaScript</span>
-                        </div>
-                    </div>
+        <section id="home" class="hero">
+            <div class="hero-content">
+                <h1>Pranav Jagadish</h1>
+                <p class="hero-description">Software Engineer & Full Stack Developer</p>
+                <div class="hero-cta">
+                    <a href="#projects" class="cta-button">View Projects</a>
+                    <a href="#contact" class="cta-button secondary">Contact Me</a>
                 </div>
             </div>
         </section>

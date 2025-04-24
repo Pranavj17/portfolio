@@ -1,4 +1,11 @@
-/* Reset and base styles */
+/* Critical CSS */
+:root {
+    --primary-color: #3498db;
+    --text-color: #1a1a1a;
+    --bg-color: #f5f6fa;
+    --hero-gradient: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -8,9 +15,103 @@
 body {
     font-family: 'Poppins', sans-serif;
     line-height: 1.6;
-    color: #1a1a1a;
-    background-color: #f5f6fa;
+    color: var(--text-color);
+    background-color: var(--bg-color);
     overflow-x: hidden;
+}
+
+/* Critical Layout */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100vh;
+    background: #ffffff;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    z-index: 999;
+}
+
+main {
+    margin-left: 300px;
+    padding: 2rem;
+    background-color: var(--bg-color);
+}
+
+/* Critical Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* Hero Section - Critical for LCP */
+.hero {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--hero-gradient);
+    padding: 0 1rem;
+    position: relative;
+    overflow: hidden;
+    content-visibility: auto;
+    contain-intrinsic-size: 100vh;
+}
+
+.hero-content {
+    max-width: 800px;
+    position: relative;
+    z-index: 1;
+    color: #e0e0e0;
+    padding: 2rem;
+    will-change: transform;
+}
+
+.hero h1 {
+    color: #ffd700;
+    font-size: 3.5rem;
+    margin-bottom: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    font-weight: 700;
+    will-change: transform;
+}
+
+.hero-description {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    margin-bottom: 2rem;
+    color: #e0e0e0;
+    will-change: transform;
+}
+
+/* Optimize animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.hero-content {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Defer non-critical CSS */
+@media (max-width: 768px) {
+    .sidebar {
+        left: -300px;
+        transition: left 0.3s ease;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    main {
+        margin-left: 0;
+    }
 }
 
 /* Hamburger Menu */
@@ -59,21 +160,6 @@ body {
 
 .hamburger-menu.active .hamburger-icon span:nth-child(3) {
     transform: translateY(-7px) rotate(-45deg);
-}
-
-/* Sidebar */
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 300px;
-    height: 100vh;
-    background: #ffffff;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-    z-index: 999;
 }
 
 .sidebar-item {
@@ -135,49 +221,6 @@ body {
 .overlay.active {
     opacity: 1;
     visibility: visible;
-}
-
-/* Main Content */
-main {
-    margin-left: 300px;
-    padding: 2rem;
-    background-color: #f5f6fa;
-}
-
-/* Hero Section */
-.hero {
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    padding: 0 1rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-content {
-    max-width: 800px;
-    position: relative;
-    z-index: 1;
-    color: #e0e0e0;
-    padding: 2rem;
-}
-
-.hero h1 {
-    color: #ffd700;
-    font-size: 3.5rem;
-    margin-bottom: 1.5rem;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    font-weight: 700;
-}
-
-.hero-description {
-    font-size: 1.2rem;
-    line-height: 1.8;
-    margin-bottom: 2rem;
-    color: #e0e0e0;
 }
 
 .hero-cta {
@@ -526,64 +569,6 @@ footer {
     color: #fff;
     text-align: center;
     padding: 1.5rem;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .hamburger-menu {
-        display: block;
-    }
-
-    .sidebar {
-        left: -300px;
-        transition: left 0.3s ease;
-    }
-
-    .sidebar.active {
-        left: 0;
-    }
-
-    main {
-        margin-left: 0;
-    }
-
-    .hero h1 {
-        font-size: 2.5rem;
-    }
-
-    .hero-description {
-        font-size: 1.1rem;
-    }
-
-    .hero-cta {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .cta-button {
-        width: 100%;
-        max-width: 300px;
-    }
-
-    section {
-        padding: 4rem 1rem;
-    }
-
-    .resume-item {
-        padding: 1rem;
-    }
-
-    .projects {
-        padding: 2rem 1rem;
-    }
-
-    .project-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .project-item {
-        padding: 1.5rem;
-    }
 }
 
 /* Common Card Styles */
