@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://your-portfolio-domain.com/sitemap.xml
+Sitemap: https://pranavjagadish.com/sitemap.xml
 
 # Disallow crawling of any private or sensitive directories
 Disallow: /private/

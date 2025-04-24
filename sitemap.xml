@@ -1,33 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
    <url>
-      <loc>https://your-portfolio-domain.com/</loc>
-      <lastmod>2024-03-21</lastmod>
+      <loc>https://pranavjagadish.com/</loc>
+      <lastmod>2025-04-24</lastmod>
       <changefreq>monthly</changefreq>
       <priority>1.0</priority>
-   </url>
-   <url>
-      <loc>https://your-portfolio-domain.com/#about</loc>
-      <lastmod>2024-03-21</lastmod>
-      <changefreq>monthly</changefreq>
-      <priority>0.8</priority>
-   </url>
-   <url>
-      <loc>https://your-portfolio-domain.com/#projects</loc>
-      <lastmod>2024-03-21</lastmod>
-      <changefreq>monthly</changefreq>
-      <priority>0.8</priority>
-   </url>
-   <url>
-      <loc>https://your-portfolio-domain.com/#resume</loc>
-      <lastmod>2024-03-21</lastmod>
-      <changefreq>monthly</changefreq>
-      <priority>0.8</priority>
-   </url>
-   <url>
-      <loc>https://your-portfolio-domain.com/#contact</loc>
-      <lastmod>2024-03-21</lastmod>
-      <changefreq>monthly</changefreq>
-      <priority>0.7</priority>
    </url>
 </urlset>
