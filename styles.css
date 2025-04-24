@@ -3,7 +3,6 @@
     --primary-color: #3498db;
     --text-color: #1a1a1a;
     --bg-color: #f5f6fa;
-    --hero-gradient: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
 }
 
 * {
@@ -48,45 +47,44 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Hero Section - Critical for LCP */
-.hero {
-    height: 100vh;
+.name {
     display: flex;
-    align-items: center;
     justify-content: center;
-    text-align: center;
-    background: var(--hero-gradient);
-    padding: 0 1rem;
-    position: relative;
-    overflow: hidden;
-    content-visibility: auto;
-    contain-intrinsic-size: 100vh;
+    align-items: center;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #3498db;
 }
 
+
+.hero-section {
+    background-color: #ffffff; /* matches .resume */
+    padding: 4rem 2rem;
+    margin-bottom: 2rem;       /* matches .resume-item vertical space */
+}
 .hero-content {
     max-width: 800px;
-    position: relative;
-    z-index: 1;
-    color: #e0e0e0;
-    padding: 2rem;
-    will-change: transform;
+    margin: 0 auto;
+    color: #1a1a1a;
+    padding: 1.5rem;
+    /* Remove unnecessary properties for smoothness */
 }
 
-.hero h1 {
-    color: #ffd700;
-    font-size: 3.5rem;
-    margin-bottom: 1.5rem;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+.hero-title {
+    color: #3498db;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
     font-weight: 700;
-    will-change: transform;
 }
 
 .hero-description {
     font-size: 1.2rem;
     line-height: 1.8;
     margin-bottom: 2rem;
-    color: #e0e0e0;
-    will-change: transform;
+    color: #1a1a1a;
+    text-align: center;
 }
+
 
 /* Optimize animations */
 @keyframes fadeIn {
@@ -234,26 +232,27 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 30px;
     text-decoration: none;
     font-weight: 500;
-    background: #fff;
-    color: #2c3e50;
+    background: var(--primary-color);
+    color: #fff;
     border: 2px solid transparent;
+    transition: all 0.3s ease;
 }
 
 .cta-button:hover {
     background: transparent;
-    color: #fff;
-    border-color: #fff;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 .cta-button.secondary {
     background: transparent;
-    border: 2px solid #fff;
-    color: #fff;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
 }
 
 .cta-button.secondary:hover {
-    background: #fff;
-    color: #2c3e50;
+    background: var(--primary-color);
+    color: #fff;
 }
 
 /* Header and Navigation */

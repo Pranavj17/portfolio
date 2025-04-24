@@ -67,40 +67,6 @@
     <!-- Preload Hero Background -->
     <link rel="preload" href="assets/images/hero-bg.jpg" as="image" type="image/webp">
 
-    <!-- Inline Critical CSS -->
-    <style>
-        .hero {
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            padding: 0 1rem;
-            position: relative;
-            overflow: hidden;
-        }
-        .hero-content {
-            max-width: 800px;
-            position: relative;
-            z-index: 1;
-            color: #e0e0e0;
-            padding: 2rem;
-        }
-        .hero h1 {
-            color: #ffd700;
-            font-size: 3.5rem;
-            margin-bottom: 1.5rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            font-weight: 700;
-        }
-        .hero-description {
-            font-size: 1.2rem;
-            line-height: 1.8;
-            margin-bottom: 2rem;
-            color: #e0e0e0;
-        }
-    </style>
 </head>
 <body>
     <div class="hamburger-menu">
@@ -131,10 +97,10 @@
     <div class="overlay"></div>
 
     <main>
-        <section id="home" class="hero">
+        <section id="home" class="hero-section">
+            <h1 class="name">Pranav Jagadish</h1>
             <div class="hero-content">
-                <h1>Pranav Jagadish</h1>
-                <p class="hero-description">Software Engineer & Full Stack Developer</p>
+                <p class="hero-description">Engineering in Distributed Systems</p>
                 <div class="hero-cta">
                     <a href="#projects" class="cta-button">View Projects</a>
                     <a href="#contact" class="cta-button secondary">Contact Me</a>

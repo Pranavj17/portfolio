@@ -1,11 +1,5 @@
 // Prioritize LCP elements
 document.addEventListener('DOMContentLoaded', function() {
-    // Set highest priority for hero section
-    const hero = document.querySelector('.hero');
-    if (hero) {
-        hero.style.contentVisibility = 'auto';
-        hero.style.containIntrinsicSize = '100vh';
-    }
 
     // Defer loading of non-critical resources
     requestIdleCallback(() => {
