@@ -3,15 +3,15 @@ const path = require('path');
 const app = express();
 const pdfRouter = require('./routes/pdf');
 
-// Serve static files
-app.use(express.static(path.join(__dirname)));
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Use PDF routes
 app.use('/api', pdfRouter);
 
 // Serve the main HTML file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
