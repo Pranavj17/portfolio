@@ -21,8 +21,7 @@ router.get('/resume', async (req, res) => {
                 '--no-first-run',
                 '--no-zygote',
                 '--single-process'
-            ],
-            executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome-stable'
+            ]
         });
         console.log('Browser launched successfully');
 
