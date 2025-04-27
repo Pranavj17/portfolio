@@ -1,6 +1,5 @@
 // Prioritize LCP elements
 document.addEventListener('DOMContentLoaded', function() {
-
     // Defer loading of non-critical resources
     requestIdleCallback(() => {
         // Load non-critical CSS
@@ -23,69 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.head.appendChild(fontAwesome);
     });
-});
 
-// Hamburger Menu Functionality
-const hamburger = document.querySelector('.hamburger-menu');
-const sideNav = document.querySelector('.side-nav');
-const overlay = document.querySelector('.overlay');
-
-hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('active');
-    sideNav.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sideNav.classList.contains('active') ? 'hidden' : '';
-});
-
-overlay.addEventListener('click', () => {
-    hamburger.classList.remove('active');
-    sideNav.classList.remove('active');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-});
-
-// Close menu when clicking a link
-document.querySelectorAll('.nav-links a').forEach(link => {
-    link.addEventListener('click', () => {
-        hamburger.classList.remove('active');
-        sideNav.classList.remove('active');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-});
-
-// Smooth scrolling for navigation links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-            behavior: 'smooth'
-        });
-    });
-});
-
-// Add active class to navigation links on scroll
-window.addEventListener('scroll', () => {
-    let current = '';
-    const sections = document.querySelectorAll('section');
-
-    sections.forEach(section => {
-        const sectionTop = section.offsetTop;
-        const sectionHeight = section.clientHeight;
-        if (pageYOffset >= sectionTop - 60) {
-            current = section.getAttribute('id');
-        }
-    });
-
-    document.querySelectorAll('.nav-links a').forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href').slice(1) === current) {
-            link.classList.add('active');
-        }
-    });
-});
-
-document.addEventListener('DOMContentLoaded', function() {
+    // Hamburger Menu Functionality
     const hamburger = document.querySelector('.hamburger-menu');
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.querySelector('.overlay');
@@ -96,6 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebar.classList.toggle('active');
         overlay.classList.toggle('active');
         hamburger.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
     });
 
     // Close sidebar when clicking overlay
@@ -103,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebar.classList.remove('active');
         overlay.classList.remove('active');
         hamburger.classList.remove('active');
+        document.body.style.overflow = '';
     });
 
     // Close sidebar when clicking a link
@@ -111,6 +51,17 @@ document.addEventListener('DOMContentLoaded', function() {
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
             hamburger.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    });
+
+    // Smooth scrolling for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
         });
     });
 
@@ -138,4 +89,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update active link on scroll
     window.addEventListener('scroll', setActiveLink);
     setActiveLink(); // Set initial active link
+});
+
+// Add active class to navigation links on scroll
+window.addEventListener('scroll', () => {
+    let current = '';
+    const sections = document.querySelectorAll('section');
+
+    sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        const sectionHeight = section.clientHeight;
+        if (pageYOffset >= sectionTop - 60) {
+            current = section.getAttribute('id');
+        }
+    });
+
+    document.querySelectorAll('.nav-links a').forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href').slice(1) === current) {
+            link.classList.add('active');
+        }
+    });
 });

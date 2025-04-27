@@ -85,6 +85,29 @@ h1, h2, h3, h4, h5, h6 {
     text-align: center;
 }
 
+.hero-skills {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.skill-tag {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skill-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
 
 /* Optimize animations */
 @keyframes fadeIn {
@@ -96,23 +119,7 @@ h1, h2, h3, h4, h5, h6 {
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Defer non-critical CSS */
-@media (max-width: 768px) {
-    .sidebar {
-        left: -300px;
-        transition: left 0.3s ease;
-    }
-
-    .sidebar.active {
-        left: 0;
-    }
-
-    main {
-        margin-left: 0;
-    }
-}
-
-/* Hamburger Menu */
+/* Hamburger Menu - Critical for mobile */
 .hamburger-menu {
     position: fixed;
     top: 20px;
@@ -160,6 +167,45 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateY(-7px) rotate(-45deg);
 }
 
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 998;
+}
+
+.overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .sidebar {
+        left: -300px;
+        transition: left 0.3s ease;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    main {
+        margin-left: 0;
+    }
+
+    .hamburger-menu {
+        display: block !important;
+    }
+}
+
 .sidebar-item {
     margin-bottom: 2rem;
 }
@@ -200,25 +246,6 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-nav-item.active {
     color: #3498db;
     font-weight: 600;
-}
-
-/* Overlay */
-.overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    z-index: 998;
-}
-
-.overlay.active {
-    opacity: 1;
-    visibility: visible;
 }
 
 .hero-cta {
@@ -466,6 +493,32 @@ section h2::after {
     color: #1a1a1a;
 }
 
+.download-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    background-color: var(--primary-color);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 30px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.download-button i {
+    font-size: 1.1rem;
+    margin-right: 0.5rem;
+}
+
+.download-button:hover {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+}
+
 /* Projects Section */
 .projects {
     background-color: #f5f6fa;
@@ -608,4 +661,19 @@ footer {
     text-shadow: 0 0 10px rgba(107, 78, 113, 0.3);
     font-family: 'Fira Code', monospace;
     letter-spacing: 1px;
+}
+
+.hero-experience {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    color: #1a1a1a;
+    text-align: center;
+    font-weight: 500;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 1rem;
+    background: rgba(52, 152, 219, 0.05);
+    border-radius: 8px;
 }

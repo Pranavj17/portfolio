@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Preload Critical Resources -->
-    <link rel="preload" href="styles.css" as="style">
+    <!-- Critical Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Preload Non-Critical Resources -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" as="style">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style">
 
     <!-- Primary Meta Tags -->
     <title>Pranav Jagadish</title>
@@ -57,13 +59,6 @@
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
     </noscript>
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" media="print" onload="this.media='all'">
-    <noscript>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    </noscript>
-
     <!-- Preload Hero Background -->
     <link rel="preload" href="assets/images/hero-bg.jpg" as="image" type="image/webp">
 
@@ -78,10 +73,6 @@
     </div>
 
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-item">
-            <p class="center">Pranav Jagadish</p>
-        </div>
-
         <nav class="sidebar-nav">
             <a class="sidebar-nav-item" href="#home">Home</a>
             <a class="sidebar-nav-item" href="#resume">Resume</a>
@@ -90,6 +81,11 @@
         </nav>
 
         <div class="sidebar-item" style="margin-top: auto;">
+            <a href="/api/resume" class="download-button" target="_blank">
+                <i class="fas fa-download"></i> Download PDF
+            </a>
+        </div>
+        <div class="sidebar-item">
             <p>© 2025 Pranav Jagadish. All rights reserved.</p>
         </div>
     </div>
@@ -101,6 +97,12 @@
             <h1 class="name">Pranav Jagadish</h1>
             <div class="hero-content">
                 <p class="hero-description">Engineering in Distributed Systems</p>
+                <p class="hero-experience">Full Stack Engineer with 5+ years of experience building and solving across the stack.</p>
+                <div class="hero-skills">
+                    <span class="skill-tag">Elixir</span>
+                    <span class="skill-tag">Ruby</span>
+                    <span class="skill-tag">Javascript</span>
+                </div>
                 <div class="hero-cta">
                     <a href="#projects" class="cta-button">View Projects</a>
                     <a href="#contact" class="cta-button secondary">Contact Me</a>
@@ -112,7 +114,7 @@
             <h2>Resume</h2>
             <div class="resume-content">
                 <div class="resume-section">
-                    <h3>Work Experience</h3>
+                    <h3 data-id="resume-header">Work Experience</h3>
                     <div class="resume-item">
                         <h4>Senior Software Engineer</h4>
                         <p class="company">Scripbox</p>
@@ -147,11 +149,11 @@
                     </div>
                 </div>
                 <div class="resume-section">
-                    <h3>Education</h3>
+                    <h3 data-id="resume-header">Education</h3>
                     <div class="resume-item">
                         <h4>Bachelor's Degree in Mechanical Engineering</h4>
                         <p class="institution">Dayananda Sagar College of Engineering</p>
-                        <p class="date">2015 - 2029</p>
+                        <p class="date">2015 - 2019</p>
                         <p class="cgpa">CGPA: 7.75</p>
                         <p class="location">Bangalore, India</p>
                     </div>
@@ -187,13 +189,13 @@
         </section>
 
         <section id="contact" class="contact">
-            <h2>Contact Me</h2>
+            <h2 data-id="resume-contact-header">Contact Me</h2>
             <div class="contact-info">
-                <div class="contact-item">
+                <div data-id="resume-contact-item" class="contact-item">
                     <i class="fas fa-envelope"></i>
                     <a href="mailto:jpranav97@gmail.com">jpranav97@gmail.com</a>
                 </div>
-                <div class="contact-item">
+                <div data-id="resume-contact-item" class="contact-item">
                     <i class="fas fa-phone"></i>
                     <a href="tel:+918123310664">+91-8123310664</a>
                 </div>
@@ -202,7 +204,7 @@
                     <span>Bangalore, India</span>
                 </div>
             </div>
-            <div class="social-links">
+            <div data-id="resume-contact-item" class="social-links">
                 <a href="https://www.linkedin.com/in/pranav-jagadish-9392137a/" target="_blank" class="social-link">
                     <i class="fab fa-linkedin"></i>
                 </a>
