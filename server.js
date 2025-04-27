@@ -1,26 +1,24 @@
 const express = require('express');
 const path = require('path');
 const app = express();
-const pdfRouter = require('./routes/pdf');
+const port = process.env.PORT || 3000;
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from the public directory
+app.use(express.static('public'));
 
-// Use PDF routes
-app.use('/api', pdfRouter);
-
-// Serve the main HTML file from root
+// Serve index.html for the root route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Catch-all route to handle client-side routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Handle PDF download
+app.get('/download-resume', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'resume.pdf');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=resume.pdf');
+    res.sendFile(filePath);
 });
 
-// Use environment variable for port or default to 3000
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
 });

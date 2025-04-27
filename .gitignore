@@ -92,3 +92,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Ignore public/pdfjs directory
+public/pdfjs/
+
+# Ignore all index.html files under public
+public/**/index.html
