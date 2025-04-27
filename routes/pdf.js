@@ -9,7 +9,6 @@ router.get('/resume', async (req, res) => {
     try {
         console.log('Starting PDF generation...');
         console.log('Current working directory:', process.cwd());
-        console.log('Chrome path:', process.env.CHROME_BIN);
 
         browser = await puppeteer.launch({
             headless: 'new',
@@ -23,7 +22,7 @@ router.get('/resume', async (req, res) => {
                 '--no-zygote',
                 '--single-process'
             ],
-            executablePath: process.env.CHROME_BIN || null
+            executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome'
         });
         console.log('Browser launched successfully');
 

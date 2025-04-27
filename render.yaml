@@ -3,13 +3,14 @@ services:
     name: portfolio-pdf
     env: node
     buildCommand: |
+      apt-get update && apt-get install -y wget gnupg
+      wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+      apt-get update && apt-get install -y google-chrome-stable
       npm install
-      npx puppeteer browsers install chrome
-      mkdir -p /opt/render/.cache/puppeteer
-      chmod -R 777 /opt/render/.cache/puppeteer
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: CHROME_BIN
-        value: /opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux/chrome
+        value: /usr/bin/google-chrome
