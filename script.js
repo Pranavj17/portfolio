@@ -23,72 +23,40 @@ document.addEventListener('DOMContentLoaded', function() {
         document.head.appendChild(fontAwesome);
     });
 
-    // Hamburger Menu Functionality
-    const hamburger = document.querySelector('.hamburger-menu');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.overlay');
-    const navLinks = document.querySelectorAll('.sidebar-nav-item');
-
-    // Toggle sidebar
-    hamburger.addEventListener('click', function() {
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
-        hamburger.classList.toggle('active');
-        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-    });
-
-    // Close sidebar when clicking overlay
-    overlay.addEventListener('click', function() {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-        hamburger.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-
-    // Close sidebar when clicking a link
-    navLinks.forEach(link => {
-        link.addEventListener('click', function() {
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            hamburger.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-    });
-
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
+    // Handle navigation clicks and active states
+    document.querySelectorAll('.nav-item, .sidebar-nav-item').forEach(link => {
+        link.addEventListener('click', function (e) {
             e.preventDefault();
-            document.querySelector(this.getAttribute('href')).scrollIntoView({
+            const targetId = this.getAttribute('href').slice(1);
+            const targetSection = document.getElementById(targetId);
+            const bottomNavHeight = document.querySelector('.mobile-nav')?.offsetHeight || 0;
+
+            // Remove active class from all navigation items
+            document.querySelectorAll('.nav-item, .sidebar-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active class to clicked item
+            this.classList.add('active');
+
+            window.scrollTo({
+                top: targetSection.offsetTop - bottomNavHeight,
                 behavior: 'smooth'
             });
         });
     });
 
-    // Set active link based on current section
-    function setActiveLink() {
-        const sections = document.querySelectorAll('section');
-        const scrollPosition = window.scrollY;
-
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop - 100;
-            const sectionBottom = sectionTop + section.offsetHeight;
-            const sectionId = section.getAttribute('id');
-
-            if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${sectionId}`) {
-                        link.classList.add('active');
-                    }
-                });
-            }
-        });
+    // Set initial active state based on URL hash
+    if (window.location.hash) {
+        const targetId = window.location.hash.slice(1);
+        const targetSection = document.getElementById(targetId);
+        if (targetSection) {
+            window.scrollTo({
+                top: targetSection.offsetTop - (document.querySelector('.mobile-nav')?.offsetHeight || 0),
+                behavior: 'smooth'
+            });
+        }
     }
-
-    // Update active link on scroll
-    window.addEventListener('scroll', setActiveLink);
-    setActiveLink(); // Set initial active link
 });
 
 // Add active class to navigation links on scroll

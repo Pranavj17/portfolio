@@ -3,6 +3,8 @@
     --primary-color: #3498db;
     --text-color: #1a1a1a;
     --bg-color: #f5f6fa;
+    --safe-area-inset-top: env(safe-area-inset-top);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom);
 }
 
 * {
@@ -17,9 +19,10 @@ body {
     color: var(--text-color);
     background-color: var(--bg-color);
     overflow-x: hidden;
+    padding-top: var(--safe-area-inset-top);
 }
 
-/* Critical Layout */
+/* Sidebar Navigation (Desktop) */
 .sidebar {
     position: fixed;
     top: 0;
@@ -34,10 +37,254 @@ body {
     z-index: 999;
 }
 
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.sidebar-nav-item {
+    text-decoration: none;
+    color: #1a1a1a;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    transition: color 0.3s ease;
+}
+
+.sidebar-nav-item:hover {
+    color: #3498db;
+}
+
+.sidebar-nav-item.active {
+    color: #3498db;
+    font-weight: 600;
+}
+
+.sidebar-item {
+    margin-bottom: 2rem;
+}
+
+.sidebar-item p {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.sidebar-item p.center {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #1a1a1a;
+    margin-bottom: 1rem;
+}
+
+/* Mobile Navigation */
+.mobile-nav {
+    display: none;
+}
+
+.fab-button {
+    display: none !important;
+}
+
 main {
     margin-left: 300px;
     padding: 2rem;
     background-color: var(--bg-color);
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    body {
+        padding-bottom: calc(var(--safe-area-inset-bottom) + 70px);
+    }
+
+    .sidebar {
+        display: none !important;
+    }
+
+    .mobile-nav {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 1000;
+        padding: 0.5rem;
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+
+    .nav-items {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: #666;
+        font-size: 0.8rem;
+        padding: 0.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-item i {
+        font-size: 1.2rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .nav-item.active {
+        color: var(--primary-color) !important;
+    }
+
+    .nav-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: -0.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        background-color: var(--primary-color);
+        border-radius: 50%;
+    }
+
+    .nav-item:hover {
+        color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+
+    .fab-button {
+        display: flex !important;
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        z-index: 1001;
+    }
+
+    .fab-button i {
+        font-size: 1.5rem;
+    }
+
+    .fab-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        background-color: #2980b9;
+    }
+
+    main {
+        margin-left: 0;
+        padding: 1rem;
+    }
+}
+
+/* Floating Action Button */
+.fab-button {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    z-index: 1001;
+}
+
+.fab-button i {
+    font-size: 1.5rem;
+}
+
+.fab-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    background-color: #2980b9;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.5rem;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #666;
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.nav-item i {
+    font-size: 1.2rem;
+    margin-bottom: 0.2rem;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+.nav-item:hover {
+    color: var(--primary-color);
+}
+
+/* Critical Layout */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0px;
+    width: 300px;
+    height: 100vh;
+    background: #ffffff;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    z-index: 999;
+    transition: left 0.3s ease;
+}
+
+.sidebar.active {
+    left: 0;
 }
 
 /* Critical Typography */
@@ -119,44 +366,44 @@ h1, h2, h3, h4, h5, h6 {
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Hamburger Menu - Critical for mobile */
+/* Basic Hamburger Menu */
 .hamburger-menu {
     position: fixed;
     top: 20px;
     left: 20px;
     z-index: 1000;
-    cursor: pointer;
-    padding: 12px;
+    width: 60px;
+    height: 60px;
     background: #f8f9fa;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    transition: all 0.3s ease;
     display: none;
 }
 
 .hamburger-icon {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     position: relative;
+    margin: 15px auto;
 }
 
 .hamburger-icon span {
     display: block;
     position: absolute;
-    height: 2px;
+    height: 4px;
     width: 100%;
     background: #3498db;
-    border-radius: 2px;
+    border-radius: 4px;
     transition: all 0.3s ease;
     left: 0;
 }
 
-.hamburger-icon span:nth-child(1) { top: 4px; }
-.hamburger-icon span:nth-child(2) { top: 11px; }
-.hamburger-icon span:nth-child(3) { top: 18px; }
+.hamburger-icon span:nth-child(1) { top: 0; }
+.hamburger-icon span:nth-child(2) { top: 13px; }
+.hamburger-icon span:nth-child(3) { top: 26px; }
 
 .hamburger-menu.active .hamburger-icon span:nth-child(1) {
-    transform: translateY(7px) rotate(45deg);
+    transform: translateY(13px) rotate(45deg);
 }
 
 .hamburger-menu.active .hamburger-icon span:nth-child(2) {
@@ -164,10 +411,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .hamburger-menu.active .hamburger-icon span:nth-child(3) {
-    transform: translateY(-7px) rotate(-45deg);
+    transform: translateY(-13px) rotate(-45deg);
 }
 
-/* Overlay */
+/* Basic Overlay */
 .overlay {
     position: fixed;
     top: 0;
@@ -188,21 +435,30 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Media Queries */
 @media (max-width: 768px) {
-    .sidebar {
-        left: -300px;
-        transition: left 0.3s ease;
-    }
-
-    .sidebar.active {
-        left: 0;
+    .hamburger-menu {
+        display: block !important;
     }
 
     main {
-        margin-left: 0;
+        padding: 1rem;
+    }
+}
+
+/* iPhone X and newer specific styles */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
     }
 
-    .hamburger-menu {
-        display: block !important;
+    .sidebar {
+        padding-left: max(2rem, env(safe-area-inset-left));
+        padding-right: max(2rem, env(safe-area-inset-right));
+    }
+
+    main {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
     }
 }
 

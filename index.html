@@ -64,15 +64,8 @@
 
 </head>
 <body>
-    <div class="hamburger-menu">
-        <div class="hamburger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    </div>
-
-    <div class="sidebar" id="sidebar">
+    <!-- Desktop Navigation -->
+    <div class="sidebar">
         <nav class="sidebar-nav">
             <a class="sidebar-nav-item" href="#home">Home</a>
             <a class="sidebar-nav-item" href="#resume">Resume</a>
@@ -90,7 +83,31 @@
         </div>
     </div>
 
-    <div class="overlay"></div>
+    <!-- Mobile Navigation -->
+    <div class="mobile-nav">
+        <div class="nav-items">
+            <a href="#home" class="nav-item active">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="#resume" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Resume</span>
+            </a>
+            <a href="#projects" class="nav-item">
+                <i class="fas fa-code"></i>
+                <span>Projects</span>
+            </a>
+            <a href="#contact" class="nav-item">
+                <i class="fas fa-envelope"></i>
+                <span>Contact</span>
+            </a>
+        </div>
+    </div>
+
+    <a href="/api/resume" class="fab-button" target="_blank">
+        <i class="fas fa-download"></i>
+    </a>
 
     <main>
         <section id="home" class="hero-section">
