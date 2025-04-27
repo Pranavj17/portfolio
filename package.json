@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "build": "mkdir -p build && cp -r public/* build/ && cp package.json build/ && cp server.js build/ && cp -r routes build/",
     "watch": "nodemon --watch routes --watch server.js --watch public/index.html --watch public/styles.css server.js",
-    "postinstall": "npm run build && npx puppeteer browsers install chrome"
+    "postinstall": "npm run build",
+    "generate-pdf": "node generate-pdf.js"
   },
   "dependencies": {
     "express": "^4.18.2",
