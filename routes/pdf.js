@@ -22,32 +22,49 @@ router.get('/resume', async (req, res) => {
                 '--no-zygote',
                 '--single-process'
             ],
-            executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome'
+            executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome-stable'
         });
         console.log('Browser launched successfully');
 
         const page = await browser.newPage();
         console.log('New page created');
 
+        // Set user agent to ensure consistent rendering
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
         const htmlPath = path.join(__dirname, '../public/index.html');
         console.log('Reading HTML file from:', htmlPath);
         const htmlContent = fs.readFileSync(htmlPath, 'utf8');
         console.log('HTML file read successfully');
 
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        await page.setContent(htmlContent, {
+            waitUntil: 'networkidle0',
+            timeout: 30000
+        });
         console.log('Page content set successfully');
 
-        await page.waitForSelector('#home');
-        await page.waitForSelector('#resume');
-        await page.waitForSelector('#projects');
+        // Wait for all resources to load
+        await page.waitForSelector('#home', { timeout: 5000 });
+        await page.waitForSelector('#resume', { timeout: 5000 });
+        await page.waitForSelector('#projects', { timeout: 5000 });
         console.log('All required sections found');
+
+        // Wait for fonts to load
+        await page.evaluate(() => {
+            return new Promise((resolve) => {
+                if (document.fonts.status === 'loaded') {
+                    resolve();
+                } else {
+                    document.fonts.ready.then(resolve);
+                }
+            });
+        });
 
         const content = await page.evaluate(() => {
             const homeSection = document.querySelector('#home');
             const resumeSection = document.querySelector('#resume');
             const downloadButton = resumeSection.querySelector('.resume-actions');
             if (downloadButton) downloadButton.remove();
-            // Remove the Resume header
             const resumeHeader = resumeSection.querySelector('h2');
             if (resumeHeader) resumeHeader.remove();
 
@@ -286,8 +303,22 @@ router.get('/resume', async (req, res) => {
                 </div>
             </body>
             </html>
-        `, { waitUntil: 'networkidle0' });
+        `, {
+            waitUntil: 'networkidle0',
+            timeout: 30000
+        });
         console.log('PDF content set successfully');
+
+        // Wait for fonts to load again
+        await page.evaluate(() => {
+            return new Promise((resolve) => {
+                if (document.fonts.status === 'loaded') {
+                    resolve();
+                } else {
+                    document.fonts.ready.then(resolve);
+                }
+            });
+        });
 
         const pdf = await page.pdf({
             format: 'A4',
@@ -297,7 +328,8 @@ router.get('/resume', async (req, res) => {
                 right: '0.5in',
                 bottom: '0.5in',
                 left: '0.5in'
-            }
+            },
+            preferCSSPageSize: true
         });
         console.log('PDF generated successfully');
 

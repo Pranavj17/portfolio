@@ -13,4 +13,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: CHROME_BIN
-        value: /usr/bin/google-chrome
+        value: /usr/bin/google-chrome-stable
