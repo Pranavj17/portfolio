@@ -28,7 +28,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          npm install --package-lock-only
+          npm ci --prefer-offline --no-audit
 
       - name: Build
         run: |
