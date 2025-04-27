@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "mkdir -p build && cp -r public/* build/ && cp package.json build/ && cp server.js build/ && cp -r routes build/",
-    "watch": "nodemon --watch routes --watch server.js --watch public/index.html --watch public/styles.css server.js"
+    "watch": "nodemon --watch routes --watch server.js --watch public/index.html --watch public/styles.css server.js",
+    "postinstall": "npm run build && npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -18,5 +19,6 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "puppeteer_skip_chromium_download": true
 }

@@ -9,7 +9,17 @@ router.get('/resume', async (req, res) => {
         console.log('Starting PDF generation...');
         const browser = await puppeteer.launch({
             headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process'
+            ],
+            executablePath: process.env.CHROME_BIN || null
         });
         console.log('Browser launched successfully');
         const page = await browser.newPage();
@@ -230,10 +240,10 @@ router.get('/resume', async (req, res) => {
                         <a href="mailto:jpranav97@gmail.com">jpranav97@gmail.com</a>
                         <a href="tel:+918123310664">+91-8123310664</a>
                         <a href="https://www.linkedin.com/in/pranav-jagadish-9392137a/" target="_blank" class="social-link">
-                            LinkedIn
+                            www.linkedin.com/in/pranav-jagadish-9392137a/
                         </a>
                         <a href="https://github.com/Pranavj17" target="_blank" class="social-link">
-                            Github
+                            github.com/Pranavj17
                         </a>
                     </div>
                 </div>
@@ -279,10 +289,10 @@ router.get('/resume', async (req, res) => {
             format: 'A4',
             printBackground: true,
             margin: {
-                top: '20px',
-                right: '20px',
-                bottom: '20px',
-                left: '20px'
+                top: '0.5in',
+                right: '0.5in',
+                bottom: '0.5in',
+                left: '0.5in'
             }
         });
         console.log('PDF generated successfully');
@@ -291,11 +301,11 @@ router.get('/resume', async (req, res) => {
         console.log('Browser closed');
 
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename=pranavjagadish.pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=resume.pdf');
         res.send(pdf);
     } catch (error) {
         console.error('Error generating PDF:', error);
-        res.status(500).send('Error generating PDF: ' + error.message);
+        res.status(500).json({ error: 'Failed to generate PDF' });
     }
 });
 
