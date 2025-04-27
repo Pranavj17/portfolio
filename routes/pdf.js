@@ -12,7 +12,7 @@ router.get('/resume', async (req, res) => {
         });
         const page = await browser.newPage();
 
-        const htmlContent = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+        const htmlContent = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
         await page.waitForSelector('#home');
