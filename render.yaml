@@ -2,9 +2,7 @@ services:
   - type: web
     name: portfolio-pdf
     env: node
-    buildCommand: |
-      npm install
-      npx puppeteer browsers install chrome
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
