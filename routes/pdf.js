@@ -21,9 +21,6 @@ router.get('/resume', async (req, res) => {
 
         const content = await page.evaluate(() => {
             const homeSection = document.querySelector('#home');
-            const ctaButtons = homeSection.querySelector('.hero-cta');
-            if (ctaButtons) ctaButtons.remove();
-
             const resumeSection = document.querySelector('#resume');
             const downloadButton = resumeSection.querySelector('.resume-actions');
             if (downloadButton) downloadButton.remove();
