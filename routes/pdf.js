@@ -6,18 +6,27 @@ const fs = require('fs');
 
 router.get('/resume', async (req, res) => {
     try {
+        console.log('Starting PDF generation...');
         const browser = await puppeteer.launch({
             headless: 'new',
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
+        console.log('Browser launched successfully');
         const page = await browser.newPage();
+        console.log('New page created');
 
-        const htmlContent = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
+        const htmlPath = path.join(__dirname, '../public/index.html');
+        console.log('Reading HTML file from:', htmlPath);
+        const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+        console.log('HTML file read successfully');
+
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        console.log('Page content set successfully');
 
         await page.waitForSelector('#home');
         await page.waitForSelector('#resume');
         await page.waitForSelector('#projects');
+        console.log('All required sections found');
 
         const content = await page.evaluate(() => {
             const homeSection = document.querySelector('#home');
@@ -36,6 +45,7 @@ router.get('/resume', async (req, res) => {
                 projects: projectsSection.outerHTML
             };
         });
+        console.log('Content extracted successfully');
 
         await page.setContent(`
             <!DOCTYPE html>
@@ -263,6 +273,7 @@ router.get('/resume', async (req, res) => {
             </body>
             </html>
         `, { waitUntil: 'networkidle0' });
+        console.log('PDF content set successfully');
 
         const pdf = await page.pdf({
             format: 'A4',
@@ -274,8 +285,10 @@ router.get('/resume', async (req, res) => {
                 left: '20px'
             }
         });
+        console.log('PDF generated successfully');
 
         await browser.close();
+        console.log('Browser closed');
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=pranavjagadish.pdf');
