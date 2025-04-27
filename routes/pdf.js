@@ -5,9 +5,13 @@ const path = require('path');
 const fs = require('fs');
 
 router.get('/resume', async (req, res) => {
+    let browser;
     try {
         console.log('Starting PDF generation...');
-        const browser = await puppeteer.launch({
+        console.log('Current working directory:', process.cwd());
+        console.log('Chrome path:', process.env.CHROME_BIN);
+
+        browser = await puppeteer.launch({
             headless: 'new',
             args: [
                 '--no-sandbox',
@@ -22,6 +26,7 @@ router.get('/resume', async (req, res) => {
             executablePath: process.env.CHROME_BIN || null
         });
         console.log('Browser launched successfully');
+
         const page = await browser.newPage();
         console.log('New page created');
 
@@ -297,15 +302,26 @@ router.get('/resume', async (req, res) => {
         });
         console.log('PDF generated successfully');
 
-        await browser.close();
-        console.log('Browser closed');
-
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=resume.pdf');
         res.send(pdf);
     } catch (error) {
         console.error('Error generating PDF:', error);
-        res.status(500).json({ error: 'Failed to generate PDF' });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({
+            error: 'Failed to generate PDF',
+            details: error.message,
+            stack: error.stack
+        });
+    } finally {
+        if (browser) {
+            try {
+                await browser.close();
+                console.log('Browser closed');
+            } catch (error) {
+                console.error('Error closing browser:', error);
+            }
+        }
     }
 });
 

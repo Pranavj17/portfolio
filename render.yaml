@@ -5,6 +5,8 @@ services:
     buildCommand: |
       npm install
       npx puppeteer browsers install chrome
+      mkdir -p /opt/render/.cache/puppeteer
+      chmod -R 777 /opt/render/.cache/puppeteer
     startCommand: npm start
     envVars:
       - key: NODE_ENV
