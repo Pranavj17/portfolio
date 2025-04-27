@@ -62,6 +62,9 @@
     <!-- Preload Hero Background -->
     <link rel="preload" href="assets/images/Bottle.jpeg" as="image" type="image/jpeg">
 
+    <!-- Download Script -->
+    <script src="/js/download.js"></script>
+
     <!-- Structured Data for Resume -->
     <script type="application/ld+json">
     {
@@ -97,9 +100,9 @@
         </nav>
 
         <div class="sidebar-item" style="margin-top: auto;">
-            <a href="/api/resume" class="download-button" target="_blank">
+            <button id="download" class="download-button">
                 <i class="fas fa-download"></i> Download PDF
-            </a>
+            </button>
         </div>
         <div class="sidebar-item">
             <p>© 2025 Pranav Jagadish. All rights reserved.</p>
@@ -128,9 +131,9 @@
         </div>
     </div>
 
-    <a href="/api/resume" class="fab-button" target="_blank">
+    <button id="download-mobile" class="fab-button">
         <i class="fas fa-download"></i>
-    </a>
+    </button>
 
     <main>
         <section id="home" class="hero-section">
@@ -251,6 +254,7 @@
         </section>
     </main>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

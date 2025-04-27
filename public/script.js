@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+
+    // Add event listeners for PDF download buttons
+    document.getElementById('download').addEventListener('click', generateAndShowPDF);
+    document.getElementById('download-mobile').addEventListener('click', generateAndShowPDF);
 });
 
 // Add active class to navigation links on scroll
@@ -79,3 +83,69 @@ window.addEventListener('scroll', () => {
         }
     });
 });
+
+function generateAndShowPDF() {
+    try {
+        console.log('Starting PDF generation...');
+
+        // Create an iframe to load the template
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.width = '100vw';
+        iframe.style.height = '100vh';
+        iframe.style.zIndex = '9999';
+        iframe.style.border = 'none';
+        iframe.style.background = '#ffffff';
+
+        // Add the iframe to the body
+        document.body.appendChild(iframe);
+
+        // Load the template
+        iframe.src = 'pdf-template.html';
+
+        // Wait for the template to load
+        iframe.onload = () => {
+            // Wait for fonts to load
+            document.fonts.ready.then(() => {
+                // Use html2canvas to capture the content
+                html2canvas(iframe.contentDocument.body, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    windowWidth: 1200,
+                    windowHeight: 1600,
+                    backgroundColor: '#ffffff',
+                    letterRendering: true
+                }).then(canvas => {
+                    // Create PDF using jsPDF
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const pdf = new jsPDF({
+                        unit: 'pt',
+                        format: 'a4',
+                        orientation: 'portrait'
+                    });
+
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save('PranavJagadish_Resume.pdf');
+
+                    // Cleanup
+                    document.body.removeChild(iframe);
+                }).catch(err => {
+                    console.error('Error generating PDF:', err);
+                    document.body.removeChild(iframe);
+                    alert('Error generating PDF. Please try again.');
+                });
+            });
+        };
+
+    } catch (error) {
+        console.error('Unexpected error:', error);
+        alert('An unexpected error occurred. Please try again.');
+    }
+}
