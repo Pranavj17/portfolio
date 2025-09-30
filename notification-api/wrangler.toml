@@ -1,0 +1,29 @@
+name = "claude-memory-notifications"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Routes - handles /api/* on pranavjagadish.com
+routes = [
+  { pattern = "pranavjagadish.com/api/*", zone_name = "pranavjagadish.com" }
+]
+
+# KV Namespaces for device registry and notifications
+[[kv_namespaces]]
+binding = "DEVICES"
+id = "YOUR_DEVICES_KV_NAMESPACE_ID"
+
+[[kv_namespaces]]
+binding = "NOTIFICATIONS"
+id = "YOUR_NOTIFICATIONS_KV_NAMESPACE_ID"
+
+# Environment variables (set via wrangler secret put)
+# PUSHOVER_APP_TOKEN - Set with: wrangler secret put PUSHOVER_APP_TOKEN
+# PUSHOVER_USER_KEY - Set with: wrangler secret put PUSHOVER_USER_KEY
+# SLACK_BOT_TOKEN - Set with: wrangler secret put SLACK_BOT_TOKEN
+# SLACK_CHANNEL - Set with: wrangler secret put SLACK_CHANNEL
+
+[env.production]
+name = "claude-memory-notifications"
+routes = [
+  { pattern = "pranavjagadish.com/api/*", zone_name = "pranavjagadish.com" }
+]
