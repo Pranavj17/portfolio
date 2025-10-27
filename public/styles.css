@@ -745,6 +745,92 @@ section h2::after {
     border: 2px solid var(--primary-color);
 }
 
+/* Achievements Section */
+.achievements {
+    background-color: #ffffff;
+    padding: 4rem 2rem;
+}
+
+.achievement-grid {
+    display: grid;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.achievement-item {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.achievement-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.highlight-card {
+    border-left: 4px solid #3498db;
+}
+
+.achievement-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.achievement-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.trophy-icon {
+    color: #ffd700;
+}
+
+.memory-icon {
+    color: #3498db;
+}
+
+.achievement-header h3 {
+    color: #1a1a1a;
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.achievement-item p {
+    color: #333;
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+}
+
+.achievement-links {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.achievement-link {
+    color: #3498db;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.achievement-link:hover {
+    color: #2980b9;
+}
+
+.achievement-link i {
+    font-size: 1rem;
+}
+
 /* Projects Section */
 .projects {
     background-color: #f5f6fa;
