@@ -745,9 +745,10 @@ section h2::after {
     border: 2px solid var(--primary-color);
 }
 
-/* Achievements Section */
+/* Achievements Section - Updated 2025-10-28 */
 .achievements {
-    background-color: #ffffff;
+    background-color: #ffffff !important;
+    padding: 2rem 1rem;
 }
 
 .achievement-grid {
