@@ -59,12 +59,12 @@ async function generatePDF(outputPath) {
                         line-height: 1.4;
                         color: #1a1a1a;
                         background: #ffffff;
-                        font-size: 9.5pt;
+                        font-size: 10pt;
                     }
                     p { margin: 0; padding: 0; line-height: 1.3; }
 
                     /* ── Header / Hero ── */
-                    .hero-section { padding: 0 0 6px 0; margin-bottom: 0; border-bottom: 2px solid #3498db; }
+                    .hero-section { padding: 0 0 10px 0; margin-bottom: 4px; border-bottom: 2px solid #3498db; }
                     .hero-content { max-width: 100%; padding: 0; animation: none; }
                     .name { font-size: 20pt; font-weight: 700; color: #3498db; text-align: center; margin-bottom: 1px; display: block; }
                     .hero-description { font-size: 9.5pt; color: #444; text-align: center; margin-bottom: 2px; font-weight: 500; }
@@ -73,15 +73,15 @@ async function generatePDF(outputPath) {
                     .skill-tag { background: #3498db; color: #fff; padding: 1px 9px; border-radius: 10px; font-size: 7.5pt; font-weight: 500; border: none; }
 
                     /* ── Contact ── */
-                    .contact-info { padding: 2px 0; margin-bottom: 0; border-bottom: 1px solid #e0e0e0; }
+                    .contact-info { padding: 5px 0; margin-bottom: 6px; border-bottom: 1px solid #e0e0e0; text-align: center; }
                     .contact-info h2 { display: none; }
-                    .contact-item { display: flex; flex-wrap: wrap; gap: 0; align-items: center; justify-content: center; font-size: 8pt; line-height: 1.3; }
+                    .contact-item { display: flex; flex-wrap: wrap; gap: 0; align-items: center; justify-content: center; font-size: 8pt; line-height: 1.5; }
                     .contact-item a { color: #3498db; text-decoration: none; font-weight: 500; white-space: nowrap; }
                     .contact-item a::before { content: none; }
                     .contact-item a + a::before { content: " | "; color: #999; font-weight: 400; padding: 0 3px; }
 
                     /* ── Section Headers ── */
-                    h2 { font-size: 11pt; color: #3498db; margin: 6px 0 3px 0; padding-bottom: 1px; border-bottom: 1.5px solid #3498db; text-align: left; position: relative; page-break-after: avoid; }
+                    h2 { font-size: 12pt; color: #3498db; margin: 14px 0 6px 0; padding-bottom: 3px; border-bottom: 1.5px solid #3498db; text-align: left; position: relative; page-break-after: avoid; }
                     h2::after { display: none; }
                     h3 { font-size: 10pt; color: #3498db; margin: 0 0 2px 0; page-break-after: avoid; }
                     h4 { font-size: 10pt; color: #2c3e50; margin: 0 0 0 0; }
@@ -89,11 +89,11 @@ async function generatePDF(outputPath) {
                     /* ── Resume ── */
                     .resume { padding: 0; background: none; }
                     .resume-content { max-width: 100%; }
-                    .resume-section { margin-bottom: 4px; }
+                    .resume-section { margin-bottom: 8px; }
                     .resume-section h3 { font-size: 11pt; margin: 0 0 3px 0; padding-bottom: 1px; border-bottom: 1px solid #e0e0e0; }
-                    .resume-item { background: none; padding: 0 0 3px 0; margin-bottom: 4px; box-shadow: none; border-radius: 0; }
-                    .resume-item h4 { font-size: 10pt; color: #1a1a1a; font-weight: 600; line-height: 1.2; display: inline; }
-                    .resume-item .company, .resume-item .institution { font-size: 9pt; font-weight: 500; color: #555; font-style: normal; line-height: 1.2; display: inline; }
+                    .resume-item { background: none; padding: 0 0 6px 0; margin-bottom: 8px; box-shadow: none; border-radius: 0; }
+                    .resume-item h4 { font-size: 10.5pt; color: #1a1a1a; font-weight: 600; line-height: 1.2; display: inline; }
+                    .resume-item .company, .resume-item .institution { font-size: 9.5pt; font-weight: 500; color: #555; font-style: normal; line-height: 1.2; display: inline; }
                     .resume-item .company::before, .resume-item .institution::before { content: "  ·  "; color: #999; }
                     .resume-item .location { font-size: 8pt; color: #888; font-style: normal; line-height: 1.2; display: inline; white-space: pre-line; }
                     .resume-item .location::before { content: "\\A"; white-space: pre; }
@@ -101,29 +101,29 @@ async function generatePDF(outputPath) {
                     .resume-item .date::before { content: " · "; color: #ccc; }
                     .resume-item .cgpa { font-size: 8pt; color: #888; line-height: 1.2; display: inline; }
                     .resume-item .cgpa::before { content: " · "; color: #ccc; }
-                    .resume-item ul { padding-left: 14px; margin-top: 2px; }
-                    .resume-item li { font-size: 8.5pt; line-height: 1.35; margin-bottom: 2px; color: #333; }
+                    .resume-item ul { padding-left: 18px; margin-top: 3px; list-style-position: outside; }
+                    .resume-item li { font-size: 9pt; line-height: 1.45; margin-bottom: 3px; color: #333; padding-left: 2px; }
                     .resume-item li strong { color: #1a1a1a; }
 
                     /* ── Skills ── */
                     .skills { margin: 0; padding: 0; }
                     .skills h2 { margin-top: 4px; }
-                    .skills-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-                    .skill-item { background: #f0f7ff; color: #2c3e50; padding: 2px 8px; border-radius: 3px; font-size: 8pt; font-weight: 500; border: 1px solid #d0e4f5; }
+                    .skills-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+                    .skill-item { background: #f0f7ff; color: #2c3e50; padding: 3px 10px; border-radius: 3px; font-size: 8.5pt; font-weight: 500; border: 1px solid #d0e4f5; }
 
                     /* ── Projects ── */
                     .projects { padding: 0; background: none; }
                     .project-grid { display: block; }
-                    .project-item { background: none; padding: 0 0 2px 0; box-shadow: none; margin-bottom: 2px; page-break-inside: avoid; }
+                    .project-item { background: none; padding: 0 0 4px 0; box-shadow: none; margin-bottom: 6px; page-break-inside: avoid; }
                     .project-item h3 { font-size: 10pt; color: #3498db; margin: 0 0 2px 0; padding-bottom: 1px; border-bottom: 1px solid #e0e0e0; }
-                    .project-item ul { list-style: disc; padding-left: 14px; }
-                    .project-item li { font-size: 8.5pt; margin-bottom: 2px; padding: 0; background: none; border-radius: 0; color: #333; line-height: 1.35; }
+                    .project-item ul { list-style: disc; padding-left: 18px; list-style-position: outside; }
+                    .project-item li { font-size: 9pt; margin-bottom: 2px; padding-left: 2px; background: none; border-radius: 0; color: #333; line-height: 1.4; }
                     .project-item a { color: #3498db; text-decoration: none; font-weight: 600; }
                     .project-item em { color: #888; font-size: 8pt; }
 
                     /* ── Interests & Declaration ── */
-                    .interests, .declaration { margin-top: 4px; }
-                    .interests h2, .declaration h2 { font-size: 10pt; margin: 4px 0 2px 0; }
+                    .interests, .declaration { margin-top: 8px; }
+                    .interests h2, .declaration h2 { font-size: 10pt; margin: 8px 0 4px 0; }
                     .interests p, .declaration p { font-size: 8.5pt; color: #555; line-height: 1.35; }
 
                     /* ── Section Divider ── */
@@ -132,7 +132,7 @@ async function generatePDF(outputPath) {
                     /* ── Print Overrides ── */
                     .sidebar, .mobile-nav, .sidebar-nav, .sidebar-item { display: none !important; }
                     a { color: #3498db; text-decoration: none; }
-                    @page { margin: 0; }
+                    @page { size: A4; }
                 </style>
             </head>
             <body>
@@ -164,7 +164,8 @@ async function generatePDF(outputPath) {
                         <div class="skill-item">Ruby on Rails</div>
                         <div class="skill-item">Python (Learning)</div>
                         <div class="skill-item">JavaScript / TypeScript</div>
-                        <div class="skill-item">AI/ML & MCP</div>
+                        <div class="skill-item">AI/ML (Learning)</div>
+                        <div class="skill-item">MCP</div>
                         <div class="skill-item">Claude API / Anthropic SDK</div>
                         <div class="skill-item">Kafka</div>
                         <div class="skill-item">Redis Cache</div>
@@ -197,9 +198,9 @@ async function generatePDF(outputPath) {
             printBackground: true,
             margin: {
                 top: '0.5in',
-                right: '0.5in',
+                right: '0.6in',
                 bottom: '0.5in',
-                left: '0.5in'
+                left: '0.6in'
             }
         });
         console.log('PDF generated successfully');
