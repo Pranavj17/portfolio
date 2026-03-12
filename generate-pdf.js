@@ -53,7 +53,82 @@ async function generatePDF(outputPath) {
                 <meta charset="UTF-8">
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
                 <style>
-                    /* ... existing styles ... */
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Poppins', sans-serif;
+                        line-height: 1.5;
+                        color: #1a1a1a;
+                        background: #ffffff;
+                        font-size: 10pt;
+                    }
+
+                    /* ── Header / Hero ── */
+                    .hero-section { padding: 0 0 8px 0; margin-bottom: 0; border-bottom: 2px solid #3498db; }
+                    .hero-content { max-width: 100%; padding: 0; animation: none; }
+                    .name { font-size: 22pt; font-weight: 700; color: #3498db; text-align: center; margin-bottom: 2px; display: block; }
+                    .hero-description { font-size: 10pt; color: #444; text-align: center; margin-bottom: 4px; font-weight: 500; }
+                    .hero-experience { font-size: 9pt; color: #555; text-align: center; margin-bottom: 6px; padding: 6px 10px; background: #f0f7ff; border-radius: 4px; line-height: 1.4; }
+                    .hero-skills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+                    .skill-tag { background: #3498db; color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 8pt; font-weight: 500; border: none; }
+
+                    /* ── Contact ── */
+                    .contact-info { padding: 8px 0; margin-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
+                    .contact-info h2 { font-size: 13pt; color: #3498db; margin-bottom: 4px; text-align: left; border-bottom: none; }
+                    .contact-info h2::after { display: none; }
+                    .contact-item { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 9pt; }
+                    .contact-item a { color: #3498db; text-decoration: none; font-weight: 500; }
+                    .contact-item a::before { content: none; }
+                    .contact-item a + a::before { content: "  |  "; color: #ccc; font-weight: 400; }
+
+                    /* ── Section Headers ── */
+                    h2 { font-size: 13pt; color: #3498db; margin: 12px 0 6px 0; padding-bottom: 3px; border-bottom: 1.5px solid #3498db; text-align: left; position: relative; }
+                    h2::after { display: none; }
+                    h3 { font-size: 11pt; color: #3498db; margin-bottom: 4px; }
+                    h4 { font-size: 10.5pt; color: #2c3e50; margin-bottom: 2px; }
+
+                    /* ── Resume ── */
+                    .resume { padding: 0; background: none; }
+                    .resume-content { max-width: 100%; }
+                    .resume-section { margin-bottom: 8px; }
+                    .resume-section h3 { font-size: 12pt; margin-bottom: 6px; padding-bottom: 2px; border-bottom: 1px solid #e0e0e0; }
+                    .resume-item { background: none; padding: 0 0 6px 0; margin-bottom: 6px; box-shadow: none; border-radius: 0; }
+                    .resume-item h4 { font-size: 11pt; color: #1a1a1a; font-weight: 600; }
+                    .resume-item .company, .resume-item .institution { font-size: 10pt; font-weight: 500; color: #333; font-style: normal; }
+                    .resume-item .location { font-size: 9pt; color: #666; font-style: normal; }
+                    .resume-item .date { font-size: 9pt; color: #888; margin-bottom: 4px; }
+                    .resume-item .cgpa { font-size: 9pt; color: #666; }
+                    .resume-item ul { padding-left: 16px; margin-top: 4px; }
+                    .resume-item li { font-size: 9pt; line-height: 1.45; margin-bottom: 3px; color: #333; }
+                    .resume-item li strong { color: #1a1a1a; }
+
+                    /* ── Skills ── */
+                    .skills { margin-top: 4px; }
+                    .skills h2 { margin-top: 8px; }
+                    .skills-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+                    .skill-item { background: #f0f7ff; color: #2c3e50; padding: 3px 10px; border-radius: 4px; font-size: 8.5pt; font-weight: 500; border: 1px solid #d0e4f5; }
+
+                    /* ── Projects ── */
+                    .projects { padding: 0; background: none; }
+                    .project-grid { display: block; }
+                    .project-item { background: none; padding: 0 0 6px 0; box-shadow: none; margin-bottom: 6px; }
+                    .project-item h3 { font-size: 11pt; color: #3498db; margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #e0e0e0; }
+                    .project-item ul { list-style: disc; padding-left: 16px; }
+                    .project-item li { font-size: 9pt; margin-bottom: 3px; padding: 0; background: none; border-radius: 0; color: #333; }
+                    .project-item a { color: #3498db; text-decoration: none; font-weight: 600; }
+                    .project-item em { color: #888; font-size: 8.5pt; }
+
+                    /* ── Interests & Declaration ── */
+                    .interests, .declaration { margin-top: 8px; }
+                    .interests h2, .declaration h2 { font-size: 12pt; }
+                    .interests p, .declaration p { font-size: 9pt; color: #555; line-height: 1.5; }
+
+                    /* ── Section Divider ── */
+                    .section-divider { border: none; margin: 4px 0; }
+
+                    /* ── Print Overrides ── */
+                    .sidebar, .mobile-nav, .sidebar-nav, .sidebar-item { display: none !important; }
+                    a { color: #3498db; text-decoration: none; }
+                    @page { margin: 0; }
                 </style>
             </head>
             <body>
