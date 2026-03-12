@@ -71,6 +71,9 @@ async function generatePDF(outputPath) {
                         <a href="https://github.com/Pranavj17" target="_blank" class="social-link">
                             github.com/Pranavj17
                         </a>
+                        <a href="https://medium.com/@jpranav97" target="_blank" class="social-link">
+                            medium.com/@jpranav97
+                        </a>
                     </div>
                 </div>
                 ${content.resume}
@@ -80,21 +83,20 @@ async function generatePDF(outputPath) {
                     <div class="skills-grid">
                         <div class="skill-item">Elixir / Phoenix</div>
                         <div class="skill-item">Ruby on Rails</div>
+                        <div class="skill-item">Python (Learning)</div>
+                        <div class="skill-item">JavaScript / TypeScript</div>
+                        <div class="skill-item">AI/ML & MCP</div>
+                        <div class="skill-item">Claude API / Anthropic SDK</div>
                         <div class="skill-item">Kafka</div>
                         <div class="skill-item">Redis Cache</div>
-                        <div class="skill-item">Javascript</div>
                         <div class="skill-item">React</div>
-                        <div class="skill-item">Redux</div>
-                        <div class="skill-item">Grafana</div>
-                        <div class="skill-item">Microservices</div>
-                        <div class="skill-item">Umbrella Applications</div>
-                        <div class="skill-item">K9s - Kubernetes</div>
-                        <div class="skill-item">SQL</div>
                         <div class="skill-item">PostgreSQL</div>
-                        <div class="skill-item">HTML</div>
-                        <div class="skill-item">CSS</div>
-                        <div class="skill-item">Socket.io</div>
-                        <div class="skill-item">Docker</div>
+                        <div class="skill-item">Microservices / OTP</div>
+                        <div class="skill-item">Docker / Podman</div>
+                        <div class="skill-item">Kubernetes</div>
+                        <div class="skill-item">CI/CD (GitLab)</div>
+                        <div class="skill-item">Grafana / Sentry / Graylog</div>
+                        <div class="skill-item">SQL</div>
                     </div>
                 </div>
                 ${content.projects}
