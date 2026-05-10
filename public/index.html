@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css?v=20260510-6">
+    <link rel="stylesheet" href="/styles.css?v=20260510-7">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -290,7 +290,7 @@
                     <h3>AI Agent Automation Platform</h3>
                     <p class="artifact-meta">prod system · 7 channels monitored · 5+ services orchestrated</p>
                     <p>Autonomous agents that watch production errors, run multi-service RCA across <em>Sentry, Graylog, Asana, GitLab, Metabase</em>, and ship fix merge requests automatically. Containerized via Podman for workload isolation. Reduced incident triage from hours to minutes.</p>
-                    <pre class="ascii" aria-hidden="true">
+                    <pre class="ascii ascii-wide" aria-hidden="true">
    <span class="hl-amber">┌──────────────────────── error sources ────────────────────────┐</span>
         <span class="hl">sentry</span>   ──┐
         <span class="hl">graylog</span>  ──┤    <span class="hl-amber">┌─────────────────────┐</span>     <span class="hl-amber">┌───────┐</span>
@@ -303,6 +303,34 @@
                                                  ├─── fix merge request (gitlab)
                                                  ├─── slack ops alert
                                                  └─── knowledge-base entry
+                    </pre>
+                    <pre class="ascii ascii-narrow" aria-hidden="true">
+<span class="hl-amber">┌─── error sources ──┐</span>
+<span class="hl-amber">│</span> <span class="hl">sentry</span>             <span class="hl-amber">│</span>
+<span class="hl-amber">│</span> <span class="hl">graylog</span>            <span class="hl-amber">│</span>
+<span class="hl-amber">│</span> <span class="hl">asana</span>              <span class="hl-amber">│</span>
+<span class="hl-amber">│</span> <span class="hl">gitlab</span>             <span class="hl-amber">│</span>
+<span class="hl-amber">│</span> <span class="hl">metabase</span>           <span class="hl-amber">│</span>
+<span class="hl-amber">└──────────┬─────────┘</span>
+           │
+           ▼
+┌────────────────────┐
+│  <span class="hl">openclaw gateway</span>  │
+│  (podman sandbox)  │
+└──────────┬─────────┘
+           │
+           ▼
+┌────────────────────┐
+│     <span class="hl">claude api</span>     │
+└──────────┬─────────┘
+           │
+           ▼
+<span class="hl-amber">┌─── outputs ────────┐</span>
+│ <span class="hl">▸</span> triage comment   │
+│ <span class="hl">▸</span> fix merge req    │
+│ <span class="hl">▸</span> slack ops alert  │
+│ <span class="hl">▸</span> knowledge-base   │
+<span class="hl-amber">└────────────────────┘</span>
                     </pre>
                 </article>
 
@@ -456,7 +484,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260510-6" defer></script>
-    <script src="script.js?v=20260510-6" defer></script>
+    <script src="api.js?v=20260510-7" defer></script>
+    <script src="script.js?v=20260510-7" defer></script>
 </body>
 </html>

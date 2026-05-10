@@ -582,6 +582,19 @@ main {
 .ascii .hl       { color: var(--accent); font-weight: 700; }
 .ascii .hl-amber { color: var(--amber); }
 
+/* swap wide ↔ narrow at 760px breakpoint
+   wide = horizontal flow for desktop · narrow = vertical for phones
+   higher-specificity selector (.ascii.ascii-narrow) so font-size
+   beats the generic .ascii rules in later @media blocks */
+.ascii.ascii-narrow { display: none; }
+@media (max-width: 760px) {
+    .ascii.ascii-wide   { display: none; }
+    .ascii.ascii-narrow { display: block; font-size: 12px; line-height: 1.4; }
+}
+@media (max-width: 380px) {
+    .ascii.ascii-narrow { font-size: 11px; }
+}
+
 /* PROJECTS / TREE ────────────────────────────────────────── */
 .tree {
     font-family: var(--font-mono);
