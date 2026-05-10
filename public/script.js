@@ -63,6 +63,68 @@
         sections.forEach(s => obs.observe(s));
     }
 
+    /* ─────── 3.5 AUDIO subsystem (lazy WebAudio) ─────── */
+    let audioCtx = null;
+    let audioOn = localStorage.getItem('audio') === '1';
+
+    function ensureAudio() {
+        if (!audioCtx) {
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            catch (_) { audioCtx = null; }
+        }
+        return audioCtx;
+    }
+
+    function playClick() {
+        if (!audioOn) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(800, t + 0.018);
+        gain.gain.setValueAtTime(0.04, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.045);
+    }
+
+    function playBlip() {
+        if (!audioOn) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, t);
+        osc.frequency.exponentialRampToValueAtTime(900, t + 0.06);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.12);
+    }
+
+    function playBoot() {
+        if (!audioOn) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, t);
+        gain.gain.setValueAtTime(0.05, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.20);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.22);
+    }
+
     /* ─────── 4. TOAST ─────── */
     const toastEl = $('#toast');
     let toastTimer = null;
@@ -102,6 +164,7 @@
         const cur = getTheme();
         const idx = Math.max(0, THEMES.findIndex(t => t.id === cur));
         applyTheme(THEMES[(idx + 1) % THEMES.length].id, true);
+        playBlip();
     }
     applyTheme(getTheme(), false);
 
@@ -173,7 +236,12 @@
                 ['pwd',                 'current section'],
                 ['date',                'current IST'],
                 ['uptime',              'career uptime'],
+                ['now',                 'what i am working on'],
+                ['uses',                'hardware + software stack'],
+                ['man pranav',          'unix-style biography'],
+                ['finger pranav',       'unix-style profile'],
                 ['theme [name]',        'phosphor · amber · ibm · paper'],
+                ['audio [on|off]',      'click sounds toggle'],
                 ['boot',                'replay boot sequence'],
                 ['hire',                'compose hiring email'],
                 ['echo &lt;text&gt;',   'print text'],
@@ -215,6 +283,99 @@
         uptime() {
             const u = uptimeEl?.textContent || '';
             print(`career ${u} · scripbox 09/2022→present · sakha 07/2019→09/2022`);
+        },
+        now() {
+            print('currently shipping —', 'muted');
+            const pre = document.createElement('pre');
+            pre.innerHTML = `  <span class="hl">helixa</span>      RIA call intelligence pipeline
+              local-first transcription + diarization + CRM sync
+              whisperx + ollama gemma4 + zoho CRM v3
+              started 2026-05-07 · path ~/Documents/helixa/
+
+other work in flight —
+  <span class="hl">openclaw</span>     autonomous sentry triage · bash dispatch v2
+              monitoring 9 channels · ~5min wallclock per analysis
+  <span class="hl">memory MCP</span>   workflow optimization · 96.5% token cut shipped
+              next: graph layer · ChromaDB integration
+  <span class="hl">portfolio</span>    this site · brutalist terminal redesign · live
+
+last updated 2026-05-10`;
+            print(pre);
+        },
+        uses() {
+            printEcho('cat ~/.config/uses.txt');
+            const pre = document.createElement('pre');
+            pre.innerHTML = `<span class="hl-amber">~ hardware ~</span>
+  primary       MacBook · Apple M-series · macOS 26
+  server        Mac Mini M4 Pro · 12 cores · 24GB · arm64
+  fonts         IBM Plex Mono (body) · VT323 (display)
+
+<span class="hl-amber">~ os + shell ~</span>
+  os            macOS 26 (Sequoia)
+  shell         zsh + zinit
+  terminal      Alacritty (source build · native tabs)
+  multiplex     tmux
+
+<span class="hl-amber">~ editor ~</span>
+  daily         <span class="hl">Claude Code</span> v2.1.119 (subscription · native ARM64)
+  fallback      neovim · gruvbox
+
+<span class="hl-amber">~ stack ~</span>
+  primary       <span class="hl">Elixir</span> / OTP · Phoenix · Ecto
+  fluent        Ruby · JS / TS · PostgreSQL · pg_trgm
+  learning      Python · PyTorch · NumPy
+
+<span class="hl-amber">~ ai + mcp ~</span>
+  inference     <span class="hl">Ollama</span> · gemma4 · qwen2.5 14b · llama3.1 · nomic-embed
+  agents        Claude API · OpenClaw gateway · MCP servers
+  vectors       ChromaDB · Postgres pg_trgm
+
+<span class="hl-amber">~ infra ~</span>
+  ci            <span class="hl">GitLab</span> Runner (Mac Mini · shell executor)
+  isolation     Podman 5.8.0 · rootless · cap=ALL drop
+  ops           Sentry · Graylog · Metabase · Linear · Asana
+  hosting       GitHub Pages + Cloudflare Workers (this site)`;
+            print(pre);
+        },
+        finger(arg) {
+            if (arg && arg.toLowerCase() !== 'pranav') {
+                print(`finger: ${arg}: no such user`, 'error');
+                return;
+            }
+            const u = uptimeEl?.textContent?.replace('↑ ', '') || '6y';
+            const pre = document.createElement('pre');
+            pre.innerHTML = `Login: <span class="hl">pranav</span>                          Name: Pranav Jagadish
+Directory: /home/pranav                Shell: /bin/zsh
+On since 2019-07-01 (career start)     ${u}
+Mail last read: now (live shell session)
+Office: Bangalore, India · Asia/Kolkata · UTC+5:30
+Phone: +91 8123310664
+
+<span class="hl-amber">Plan:</span>
+   building scalable autonomous agents.
+   currently shipping: helixa · RIA call intelligence (whisperx + ollama).
+   shipped: mcp-server-graylog → anthropic catalog · PR #2913.
+   shipped: memory MCP server · 96.5% workflow token reduction.
+
+   reach me: jpranav97@gmail.com  ·  github.com/Pranavj17
+   blog:     medium.com/@jpranav97`;
+            print(pre);
+        },
+        audio(arg) {
+            const v = (arg || '').toLowerCase();
+            if (v === 'on') {
+                audioOn = true;
+                localStorage.setItem('audio', '1');
+                ensureAudio();
+                playBlip();
+                print('audio: <span class="hl">on</span>  ·  mechanical click on every keystroke', 'ok');
+            } else if (v === 'off') {
+                audioOn = false;
+                localStorage.setItem('audio', '0');
+                print('audio: <span class="hl-amber">off</span>  ·  silent', 'muted');
+            } else {
+                print(`audio: ${audioOn ? '<span class="hl">on</span>' : '<span class="hl-amber">off</span>'}  ·  pass 'on' or 'off' to toggle`, 'muted');
+            }
         },
         theme(arg) {
             if (!arg) { print(`theme: ${getTheme()} · pass one of: ${THEMES.map(t=>t.id).join(', ')}`, 'muted'); return; }
@@ -291,6 +452,64 @@ ${bot}
         },
         man(cmd) {
             if (!cmd) { print('what manual page do you want?', 'muted'); return; }
+            if (cmd.toLowerCase() === 'pranav') {
+                const pre = document.createElement('pre');
+                pre.innerHTML = `PRANAV(1)                  general user commands                  PRANAV(1)
+
+<span class="hl">NAME</span>
+       pranav — senior software engineer · scalable autonomous agents
+
+<span class="hl">SYNOPSIS</span>
+       pranav [--available] [--remote] [--bangalore] [--mcp]
+
+<span class="hl">DESCRIPTION</span>
+       Pranav Jagadish is a senior software engineer with 6+ years
+       across the stack. Currently building autonomous AI agents that
+       perform multi-service root cause analysis on production
+       incidents — orchestrating Sentry, Graylog, Asana, GitLab, and
+       Metabase via the OpenClaw gateway, with Claude as the reasoning
+       layer and Podman sandboxing for workload isolation.
+
+       Specializes in Elixir, distributed systems, and the Model
+       Context Protocol ecosystem. Official contributor to Anthropic's
+       MCP catalog (mcp-server-graylog · PR #2913).
+
+<span class="hl">OPTIONS</span>
+       <span class="hl-amber">--available</span>
+              For senior software engineering roles, AI agent system
+              design, MCP server work, or distributed systems
+              consulting.
+
+       <span class="hl-amber">--remote</span>
+              Open to remote engagements. Based in Bangalore, India
+              (Asia/Kolkata · UTC+5:30 · IST).
+
+       <span class="hl-amber">--mcp</span>
+              Specifically interested in MCP server design, AI agent
+              orchestration, autonomous fix pipelines, and on-prem LLM
+              deployment for regulated industries.
+
+<span class="hl">EXAMPLES</span>
+       <span class="cmd">now</span>            current technical focus
+       <span class="cmd">uses</span>           full hardware + software stack
+       <span class="cmd">finger pranav</span>  unix-style profile
+       <span class="cmd">cat work</span>       career.log summary
+       <span class="cmd">hire</span>           compose hiring email
+
+<span class="hl">AUTHOR</span>
+       Written by Pranav Jagadish &lt;jpranav97@gmail.com&gt;.
+
+<span class="hl">SEE ALSO</span>
+       finger(1), now(1), uses(1), whoami(1), hire(1)
+
+       https://pranavjagadish.com
+       https://github.com/Pranavj17
+       https://linkedin.com/in/pranav-jagadish-9392137a
+
+PRANAV(1)                       2026-05-10                       PRANAV(1)`;
+                print(pre);
+                return;
+            }
             const fn = COMMANDS[cmd.toLowerCase()];
             if (!fn) { print(`no manual entry for ${cmd}`, 'error'); return; }
             print(`man ${cmd} — try just running it. this isn't that kind of unix.`, 'muted');
@@ -329,6 +548,7 @@ ${bot}
     });
     consoleClose?.addEventListener('click', consoleClose_);
     consoleInp?.addEventListener('keydown', e => {
+        if (audioOn) playClick();
         if (e.key === 'ArrowUp') {
             if (histIdx === history.length) draft = consoleInp.value;
             histIdx = Math.max(0, histIdx - 1);
@@ -419,6 +639,7 @@ ${bot}
         bootEl.classList.remove('fade-out');
         bootLines.innerHTML = '';
         document.documentElement.style.overflow = 'hidden';
+        playBoot();
         BOOT_LINES.forEach((row, i) => {
             const li = document.createElement('li');
             li.className = 'boot-line';
