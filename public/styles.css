@@ -302,41 +302,57 @@ main {
     border: 1px solid var(--border-bright);
     background: var(--bg-1);
     scroll-margin-top: calc(var(--statusbar-h) + var(--tabs-h) + 12px);
-    /* hidden until body.intro-done is set — gives boot → matrix → page
-       a proper crossfade instead of a hard cut. transitions over
-       animations so they only fire when the class is added, not on
-       initial page load (which would burn through the animation
-       behind the boot screen). */
+    /* hidden until body.intro-done is set — bigger, longer reveal
+       so the transition feels intentional, not subtle. */
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(36px) scale(0.96);
+    /* using a slightly springy cubic-bezier so panels overshoot
+       fractionally before settling — more "TV tube power-on" feel */
     transition:
-        opacity .55s cubic-bezier(.2,.7,.2,1),
-        transform .55s cubic-bezier(.2,.7,.2,1);
+        opacity .9s cubic-bezier(.16,.84,.32,1.05),
+        transform .9s cubic-bezier(.16,.84,.32,1.05),
+        box-shadow .9s ease-out;
+    box-shadow: 0 0 0 0 transparent;
 }
 body.intro-done .panel {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    /* brief accent glow that fades as the panel settles */
+    animation: panel-flash 1.1s ease-out both;
 }
-body.intro-done .panel:nth-of-type(1) { transition-delay: .04s; }
-body.intro-done .panel:nth-of-type(2) { transition-delay: .12s; }
-body.intro-done .panel:nth-of-type(3) { transition-delay: .20s; }
-body.intro-done .panel:nth-of-type(4) { transition-delay: .28s; }
-body.intro-done .panel:nth-of-type(5) { transition-delay: .36s; }
-body.intro-done .panel:nth-of-type(6) { transition-delay: .44s; }
+@keyframes panel-flash {
+    0%   { box-shadow: 0 0 0 0 var(--accent-soft), 0 0 24px 0 var(--accent-soft); }
+    40%  { box-shadow: 0 -1px 0 0 var(--accent), 0 0 18px 0 var(--accent-soft); }
+    100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+body.intro-done .panel:nth-of-type(1) { transition-delay: .00s; animation-delay: .00s; }
+body.intro-done .panel:nth-of-type(2) { transition-delay: .12s; animation-delay: .12s; }
+body.intro-done .panel:nth-of-type(3) { transition-delay: .24s; animation-delay: .24s; }
+body.intro-done .panel:nth-of-type(4) { transition-delay: .36s; animation-delay: .36s; }
+body.intro-done .panel:nth-of-type(5) { transition-delay: .48s; animation-delay: .48s; }
+body.intro-done .panel:nth-of-type(6) { transition-delay: .60s; animation-delay: .60s; }
 
-/* chrome (status bar · tabs · keybar) crossfades in too — same
-   intro-done gate so the whole page reveals as one orchestrated motion */
+/* chrome — slight slide + opacity, slightly different from panels
+   so they read as a different layer (UI chrome, not content) */
 .statusbar,
-.tabs,
+.tabs {
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: opacity .55s ease-out, transform .55s cubic-bezier(.2,.7,.2,1);
+}
 .keybar {
     opacity: 0;
-    transition: opacity .45s ease-out;
+    transform: translateY(100%);
+    transition: opacity .55s ease-out, transform .55s cubic-bezier(.2,.7,.2,1);
 }
 body.intro-done .statusbar,
 body.intro-done .tabs,
 body.intro-done .keybar {
     opacity: 1;
+    transform: translateY(0);
 }
+body.intro-done .tabs   { transition-delay: .08s; }
+body.intro-done .keybar { transition-delay: .12s; }
 .panel-head {
     display: flex;
     align-items: center;
@@ -971,16 +987,27 @@ kbd {
     .keybar { gap: 6px; }
 }
 
-/* MOTION RESPECT */
+/* MOTION RESPECT — keep panels gated by intro-done but use opacity-only
+   reveal (no transform), shorter duration, no box-shadow flash */
 @media (prefers-reduced-motion: reduce) {
     .panel {
-        opacity: 1;
         transform: none;
-        transition: none;
+        transition: opacity .35s ease-out;
+        animation: none;
+        box-shadow: none;
+    }
+    body.intro-done .panel {
+        transform: none;
+        animation: none;
     }
     .statusbar, .tabs, .keybar {
-        opacity: 1;
-        transition: none;
+        transform: none;
+        transition: opacity .35s ease-out;
+    }
+    body.intro-done .statusbar,
+    body.intro-done .tabs,
+    body.intro-done .keybar {
+        transform: none;
     }
     .cursor { animation: none; }
     .bar::after { animation: none; }
