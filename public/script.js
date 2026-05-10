@@ -787,7 +787,7 @@ Phone: +91 8123310664
         demo() {
             print('opening live demo of <span class="hl">Echo</span> · AI agent automation platform...', 'ok');
             print('  → <a href="https://pranavj17.github.io/echo-demo-v2/" target="_blank" rel="noopener">https://pranavj17.github.io/echo-demo-v2/</a>', 'muted');
-            print('  → <a href="https://drive.google.com/file/d/1luekhTV4Y0NmPsa-QF6ve6MZ00Fa9OrL/view?usp=drive_link" target="_blank" rel="noopener">2-minute video walkthrough</a>', 'muted');
+            print('  → <a href="/assets/videos/echo-demo.mp4" target="_blank" rel="noopener">2-minute video walkthrough</a>', 'muted');
             try { window.open('https://pranavj17.github.io/echo-demo-v2/', '_blank', 'noopener'); } catch (_) {}
         },
         echo(...args) { print(args.join(' ') || ''); },
