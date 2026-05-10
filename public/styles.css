@@ -3,7 +3,13 @@
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* "clip" prevents horizontal overflow without establishing a
+       scroll container — sticky descendants keep working on iOS. */
+    overflow-x: clip;
+}
 img { max-width: 100%; display: block; }
 
 :root {
@@ -41,14 +47,18 @@ html, body {
     line-height: 1.6;
 }
 body {
+    /* dvh handles iOS dynamic address bar; vh fallback for old browsers */
     min-height: 100vh;
-    overflow-x: hidden;
+    min-height: 100dvh;
     /* keybar height + iOS safe area */
     padding-bottom: calc(var(--keybar-h) + env(safe-area-inset-bottom, 0px));
 }
 ::selection { background: var(--selection); color: var(--fg-bright); }
 
-/* SCANLINES & GRAIN — atmospheric overlays */
+/* SCANLINES & GRAIN — atmospheric overlays.
+   Suppressed on touch / coarse-pointer devices: the mix-blend-mode
+   overlay forces a full repaint on every scroll frame on mobile
+   GPUs, which makes scrolling feel sluggish. */
 body::before {
     content: '';
     position: fixed; inset: 0;
@@ -62,6 +72,7 @@ body::before {
     pointer-events: none;
     z-index: 1000;
     mix-blend-mode: overlay;
+    will-change: transform;
 }
 body::after {
     content: '';
@@ -71,9 +82,14 @@ body::after {
     z-index: 999;
     opacity: 0.55;
     mix-blend-mode: overlay;
+    will-change: transform;
 }
 @media (prefers-reduced-motion: reduce) {
     body::before, body::after { opacity: 0.25; }
+}
+/* Touch devices: kill the heavy overlays for smooth scrolling */
+@media (hover: none) and (pointer: coarse) {
+    body::before, body::after { display: none; }
 }
 
 .skip {
@@ -96,6 +112,9 @@ body::after {
     border-bottom: 1px solid var(--border);
     font-size: 12px;
     letter-spacing: 0.02em;
+    /* compositor hint — stops sticky bar tearing on iOS Safari */
+    transform: translateZ(0);
+    will-change: transform;
 }
 .statusbar-cell {
     display: flex; align-items: center;
@@ -129,6 +148,8 @@ body::after {
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
     scrollbar-width: none;
+    transform: translateZ(0);
+    will-change: transform;
 }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
@@ -579,6 +600,10 @@ kbd {
     color: var(--dim);
     overflow-x: auto;
     scrollbar-width: none;
+    /* keep keybar on its own compositor layer so iOS doesn't repaint
+       it on every scroll frame */
+    transform: translateZ(0);
+    will-change: transform;
 }
 .keybar::-webkit-scrollbar { display: none; }
 .kb { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

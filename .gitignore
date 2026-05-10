@@ -50,6 +50,9 @@ Thumbs.db
 *.bak
 *.bak.*
 
+# Puppeteer test output
+mobile-test-screens/
+
 # Output of 'npm pack'
 *.tgz
 
