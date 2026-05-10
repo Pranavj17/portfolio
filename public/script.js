@@ -9,6 +9,21 @@
     const $  = (sel, root = document) => root.querySelector(sel);
     const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+    /* intro state — body.intro-done triggers the page-reveal transitions.
+       on return visits (bootSeen set) we add it immediately so panels
+       stagger in normally. on first visit we leave it off until the
+       matrix begins fading out, so panels crossfade in as matrix fades. */
+    const FIRST_VISIT = !sessionStorage.getItem('bootSeen');
+    if (!FIRST_VISIT) {
+        // double-rAF so the initial hidden state paints once before transition
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.body.classList.add('intro-done');
+            });
+        });
+    }
+    const markIntroDone = () => document.body.classList.add('intro-done');
+
     /* ─────── 1. STATUS BAR · live clock + career uptime ─────── */
     const clockEl  = $('#clock');
     const uptimeEl = $('#uptime');
@@ -1040,6 +1055,8 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         bootEl.classList.remove('fade-out');
         bootLines.innerHTML = '';
         document.documentElement.style.overflow = 'hidden';
+        // re-hide page contents so they can crossfade in again at the end
+        document.body.classList.remove('intro-done');
         playBoot();
         BOOT_LINES.forEach((row, i) => {
             const li = document.createElement('li');
@@ -1060,6 +1077,9 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             sessionStorage.setItem('bootSeen', '1');
             window.removeEventListener('keydown', skipBoot, true);
             window.removeEventListener('pointerdown', skipBoot, true);
+            // reveal page — panels + chrome transition from hidden to visible
+            // (CSS-driven, runs in parallel with whatever fade is active)
+            markIntroDone();
         };
 
         const snapHideBoot = () => {
@@ -1095,7 +1115,9 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
 
         // chain: boot lines → start matrix BEHIND boot (z=8000 < z=9999)
         // → wait for matrix CSS fade-in to complete → snap-hide boot
-        // → matrix visible for matrixDuration → matrix auto-fades → page
+        // → matrix visible for matrixDuration
+        // → call cleanup() at matrix-fade-out START so panels + chrome
+        //   crossfade in WHILE matrix fades out (instead of hard-cut after)
         setTimeout(() => {
             if (skipped) return;
             startMatrix(matrixDuration + matrixFadeIn);  // total visible time
@@ -1106,8 +1128,8 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             }, matrixFadeIn);
             setTimeout(() => {
                 if (skipped) return;
-                cleanup();
-            }, matrixFadeIn + matrixDuration + matrixFadeOut);
+                cleanup();   // adds intro-done · panels stagger in during matrix fade-out
+            }, matrixFadeIn + matrixDuration);
         }, linesDoneAt);
     }
     runBoot();

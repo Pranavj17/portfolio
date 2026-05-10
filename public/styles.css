@@ -302,17 +302,40 @@ main {
     border: 1px solid var(--border-bright);
     background: var(--bg-1);
     scroll-margin-top: calc(var(--statusbar-h) + var(--tabs-h) + 12px);
-    animation: panel-in .55s cubic-bezier(.2,.7,.2,1) both;
+    /* hidden until body.intro-done is set — gives boot → matrix → page
+       a proper crossfade instead of a hard cut. transitions over
+       animations so they only fire when the class is added, not on
+       initial page load (which would burn through the animation
+       behind the boot screen). */
+    opacity: 0;
+    transform: translateY(10px);
+    transition:
+        opacity .55s cubic-bezier(.2,.7,.2,1),
+        transform .55s cubic-bezier(.2,.7,.2,1);
 }
-.panel:nth-of-type(1) { animation-delay: .04s; }
-.panel:nth-of-type(2) { animation-delay: .12s; }
-.panel:nth-of-type(3) { animation-delay: .20s; }
-.panel:nth-of-type(4) { animation-delay: .28s; }
-.panel:nth-of-type(5) { animation-delay: .36s; }
-.panel:nth-of-type(6) { animation-delay: .44s; }
-@keyframes panel-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: none; }
+body.intro-done .panel {
+    opacity: 1;
+    transform: translateY(0);
+}
+body.intro-done .panel:nth-of-type(1) { transition-delay: .04s; }
+body.intro-done .panel:nth-of-type(2) { transition-delay: .12s; }
+body.intro-done .panel:nth-of-type(3) { transition-delay: .20s; }
+body.intro-done .panel:nth-of-type(4) { transition-delay: .28s; }
+body.intro-done .panel:nth-of-type(5) { transition-delay: .36s; }
+body.intro-done .panel:nth-of-type(6) { transition-delay: .44s; }
+
+/* chrome (status bar · tabs · keybar) crossfades in too — same
+   intro-done gate so the whole page reveals as one orchestrated motion */
+.statusbar,
+.tabs,
+.keybar {
+    opacity: 0;
+    transition: opacity .45s ease-out;
+}
+body.intro-done .statusbar,
+body.intro-done .tabs,
+body.intro-done .keybar {
+    opacity: 1;
 }
 .panel-head {
     display: flex;
@@ -950,7 +973,15 @@ kbd {
 
 /* MOTION RESPECT */
 @media (prefers-reduced-motion: reduce) {
-    .panel { animation: none; }
+    .panel {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+    .statusbar, .tabs, .keybar {
+        opacity: 1;
+        transition: none;
+    }
     .cursor { animation: none; }
     .bar::after { animation: none; }
     html { scroll-behavior: auto; }
