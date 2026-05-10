@@ -220,7 +220,10 @@
         print(`<span class="prompt">pranavjagadish</span>:<span class="path">~</span>$ <span class="cmd">${safe}</span>`, 'echo');
     }
 
-    /* ── MCP simulated responses ── */
+    /* ── MCP simulated responses ──
+       intent-matched canned responses styled like real
+       mcp-server-graylog output. ordered specific → general so
+       e.g. "what errors" hits the error matcher, not the meta. */
     function mcpResponse(q, original) {
         if (q === 'help' || q === '?' || q === '-h' || q === '--help') {
             return [
@@ -233,9 +236,99 @@
                 '  <span class="cmd">mcp count</span>           log volume over time',
                 '  <span class="cmd">mcp traces &lt;name&gt;</span>   stack traces for a pattern',
                 '',
+                'meta —',
+                '  <span class="cmd">mcp what is this</span>    about mcp-server-graylog',
+                '  <span class="cmd">mcp how does it work</span> architecture',
+                '  <span class="cmd">mcp who are you</span>     server identity',
+                '',
                 '<span class="muted">accepts natural-language queries · translates to lucene</span>'
             ];
         }
+
+        // greetings
+        if (/^(hi|hello|hey|yo|sup|hola|namaste|namaskara)\b/.test(q)) {
+            return [
+                'hello. mcp-server-graylog speaking.',
+                '',
+                "i'm a Model Context Protocol server that lets AI agents",
+                'query production logs in natural language. ask me about',
+                'errors, latency, slow queries, or log volume.',
+                '',
+                '<span class="muted">try: mcp errors · mcp latency · mcp slow · mcp count</span>'
+            ];
+        }
+
+        // identity — "who are you", "your name", "tell me about you"
+        if (/\b(who are you|your name|introduce yourself|tell me about (you|yourself|this)|about you)\b/.test(q)) {
+            return [
+                'i am <span class="hl">mcp-server-graylog</span> · written by pranav jagadish.',
+                '',
+                "accepted into anthropic's official MCP servers catalog on",
+                '2025-10-18 (PR #2913). lets AI agents like Claude query',
+                'and analyze graylog production logs through natural language.',
+                '',
+                '<span class="muted">source: github.com/Pranavj17/mcp-server-graylog</span>'
+            ];
+        }
+
+        // ping/test
+        if (/^(test|ping|echo|status|health)\b/.test(q)) {
+            return [
+                'pong · mcp-server-graylog reachable',
+                'protocol version: 2024-11-05',
+                'tools: search_logs, get_streams, count_messages, get_message',
+                '<span class="muted">simulated · real server runs on stdio JSON-RPC</span>'
+            ];
+        }
+
+        // thanks
+        if (/^(thanks|thank you|thx|ty|cheers|nice|cool|awesome)\b/.test(q)) {
+            return [
+                "you're welcome. drop a star ↗",
+                '<span class="muted">github.com/Pranavj17/mcp-server-graylog</span>'
+            ];
+        }
+
+        // architecture / how does it work / tech / stack
+        if (/\b(how (does|do|is|it|this)|architecture|tech stack|built|made|stack|how it works|how this works)\b/.test(q)) {
+            return [
+                '<span class="hl-amber">architecture —</span>',
+                '',
+                '  ai agent  ←→  MCP protocol (stdio · JSON-RPC 2.0)',
+                '       ↕',
+                '  <span class="hl">mcp-server-graylog</span>  ←→  graylog REST API',
+                '       ↕',
+                '  graylog cluster  ←→  elasticsearch / opensearch',
+                '',
+                'the server exposes tools (search_logs, get_streams,',
+                'count_messages, get_message) with typed parameters. the AI',
+                'picks the right tool based on the natural-language query',
+                'and Claude reasons over structured results.',
+                '',
+                '<span class="muted">written in TypeScript · ~600 LOC · MIT license</span>'
+            ];
+        }
+
+        // meta — "what is this", "what does this do", "what can you do"
+        if (/\b(what (is|are|does|do|can|this)|what.{0,12}(do|this|server|mcp))\b/.test(q)) {
+            return [
+                '<span class="hl">mcp-server-graylog</span> · official anthropic catalog',
+                '',
+                "i'm an MCP (Model Context Protocol) server that connects",
+                'AI agents to graylog log aggregation. instead of writing',
+                'lucene queries by hand during incidents, you ask in english:',
+                '',
+                '  <span class="muted">"any errors in billing-service since 14:00?"</span>',
+                '  <span class="muted">"what was p99 on /api/orders last hour?"</span>',
+                '',
+                'the server translates → queries graylog → returns structured',
+                'results the AI reasons over. accepted into anthropic\'s',
+                'official catalog on 2025-10-18 (PR #2913).',
+                '',
+                '<span class="muted">try: mcp errors · mcp latency · mcp slow · mcp count</span>'
+            ];
+        }
+
         if (q.includes('error')) {
             return [
                 '<span class="hl-amber">found 3 error patterns · last 24h</span>',
@@ -317,14 +410,26 @@
                 '<span class="muted">all 47 occurrences share the same trace · checkout starvation</span>'
             ];
         }
+        // friendly catch-all — informative, not dismissive
         return [
-            `<span class="warn">no canned response for: "${escapeHtml(original)}"</span>`,
+            `<span class="muted">i don't have a canned response for: "${escapeHtml(original)}"</span>`,
             '',
-            'this is a simulated demo of mcp-server-graylog.',
-            'the real server accepts natural-language queries against any',
-            'graylog instance. see github.com/Pranavj17/mcp-server-graylog',
+            "this is a <em>simulated</em> demo. the real mcp-server-graylog",
+            'accepts any natural-language query against any graylog instance.',
             '',
-            '<span class="muted">try: mcp errors · mcp latency · mcp slow · mcp count · mcp traces</span>'
+            'in this demo, i can answer about —',
+            '  <span class="hl">mcp errors</span>     current error patterns',
+            '  <span class="hl">mcp latency</span>    P99 latencies',
+            '  <span class="hl">mcp slow</span>       top slow queries',
+            '  <span class="hl">mcp count</span>      log volume over time',
+            '  <span class="hl">mcp traces</span>     stack traces',
+            '',
+            'or ask me directly —',
+            '  <span class="hl">mcp what is this</span>      about the server',
+            '  <span class="hl">mcp how does it work</span>  architecture',
+            '  <span class="hl">mcp who are you</span>       identity',
+            '',
+            '<span class="muted">real server: github.com/Pranavj17/mcp-server-graylog</span>'
         ];
     }
 
