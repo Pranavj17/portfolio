@@ -667,6 +667,76 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
     }
     runBoot();
 
+    /* ─────── 8.5 LIVE github feed → /var/log/career.log ─────── */
+    async function loadGitHubFeed() {
+        const log = $('#work .log');
+        if (!log) return;
+
+        const KEY = 'gh-events';
+        const KEY_AT = 'gh-events-at';
+        const TTL = 10 * 60_000; // 10 min
+
+        let events;
+        try {
+            const cached = sessionStorage.getItem(KEY);
+            const cachedAt = parseInt(sessionStorage.getItem(KEY_AT) || '0', 10);
+            if (cached && (Date.now() - cachedAt) < TTL) {
+                events = JSON.parse(cached);
+            } else {
+                const res = await fetch('https://api.github.com/users/Pranavj17/events/public?per_page=30', {
+                    headers: { 'Accept': 'application/vnd.github+json' }
+                });
+                if (!res.ok) return; // rate-limited or offline → skip silently
+                events = await res.json();
+                try {
+                    sessionStorage.setItem(KEY, JSON.stringify(events));
+                    sessionStorage.setItem(KEY_AT, String(Date.now()));
+                } catch (_) {}
+            }
+        } catch (_) { return; }
+
+        if (!Array.isArray(events) || !events.length) return;
+
+        const pushEvents = events
+            .filter(e => e.type === 'PushEvent' && e.payload && e.payload.commits)
+            .slice(0, 5);
+        if (!pushEvents.length) return;
+
+        const escape = s => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        pushEvents.forEach(e => {
+            const ts = new Date(e.created_at).toISOString().slice(0, 10);
+            const repo = (e.repo?.name || '').split('/').pop() || 'repo';
+            const commit = e.payload.commits[e.payload.commits.length - 1]; // most recent
+            const msgRaw = (commit?.message || 'pushed commits').split('\n')[0];
+            const msg = escape(msgRaw.length > 88 ? msgRaw.slice(0, 85) + '…' : msgRaw);
+            const li = document.createElement('li');
+            li.className = 'log-row';
+            li.innerHTML =
+                `<span class="log-ts">${ts}</span>` +
+                `<span class="log-sev live">LIVE</span>` +
+                `<span class="log-msg">▸ <em>${escape(repo)}</em> · ${msg}</span>`;
+            log.appendChild(li);
+        });
+
+        // update meta count
+        const meta = $('#work .panel-meta');
+        if (meta) {
+            const n = log.children.length;
+            meta.textContent = `tail -f · ${n} entries · oldest first · live feed`;
+        }
+    }
+
+    // kick off after first paint so it doesn't compete with critical render
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadGitHubFeed, { timeout: 2000 });
+    } else {
+        setTimeout(loadGitHubFeed, 800);
+    }
+
     /* ─────── 9. GLOBAL keyboard nav ─────── */
     const help = $('#help');
     const numToId = { '0': 'home', '1': 'work', '2': 'skills', '3': 'artifacts', '4': 'projects', '5': 'contact' };
