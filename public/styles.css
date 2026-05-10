@@ -568,31 +568,33 @@ main {
     background: var(--accent);
 }
 
-.ascii {
-    font-family: var(--font-mono);
-    color: var(--fg);
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre;
-    overflow-x: auto;
-    padding: 18px 0 4px;
-    margin: 8px 0 4px;
+/* Inline SVG architecture diagram for the AI Agent Automation card.
+   Replaced the previous ASCII art (which fought monospace kerning on
+   iOS Safari — box-drawing glyphs render at variable widths there).
+   SVG inherits theme colors from CSS custom props on the root, so it
+   adapts to phosphor / amber / ibm / paper without per-theme rules. */
+.diagram {
+    display: block;
+    margin: 18px auto 4px;
+    padding-top: 18px;
+    max-width: 380px;
+    width: 100%;
+    height: auto;
     border-top: 1px dashed var(--muted);
+    font-family: var(--font-mono);
 }
-.ascii .hl       { color: var(--accent); font-weight: 700; }
-.ascii .hl-amber { color: var(--amber); }
-
-/* swap wide ↔ narrow at 760px breakpoint
-   wide = horizontal flow for desktop · narrow = vertical for phones
-   higher-specificity selector (.ascii.ascii-narrow) so font-size
-   beats the generic .ascii rules in later @media blocks */
-.ascii.ascii-narrow { display: none; }
-@media (max-width: 760px) {
-    .ascii.ascii-wide   { display: none; }
-    .ascii.ascii-narrow { display: block; font-size: 12px; line-height: 1.4; }
-}
+.diagram text        { font-family: var(--font-mono); font-size: 13px; }
+.diagram .box        { stroke: var(--border-bright); }
+.diagram .box-amber  { stroke: var(--amber); }
+.diagram .hr-amber   { stroke: var(--amber); }
+.diagram .arrow      { stroke: var(--fg); }
+.diagram .arrow-fill { fill: var(--fg); }
+.diagram .t-fg       { fill: var(--fg); }
+.diagram .t-accent   { fill: var(--accent); }
+.diagram .t-amber    { fill: var(--amber); }
+.diagram .t-bold     { font-weight: 600; }
 @media (max-width: 380px) {
-    .ascii.ascii-narrow { font-size: 11px; }
+    .diagram text { font-size: 12px; }
 }
 
 /* PROJECTS / TREE ────────────────────────────────────────── */

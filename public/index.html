@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css?v=20260510-7">
+    <link rel="stylesheet" href="/styles.css?v=20260510-8">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -290,48 +290,58 @@
                     <h3>AI Agent Automation Platform</h3>
                     <p class="artifact-meta">prod system · 7 channels monitored · 5+ services orchestrated</p>
                     <p>Autonomous agents that watch production errors, run multi-service RCA across <em>Sentry, Graylog, Asana, GitLab, Metabase</em>, and ship fix merge requests automatically. Containerized via Podman for workload isolation. Reduced incident triage from hours to minutes.</p>
-                    <pre class="ascii ascii-wide" aria-hidden="true">
-   <span class="hl-amber">┌──────────────────────── error sources ────────────────────────┐</span>
-        <span class="hl">sentry</span>   ──┐
-        <span class="hl">graylog</span>  ──┤    <span class="hl-amber">┌─────────────────────┐</span>     <span class="hl-amber">┌───────┐</span>
-         <span class="hl">asana</span>   ──┼──▶ │  openclaw gateway   ├──▶  │ claude├──┐
-        <span class="hl">gitlab</span>   ──┤    │  (podman sandbox)   │     │  api  │  │
-       <span class="hl">metabase</span>  ──┘    <span class="hl-amber">└──────────┬──────────┘</span>     <span class="hl-amber">└───────┘</span>  │
-                              │                                │
-                              ▼                                ▼
-                       health · slack            ┌─── triage comment (asana)
-                                                 ├─── fix merge request (gitlab)
-                                                 ├─── slack ops alert
-                                                 └─── knowledge-base entry
-                    </pre>
-                    <pre class="ascii ascii-narrow" aria-hidden="true">
-<span class="hl-amber">┌─── error sources ──┐</span>
-<span class="hl-amber">│</span> <span class="hl">sentry</span>             <span class="hl-amber">│</span>
-<span class="hl-amber">│</span> <span class="hl">graylog</span>            <span class="hl-amber">│</span>
-<span class="hl-amber">│</span> <span class="hl">asana</span>              <span class="hl-amber">│</span>
-<span class="hl-amber">│</span> <span class="hl">gitlab</span>             <span class="hl-amber">│</span>
-<span class="hl-amber">│</span> <span class="hl">metabase</span>           <span class="hl-amber">│</span>
-<span class="hl-amber">└──────────┬─────────┘</span>
-           │
-           ▼
-┌────────────────────┐
-│  <span class="hl">openclaw gateway</span>  │
-│  (podman sandbox)  │
-└──────────┬─────────┘
-           │
-           ▼
-┌────────────────────┐
-│     <span class="hl">claude api</span>     │
-└──────────┬─────────┘
-           │
-           ▼
-<span class="hl-amber">┌─── outputs ────────┐</span>
-│ <span class="hl">▸</span> triage comment   │
-│ <span class="hl">▸</span> fix merge req    │
-│ <span class="hl">▸</span> slack ops alert  │
-│ <span class="hl">▸</span> knowledge-base   │
-<span class="hl-amber">└────────────────────┘</span>
-                    </pre>
+                    <svg class="diagram" role="img" aria-labelledby="diag-title diag-desc" viewBox="0 0 320 478" xmlns="http://www.w3.org/2000/svg">
+                        <title id="diag-title">AI Agent Automation Pipeline</title>
+                        <desc id="diag-desc">Five error sources — Sentry, Graylog, Asana, GitLab, Metabase — funnel into the openclaw gateway running in a podman sandbox, which calls the Claude API, producing four outputs: a triage comment in Asana, a fix merge request in GitLab, a Slack ops alert, and a knowledge-base entry.</desc>
+
+                        <!-- BOX 1 · error sources -->
+                        <g>
+                            <rect x="2" y="2" width="316" height="146" fill="none" class="box-amber" stroke-width="1.5"/>
+                            <text x="160" y="22" text-anchor="middle" class="t-amber t-bold">error sources</text>
+                            <line x1="14" y1="32" x2="306" y2="32" class="hr-amber" stroke-dasharray="3 4"/>
+                            <text x="24" y="58"  class="t-accent t-bold">sentry</text>
+                            <text x="24" y="78"  class="t-accent t-bold">graylog</text>
+                            <text x="24" y="98"  class="t-accent t-bold">asana</text>
+                            <text x="24" y="118" class="t-accent t-bold">gitlab</text>
+                            <text x="24" y="138" class="t-accent t-bold">metabase</text>
+                        </g>
+
+                        <!-- arrow 1 -->
+                        <line x1="160" y1="148" x2="160" y2="174" class="arrow" stroke-width="1.5"/>
+                        <polygon points="160,180 154,170 166,170" class="arrow-fill"/>
+
+                        <!-- BOX 2 · openclaw gateway -->
+                        <g>
+                            <rect x="2" y="184" width="316" height="58" fill="none" class="box" stroke-width="1.5"/>
+                            <text x="160" y="210" text-anchor="middle" class="t-accent t-bold">openclaw gateway</text>
+                            <text x="160" y="228" text-anchor="middle" class="t-fg">(podman sandbox)</text>
+                        </g>
+
+                        <!-- arrow 2 -->
+                        <line x1="160" y1="242" x2="160" y2="268" class="arrow" stroke-width="1.5"/>
+                        <polygon points="160,274 154,264 166,264" class="arrow-fill"/>
+
+                        <!-- BOX 3 · claude api -->
+                        <g>
+                            <rect x="2" y="278" width="316" height="40" fill="none" class="box" stroke-width="1.5"/>
+                            <text x="160" y="304" text-anchor="middle" class="t-accent t-bold">claude api</text>
+                        </g>
+
+                        <!-- arrow 3 -->
+                        <line x1="160" y1="318" x2="160" y2="344" class="arrow" stroke-width="1.5"/>
+                        <polygon points="160,350 154,340 166,340" class="arrow-fill"/>
+
+                        <!-- BOX 4 · outputs -->
+                        <g>
+                            <rect x="2" y="354" width="316" height="122" fill="none" class="box-amber" stroke-width="1.5"/>
+                            <text x="160" y="374" text-anchor="middle" class="t-amber t-bold">outputs</text>
+                            <line x1="14" y1="384" x2="306" y2="384" class="hr-amber" stroke-dasharray="3 4"/>
+                            <text x="20" y="406" class="t-fg"><tspan class="t-accent t-bold">▸ </tspan>triage comment</text>
+                            <text x="20" y="424" class="t-fg"><tspan class="t-accent t-bold">▸ </tspan>fix merge req</text>
+                            <text x="20" y="442" class="t-fg"><tspan class="t-accent t-bold">▸ </tspan>slack ops alert</text>
+                            <text x="20" y="460" class="t-fg"><tspan class="t-accent t-bold">▸ </tspan>knowledge-base entry</text>
+                        </g>
+                    </svg>
                 </article>
 
                 <article class="artifact">
@@ -484,7 +494,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260510-7" defer></script>
-    <script src="script.js?v=20260510-7" defer></script>
+    <script src="api.js?v=20260510-8" defer></script>
+    <script src="script.js?v=20260510-8" defer></script>
 </body>
 </html>
