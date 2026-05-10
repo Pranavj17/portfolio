@@ -46,6 +46,10 @@ Thumbs.db
 # Optional REPL history
 .node_repl_history
 
+# Local rollback backups (never committed)
+*.bak
+*.bak.*
+
 # Output of 'npm pack'
 *.tgz
 

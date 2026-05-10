@@ -1,81 +1,150 @@
-// Prioritize LCP elements
-document.addEventListener('DOMContentLoaded', function() {
-    // Defer loading of non-critical resources
-    requestIdleCallback(() => {
-        // Load non-critical CSS
-        const nonCriticalCSS = document.createElement('link');
-        nonCriticalCSS.rel = 'stylesheet';
-        nonCriticalCSS.href = 'styles.css';
-        nonCriticalCSS.media = 'print';
-        nonCriticalCSS.onload = function() {
-            nonCriticalCSS.media = 'all';
-        };
-        document.head.appendChild(nonCriticalCSS);
+/* ============================================================
+   PRODUCTION TERMINAL — interactive bits
+   ============================================================ */
+(() => {
+    'use strict';
 
-        // Load Font Awesome
-        const fontAwesome = document.createElement('link');
-        fontAwesome.rel = 'stylesheet';
-        fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-        fontAwesome.media = 'print';
-        fontAwesome.onload = function() {
-            fontAwesome.media = 'all';
-        };
-        document.head.appendChild(fontAwesome);
+    const $  = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    // ─── LIVE CLOCK (IST, ticks every second) ───────────────
+    const clockEl = $('#clock');
+    function tickClock() {
+        if (!clockEl) return;
+        const now = new Date();
+        // Build IST regardless of viewer's local TZ
+        const istParts = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false, timeZone: 'Asia/Kolkata'
+        }).formatToParts(now).reduce((a, p) => (a[p.type] = p.value, a), {});
+        clockEl.textContent = `${istParts.hour}:${istParts.minute}:${istParts.second} IST`;
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // ─── CAREER UPTIME (since first job) ────────────────────
+    const uptimeEl = $('#uptime');
+    function tickUptime() {
+        if (!uptimeEl) return;
+        const start = new Date('2019-07-01T00:00:00');
+        const now = new Date();
+        let years = now.getFullYear() - start.getFullYear();
+        let months = now.getMonth() - start.getMonth();
+        let days = now.getDate() - start.getDate();
+        if (days < 0) {
+            months -= 1;
+            // days in prev month
+            const prev = new Date(now.getFullYear(), now.getMonth(), 0);
+            days += prev.getDate();
+        }
+        if (months < 0) { years -= 1; months += 12; }
+        uptimeEl.textContent = `↑ ${years}y ${months}m ${days}d`;
+    }
+    tickUptime();
+    setInterval(tickUptime, 60_000);
+
+    // ─── HTOP bar fills (set CSS var from data-fill) ────────
+    $$('.bar[data-fill]').forEach(b => {
+        b.style.setProperty('--fill', b.dataset.fill + '%');
     });
 
-    // Handle navigation clicks and active states
-    document.querySelectorAll('.nav-item, .sidebar-nav-item').forEach(link => {
-        link.addEventListener('click', function (e) {
+    // ─── TAB CLICKS (smooth scroll) ─────────────────────────
+    const tabs = $$('.tab');
+    const sections = $$('main > section.panel');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', e => {
             e.preventDefault();
-            const targetId = this.getAttribute('href').slice(1);
-            const targetSection = document.getElementById(targetId);
-            const bottomNavHeight = document.querySelector('.mobile-nav')?.offsetHeight || 0;
-
-            // Remove active class from all navigation items
-            document.querySelectorAll('.nav-item, .sidebar-nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            // Add active class to clicked item
-            this.classList.add('active');
-
-            window.scrollTo({
-                top: targetSection.offsetTop - bottomNavHeight,
-                behavior: 'smooth'
-            });
+            const id = tab.getAttribute('href').slice(1);
+            const target = document.getElementById(id);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     });
 
-    // Set initial active state based on URL hash
-    if (window.location.hash) {
-        const targetId = window.location.hash.slice(1);
-        const targetSection = document.getElementById(targetId);
-        if (targetSection) {
-            window.scrollTo({
-                top: targetSection.offsetTop - (document.querySelector('.mobile-nav')?.offsetHeight || 0),
-                behavior: 'smooth'
-            });
-        }
+    // ─── SCROLL SPY (update active tab) ─────────────────────
+    if ('IntersectionObserver' in window && sections.length) {
+        const obs = new IntersectionObserver(entries => {
+            // pick the most visible intersecting section
+            const visible = entries
+                .filter(e => e.isIntersecting)
+                .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+            if (!visible) return;
+            const id = visible.target.id;
+            tabs.forEach(t => t.classList.toggle('active', t.getAttribute('href') === `#${id}`));
+        }, { rootMargin: '-30% 0px -55% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] });
+        sections.forEach(s => obs.observe(s));
     }
-});
 
-// Add active class to navigation links on scroll
-window.addEventListener('scroll', () => {
-    let current = '';
-    const sections = document.querySelectorAll('section');
+    // ─── KEYBOARD NAV (vim-flavored) ────────────────────────
+    const help = $('#help');
+    const numToId = { '0': 'home', '1': 'work', '2': 'skills', '3': 'artifacts', '4': 'projects', '5': 'contact' };
+    const letterToId = {
+        'h': 'home', 'r': 'work', 's': 'skills', 'a': 'artifacts',
+        'p': 'projects', 'c': 'contact'
+    };
+    let lastG = 0;
 
-    sections.forEach(section => {
-        const sectionTop = section.offsetTop;
-        const sectionHeight = section.clientHeight;
-        if (pageYOffset >= sectionTop - 60) {
-            current = section.getAttribute('id');
+    function jump(id) {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.addEventListener('keydown', e => {
+        // ignore when user is typing in a form
+        if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+        // Escape closes overlay
+        if (e.key === 'Escape') {
+            if (help && !help.hidden) { help.hidden = true; e.preventDefault(); }
+            return;
+        }
+
+        // ? toggles help
+        if (e.key === '?') {
+            if (help) { help.hidden = !help.hidden; e.preventDefault(); }
+            return;
+        }
+
+        // G goes to bottom
+        if (e.key === 'G') {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            e.preventDefault();
+            return;
+        }
+
+        // gg goes to top
+        if (e.key === 'g') {
+            const now = Date.now();
+            if (now - lastG < 600) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                lastG = 0;
+                e.preventDefault();
+                return;
+            }
+            lastG = now;
+            return;
+        }
+
+        // numeric keys 0-5
+        if (numToId[e.key]) {
+            jump(numToId[e.key]);
+            e.preventDefault();
+            return;
+        }
+
+        // letter shortcuts
+        const k = e.key.toLowerCase();
+        if (letterToId[k]) {
+            jump(letterToId[k]);
+            e.preventDefault();
         }
     });
 
-    document.querySelectorAll('.nav-links a').forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href').slice(1) === current) {
-            link.classList.add('active');
-        }
-    });
-});
+    // close overlay on backdrop click
+    if (help) {
+        help.addEventListener('click', e => {
+            if (e.target === help) help.hidden = true;
+        });
+    }
+})();
