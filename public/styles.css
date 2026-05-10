@@ -933,10 +933,14 @@ kbd {
     align-items: center;
     justify-content: center;
     padding: 0 24px;
-    transition: opacity .4s ease;
+    transition: opacity .22s ease, visibility 0s linear .22s;
 }
 .boot[hidden] { display: none; }
-.boot.fade-out { opacity: 0; pointer-events: none; }
+.boot.fade-out {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
 .boot-screen {
     width: 100%;
     max-width: 640px;

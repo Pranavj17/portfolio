@@ -168,6 +168,13 @@
     }
     applyTheme(getTheme(), false);
 
+    /* ─────── 5.5 utility helpers ─────── */
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const escapeHtml = s => String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
     /* ─────── 6. CONSOLE — typeable shell ─────── */
     const consoleEl   = $('#console');
     const consoleOut  = $('#console-out');
@@ -213,6 +220,214 @@
         print(`<span class="prompt">pranavjagadish</span>:<span class="path">~</span>$ <span class="cmd">${safe}</span>`, 'echo');
     }
 
+    /* ── MCP simulated responses ── */
+    function mcpResponse(q, original) {
+        if (q === 'help' || q === '?' || q === '-h' || q === '--help') {
+            return [
+                '<span class="hl">mcp-server-graylog</span> · official anthropic catalog',
+                '',
+                'known queries —',
+                '  <span class="cmd">mcp errors</span>          current error patterns',
+                '  <span class="cmd">mcp latency</span>         P99 latencies by endpoint',
+                '  <span class="cmd">mcp slow</span>            top slow queries',
+                '  <span class="cmd">mcp count</span>           log volume over time',
+                '  <span class="cmd">mcp traces &lt;name&gt;</span>   stack traces for a pattern',
+                '',
+                '<span class="muted">accepts natural-language queries · translates to lucene</span>'
+            ];
+        }
+        if (q.includes('error')) {
+            return [
+                '<span class="hl-amber">found 3 error patterns · last 24h</span>',
+                '',
+                '  <span class="hl">▸ DB connection pool timeout</span>',
+                '    47 occurrences · billing-service · spike at 14:23 UTC',
+                '    correlates with marketing campaign launch',
+                '',
+                '  <span class="hl">▸ Stripe webhook signature mismatch</span>',
+                '    12 occurrences · payments-service · steady',
+                '    likely cause: webhook endpoint receiving retries',
+                '',
+                '  <span class="hl">▸ Asana API rate limit (HTTP 429)</span>',
+                '    8 occurrences · ops-bot · burst at 09:00 UTC',
+                '    suggested fix: exponential backoff',
+                '',
+                '<span class="muted">most affected: billing-service · 1.6% error rate (was 0.3%)</span>'
+            ];
+        }
+        if (q.includes('latency')) {
+            return [
+                '<span class="hl-amber">P99 latency by endpoint · last 1h</span>',
+                '',
+                '  GET  /api/portfolios          <span class="hl">142ms</span>  (▲ +18ms)',
+                '  POST /api/orders              <span class="hl">287ms</span>  (▼ -5ms)',
+                '  GET  /api/users/me            <span class="hl">38ms</span>   (steady)',
+                '  POST /api/webhooks/stripe     <span class="hl-amber">412ms</span>  (▲ +67ms · investigate)',
+                '  GET  /health                  <span class="hl">3ms</span>    (steady)',
+                '',
+                '<span class="muted">stripe webhook regression detected · profile signature verification</span>'
+            ];
+        }
+        if (q.includes('slow') || q.includes('query')) {
+            return [
+                '<span class="hl-amber">top 5 slow queries · last 24h</span>',
+                '',
+                '  1. SELECT ... FROM orders WHERE created_at &gt; ?',
+                '     <span class="hl">avg 2.4s</span> · 81 calls · table size 4.2M rows',
+                '     suggest: add index on (created_at, status)',
+                '',
+                '  2. UPDATE portfolios SET allocations = ?',
+                '     <span class="hl">avg 890ms</span> · 220 calls · row-level locking',
+                '',
+                '  3. SELECT COUNT(*) FROM transactions GROUP BY ...',
+                '     <span class="hl">avg 612ms</span> · 47 calls · sequential scan',
+                '',
+                '  4. JOIN users.users_emails ON ...',
+                '     <span class="hl">avg 380ms</span> · 1.2k calls · n+1 detected',
+                '',
+                '  5. INSERT INTO audit_log ...',
+                '     <span class="hl">avg 240ms</span> · 18k calls · index bloat'
+            ];
+        }
+        if (q.includes('count')) {
+            return [
+                '<span class="hl-amber">log count · pattern matches · last 7 days</span>',
+                '',
+                '  mon  ████████████░░░░░░  847',
+                '  tue  ███████████████░░░  1024',
+                '  wed  ████████████░░░░░░  823',
+                '  thu  █████████████░░░░░  912',
+                '  fri  █████████████░░░░░  908',
+                '  sat  ████░░░░░░░░░░░░░░  287',
+                '  sun  ███░░░░░░░░░░░░░░░  198',
+                '',
+                '<span class="muted">total: 4,999  ·  trend: weekday spike, weekend lull</span>'
+            ];
+        }
+        if (q.includes('trace')) {
+            return [
+                '<span class="hl-amber">stack traces · pattern: DB pool timeout</span>',
+                '',
+                '  Ecto.Adapters.SQL.Sandbox.checkout/1',
+                '  Ecto.Adapters.SQL.checkout_or_transaction/4',
+                '  BillingService.OrderRepo.with_transaction/1',
+                '  BillingService.OrderProcessor.process/2',
+                '  Phoenix.Controller.action/3',
+                '',
+                '<span class="muted">all 47 occurrences share the same trace · checkout starvation</span>'
+            ];
+        }
+        return [
+            `<span class="warn">no canned response for: "${escapeHtml(original)}"</span>`,
+            '',
+            'this is a simulated demo of mcp-server-graylog.',
+            'the real server accepts natural-language queries against any',
+            'graylog instance. see github.com/Pranavj17/mcp-server-graylog',
+            '',
+            '<span class="muted">try: mcp errors · mcp latency · mcp slow · mcp count · mcp traces</span>'
+        ];
+    }
+
+    /* ── GUESTBOOK · seed + worker fetch with localStorage fallback ── */
+    const SEED_GUESTBOOK = [
+        { date: '2026-05-10', name: 'pranav', msg: 'thanks for stopping by. type `sign your message` to leave a note.' },
+    ];
+
+    async function fetchGuestbookFromWorker() {
+        try {
+            const cached = sessionStorage.getItem('guestbook');
+            const cachedAt = parseInt(sessionStorage.getItem('guestbook-at') || '0', 10);
+            if (cached && (Date.now() - cachedAt) < 5 * 60_000) return JSON.parse(cached);
+            const res = await fetch('/api/guestbook', { method: 'GET' });
+            if (!res.ok) return null;
+            const data = await res.json();
+            try {
+                sessionStorage.setItem('guestbook', JSON.stringify(data));
+                sessionStorage.setItem('guestbook-at', String(Date.now()));
+            } catch (_) {}
+            return data;
+        } catch (_) { return null; }
+    }
+
+    async function renderGuestbook() {
+        const remote = await fetchGuestbookFromWorker();
+        const local = JSON.parse(localStorage.getItem('guestbook') || '[]');
+        const all = [...SEED_GUESTBOOK, ...(Array.isArray(remote) ? remote : []), ...local]
+            .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const pre = document.createElement('pre');
+        pre.innerHTML = all.map(s => {
+            const d = escapeHtml(String(s.date || '????-??-??').slice(0, 10));
+            const n = escapeHtml(String(s.name || 'guest')).slice(0, 24).padEnd(12, ' ');
+            const m = escapeHtml(String(s.msg || ''));
+            return `  <span class="muted">${d}</span>  <span class="hl">${n}</span>  ${m}`;
+        }).join('\n');
+        print(pre);
+        if (!remote) {
+            print('<span class="muted">[showing seed + your local signs · worker offline or not deployed]</span>');
+        }
+    }
+
+    /* ── MEDIUM RSS · auto-pull recent essays via rss2json public proxy ── */
+    async function loadMediumPosts() {
+        const list = $('#projects .post-list');
+        if (!list) return;
+
+        const KEY = 'medium';
+        const KEY_AT = 'medium-at';
+        const TTL = 30 * 60_000;
+
+        let data;
+        try {
+            const cached = sessionStorage.getItem(KEY);
+            const cachedAt = parseInt(sessionStorage.getItem(KEY_AT) || '0', 10);
+            if (cached && (Date.now() - cachedAt) < TTL) {
+                data = JSON.parse(cached);
+            } else {
+                const url = 'https://api.rss2json.com/v1/api.json?rss_url=' +
+                    encodeURIComponent('https://medium.com/feed/@jpranav97');
+                const res = await fetch(url);
+                if (!res.ok) return;
+                data = await res.json();
+                try {
+                    sessionStorage.setItem(KEY, JSON.stringify(data));
+                    sessionStorage.setItem(KEY_AT, String(Date.now()));
+                } catch (_) {}
+            }
+        } catch (_) { return; }
+
+        if (!data || data.status !== 'ok' || !Array.isArray(data.items) || !data.items.length) return;
+
+        list.innerHTML = '';
+        data.items.slice(0, 5).forEach(item => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = item.link || 'https://medium.com/@jpranav97';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = (item.title || 'untitled').toLowerCase();
+            const meta = document.createElement('span');
+            meta.className = 'post-meta';
+            const date = item.pubDate
+                ? new Date(item.pubDate).toISOString().slice(0, 10)
+                : '????-??-??';
+            const desc = (item.description || '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 90);
+            meta.textContent = `${date}  ·  ${desc}…`;
+            li.appendChild(a);
+            li.appendChild(meta);
+            list.appendChild(li);
+        });
+    }
+
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadMediumPosts, { timeout: 2000 });
+    } else {
+        setTimeout(loadMediumPosts, 800);
+    }
+
     /* ── COMMAND TABLE ── */
     const SECTIONS = ['home', 'work', 'skills', 'artifacts', 'projects', 'contact'];
     const SECTION_BLURB = {
@@ -231,7 +446,7 @@
                 ['help',                'this list'],
                 ['ls',                  'list sections'],
                 ['cd &lt;section&gt;',  'jump to section'],
-                ['cat &lt;section&gt;', 'print section summary'],
+                ['cat &lt;file&gt;',     'print section / try `cat guestbook`'],
                 ['whoami',              'who you are'],
                 ['pwd',                 'current section'],
                 ['date',                'current IST'],
@@ -240,6 +455,8 @@
                 ['uses',                'hardware + software stack'],
                 ['man pranav',          'unix-style biography'],
                 ['finger pranav',       'unix-style profile'],
+                ['mcp &lt;query&gt;',     'demo: ask the graylog MCP'],
+                ['sign &lt;msg&gt;',      'leave a note in the guestbook'],
                 ['theme [name]',        'phosphor · amber · ibm · paper'],
                 ['audio [on|off]',      'click sounds toggle'],
                 ['boot',                'replay boot sequence'],
@@ -270,15 +487,16 @@
             $('#' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             print(`→ ${id}/`, 'ok');
         },
-        cat(arg) {
+        async cat(arg) {
             if (!arg) { print('cat: missing operand · try `cat work`', 'error'); return; }
             const id = arg.toLowerCase().replace(/\.txt$/, '').replace(/\.md$/, '');
+            if (id === 'guestbook') { await renderGuestbook(); return; }
             const blurb = SECTION_BLURB[id];
             if (!blurb) { print(`cat: ${arg}: no such file or directory`, 'error'); return; }
             print(blurb);
         },
         whoami() { print('guest — visiting pranavjagadish via tty1', 'ok'); },
-        pwd()    { print('/' + (currentSection() || 'home'), 'ok'); },
+        pwd()    { print(`/home/pranav/${currentSection() || 'home'}`, 'ok'); },
         date()   { print(new Date().toString(), 'muted'); },
         uptime() {
             const u = uptimeEl?.textContent || '';
@@ -376,6 +594,70 @@ Phone: +91 8123310664
             } else {
                 print(`audio: ${audioOn ? '<span class="hl">on</span>' : '<span class="hl-amber">off</span>'}  ·  pass 'on' or 'off' to toggle`, 'muted');
             }
+        },
+        async mcp(...rest) {
+            const q = rest.join(' ').trim();
+            if (!q) {
+                print('mcp: usage: mcp &lt;question&gt;  ·  try `mcp help`', 'muted');
+                return;
+            }
+            print(`<span class="muted">&gt; querying mcp-server-graylog ...</span>`);
+            await sleep(550);
+            const lines = mcpResponse(q.toLowerCase(), q);
+            for (const line of lines) {
+                print(line);
+                await sleep(50);
+            }
+            print(`<span class="muted">[simulated demo · real server: github.com/Pranavj17/mcp-server-graylog]</span>`);
+        },
+        async sign(...rest) {
+            let msg = rest.join(' ').trim();
+            // strip surrounding quotes if user added them
+            msg = msg.replace(/^["'`]+|["'`]+$/g, '').trim();
+            if (!msg) {
+                print('sign: usage: sign &lt;your message&gt;', 'error');
+                return;
+            }
+            if (msg.length > 200) {
+                print(`sign: too long (${msg.length}/200 chars)`, 'error');
+                return;
+            }
+            // 10-min cooldown per device to discourage spam
+            const last = parseInt(localStorage.getItem('lastSign') || '0', 10);
+            if (Date.now() - last < 10 * 60_000) {
+                const wait = Math.ceil((10 * 60_000 - (Date.now() - last)) / 60_000);
+                print(`sign: please wait ${wait}m before signing again`, 'warn');
+                return;
+            }
+            const entry = {
+                date: new Date().toISOString().slice(0, 10),
+                name: 'guest',
+                msg: msg
+            };
+            // try POST to worker; fall back to localStorage on failure
+            let posted = false;
+            try {
+                const res = await fetch('/api/guestbook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entry)
+                });
+                if (res.ok) {
+                    posted = true;
+                    // bust cache so next read is fresh
+                    sessionStorage.removeItem('guestbook');
+                    sessionStorage.removeItem('guestbook-at');
+                }
+            } catch (_) {}
+            // local fallback (also acts as optimistic local view)
+            const local = JSON.parse(localStorage.getItem('guestbook') || '[]');
+            local.push(entry);
+            localStorage.setItem('guestbook', JSON.stringify(local));
+            localStorage.setItem('lastSign', String(Date.now()));
+            const note = posted
+                ? 'signed.  ·  visible to everyone on `cat guestbook.txt`'
+                : 'signed locally.  ·  see it on `cat guestbook.txt` (worker offline → local-only this session)';
+            print(note, 'ok');
         },
         theme(arg) {
             if (!arg) { print(`theme: ${getTheme()} · pass one of: ${THEMES.map(t=>t.id).join(', ')}`, 'muted'); return; }
@@ -651,7 +933,7 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         const done = () => {
             bootEl.classList.add('fade-out');
             document.documentElement.style.overflow = '';
-            setTimeout(() => { bootEl.hidden = true; }, 420);
+            setTimeout(() => { bootEl.hidden = true; }, 240);
             sessionStorage.setItem('bootSeen', '1');
             window.removeEventListener('keydown', skipBoot, true);
             window.removeEventListener('pointerdown', skipBoot, true);
