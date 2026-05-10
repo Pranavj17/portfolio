@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css?v=20260510-15">
+    <link rel="stylesheet" href="/styles.css?v=20260510-16">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -127,7 +127,7 @@
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
                 <span class="panel-title">/var/log/career.log</span>
-                <span class="panel-meta">tail -f · 11 entries · oldest first</span>
+                <span class="panel-meta">tail -f · 14 entries · oldest first</span>
             </header>
             <div class="panel-body">
                 <ol class="log" role="list">
@@ -139,7 +139,7 @@
                     <li class="log-row">
                         <span class="log-ts">2022-09-01</span>
                         <span class="log-sev info">INFO</span>
-                        <span class="log-msg">joined <em>Scripbox</em> · senior engineer · elixir / OTP / postgres on financial systems</span>
+                        <span class="log-msg">joined <em>Scripbox</em> · senior engineer · elixir / OTP across 8 production databases (auth · clientmaster · milkyway · heimdall · myscripboxapi · telex · DW/Redshift · inbox)</span>
                     </li>
                     <li class="log-row">
                         <span class="log-ts">2023-02-14</span>
@@ -169,12 +169,12 @@
                     <li class="log-row">
                         <span class="log-ts">2025-06-18</span>
                         <span class="log-sev info">INFO</span>
-                        <span class="log-msg">launched AI agent automation platform · 7 sentry channels monitored autonomously · podman-sandboxed agents · slack ops alerts</span>
+                        <span class="log-msg">launched AI agent automation platform · <strong>9 sentry channels</strong> monitored autonomously across <strong>5 services</strong> (Sentry · Graylog · Asana · GitLab · Metabase) · podman-sandboxed agents · ~5min wallclock per RCA · slack ops alerts</span>
                     </li>
                     <li class="log-row">
                         <span class="log-ts">2025-10-18</span>
                         <span class="log-sev merged">MERGED</span>
-                        <span class="log-msg">✓ <em>mcp-server-graylog</em> accepted into anthropic's official MCP catalog · PR #2913 · enables natural-language production-log queries</span>
+                        <span class="log-msg">✓ <em>mcp-server-graylog v2.0.1</em> · 6 tools (search_logs · trace_request · get_surrounding_logs · list_streams · get_system_info · get_message) · accepted into anthropic's MCP catalog · PR #2913 · npm · MIT</span>
                     </li>
                     <li class="log-row">
                         <span class="log-ts">2026-01-09</span>
@@ -182,9 +182,24 @@
                         <span class="log-msg">memory MCP server shipped · elixir + postgres · trigram search · 96.5% workflow token reduction · 94%+ duplicate-detection accuracy</span>
                     </li>
                     <li class="log-row">
+                        <span class="log-ts">2026-04-06</span>
+                        <span class="log-sev info">INFO</span>
+                        <span class="log-msg">auto-routing system · <strong>29 ticket types → 18 owners</strong> · 60-ticket past-resolution KB · anti-hallucination guardrails reduced triager failure rate from 37.5%</span>
+                    </li>
+                    <li class="log-row">
+                        <span class="log-ts">2026-04-14</span>
+                        <span class="log-sev info">INFO</span>
+                        <span class="log-msg">benchmarked <strong>12 NVIDIA NIM models × 4 production scenarios</strong> (sentry analysis · ticket classification · code fix · multi-tool Q&amp;A) → published Medium deep-dive (~3500 words)</span>
+                    </li>
+                    <li class="log-row">
+                        <span class="log-ts">2026-04-21</span>
+                        <span class="log-sev merged">FINALIST</span>
+                        <span class="log-msg">✓ <em>Scripbox AI Hackathon</em> · Echo voice assistant · <strong>shortlisted from 54 submissions</strong> · 12-min live demo</span>
+                    </li>
+                    <li class="log-row">
                         <span class="log-ts">2026-05-10</span>
                         <span class="log-sev running">RUNNING</span>
-                        <span class="log-msg">⚡ helixa · RIA call-intelligence pipeline · whisperx + ollama gemma4 + zoho CRM</span>
+                        <span class="log-msg">⚡ <em>helixa</em> · RIA call-intelligence pipeline · whisperx (12-13.6× realtime) + ollama gemma4 + zoho CRM v3 · 3-engineer team · compliance-first (14 SEBI/DPDP detect rules)</span>
                     </li>
                 </ol>
 
@@ -278,7 +293,7 @@
 
                 <article class="artifact">
                     <h3>mcp-server-graylog</h3>
-                    <p class="artifact-meta">octet-stream · accepted 2025-10-18 · anthropic/servers · PR #2913</p>
+                    <p class="artifact-meta">v2.0.1 · 6 tools · npm · MIT · accepted 2025-10-18 · anthropic/servers PR #2913</p>
                     <p>An official Model Context Protocol server for Graylog. Accepted into Anthropic's MCP catalog. Lets AI systems query production logs and correlate events across distributed systems in natural language — no more hand-crafting Lucene queries during incidents.</p>
                     <p class="artifact-links">
                         <a href="https://github.com/modelcontextprotocol/servers/pull/2913" target="_blank" rel="noopener">[ view PR #2913 ]</a>
@@ -288,8 +303,8 @@
 
                 <article class="artifact">
                     <h3>AI Agent Automation Platform</h3>
-                    <p class="artifact-meta">prod system · 7 channels monitored · 5+ services orchestrated</p>
-                    <p>Autonomous agents that watch production errors, run multi-service RCA across <em>Sentry, Graylog, Asana, GitLab, Metabase</em>, and ship fix merge requests automatically. Containerized via Podman for workload isolation. Reduced incident triage from hours to minutes.</p>
+                    <p class="artifact-meta">prod system · 9 channels monitored · 5 services orchestrated · 8 OpenClaw skills · 5,979 KB entries semantically classified across 15 services · 3-min cron cadence</p>
+                    <p>Autonomous agents that watch production errors, run multi-service RCA across <em>Sentry, Graylog, Asana, GitLab, Metabase</em>, and <em>draft</em> fix merge requests for human review. Containerized via Podman for workload isolation. Reduced incident triage from hours to minutes.</p>
                     <svg class="diagram" role="img" aria-labelledby="diag-title diag-desc" viewBox="0 0 320 478" xmlns="http://www.w3.org/2000/svg">
                         <title id="diag-title">AI Agent Automation Pipeline</title>
                         <desc id="diag-desc">Five error sources — Sentry, Graylog, Asana, GitLab, Metabase — funnel into the openclaw gateway running in a podman sandbox, which calls the Claude API, producing four outputs: a triage comment in Asana, a fix merge request in GitLab, a Slack ops alert, and a knowledge-base entry.</desc>
@@ -494,7 +509,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260510-15" defer></script>
-    <script src="script.js?v=20260510-15" defer></script>
+    <script src="api.js?v=20260510-16" defer></script>
+    <script src="script.js?v=20260510-16" defer></script>
 </body>
 </html>

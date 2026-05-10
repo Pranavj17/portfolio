@@ -537,7 +537,7 @@
     const SECTIONS = ['home', 'work', 'skills', 'artifacts', 'projects', 'contact'];
     const SECTION_BLURB = {
         home:      "building scalable autonomous agents. senior engineer · 6+ years across the stack · elixir, ruby, javascript, postgres, MCP.",
-        work:      "11 entries from sakha global (2019) → scripbox (2022→present). highlights: postgres 2.5s→80ms, MTTR -45%, ETS caching API latency -60%, mcp-server-graylog merged into anthropic catalog, memory MCP shipped (96.5% token cut).",
+        work:      "14 entries · sakha (2019-2022) → scripbox (2022→present). 8 prod databases · 9 sentry channels via openclaw · 5,979 KB entries classified · mcp-server-graylog v2.0.1 in anthropic catalog · memory MCP (96.5% token cut · 94%+ dedup) · scripbox AI hackathon finalist (54 submissions) · 12 NIM models benchmarked.",
         skills:    "elixir 88% · ruby 78% · javascript 72% · postgres 80% · mcp 74% (R+) · python 22% (learning) · ai-ml 18% (learning).",
         artifacts: "3 highlighted: mcp-server-graylog (anthropic catalog, PR #2913), AI agent automation platform (7 channels, 5+ services), memory MCP server (elixir, 94%+ duplicate detection).",
         projects:  "ai-automation/ · mcp/ · open-source/ (form_builder_dsl) · devops/ (automate_deployment) · writing/ (medium @jpranav97).",
