@@ -43,7 +43,8 @@ html, body {
 body {
     min-height: 100vh;
     overflow-x: hidden;
-    padding-bottom: var(--keybar-h);
+    /* keybar height + iOS safe area */
+    padding-bottom: calc(var(--keybar-h) + env(safe-area-inset-bottom, 0px));
 }
 ::selection { background: var(--selection); color: var(--fg-bright); }
 
@@ -565,11 +566,13 @@ kbd {
     position: fixed;
     bottom: 0; left: 0; right: 0;
     z-index: 100;
-    height: var(--keybar-h);
+    height: calc(var(--keybar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 0 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
     background: var(--bg-1);
     border-top: 1px solid var(--border);
     font-size: 12px;
@@ -626,39 +629,146 @@ kbd {
 .overlay-hint { color: var(--dim); font-size: 12px; }
 
 /* RESPONSIVE ─────────────────────────────────────────────── */
+
+/* tablet & narrow desktop */
+@media (max-width: 900px) {
+    main { padding: 24px 18px 56px; }
+    .panel-body { padding: 22px 20px 24px; }
+    .statusbar-cell.load { display: none; }
+    .col-bar { width: 180px; }
+    .bar { width: 110px; }
+}
+
+/* phone landscape / small tablet */
 @media (max-width: 760px) {
-    main { padding: 16px 12px 50px; }
-    .panel-body { padding: 20px 16px 22px; }
-    .statusbar-cell:nth-child(2),
-    .statusbar-cell:nth-child(3) { display: none; }
-    .panel-meta { display: none; }
-    .hero-name { font-size: clamp(54px, 17vw, 100px); }
-    .shell-block { padding: 14px 14px; }
-    .log-row {
-        grid-template-columns: 84px 60px 1fr;
-        gap: 8px; font-size: 12px;
+    :root {
+        --statusbar-h: 28px;
+        --tabs-h: 32px;
+        --keybar-h: 30px;
     }
+    main { padding: 16px 12px 48px; }
+    .panel { margin-bottom: 18px; }
+    .panel-body { padding: 18px 14px 20px; }
+    .panel-head { padding: 6px 12px; font-size: 11px; }
+    .statusbar { font-size: 11px; }
+    .statusbar-cell { padding: 0 10px; }
+    .statusbar-cell:nth-child(2),
+    .statusbar-cell.load { display: none; }
+    .tab { padding: 0 14px; font-size: 12px; }
+    .panel-meta { display: none; }
+
+    /* hero — keep impact, fit width */
+    .hero-name { font-size: clamp(58px, 18vw, 110px); margin-bottom: 22px; }
+    .hero-tag { font-size: 14px; }
+    .shell-block { padding: 14px 14px; }
+    .shell-line { font-size: 13px; word-break: break-all; }
+    .shell-out { font-size: 13px; }
+
+    /* log */
+    .log-row {
+        grid-template-columns: 78px 56px 1fr;
+        gap: 8px; font-size: 12px;
+        padding: 8px 2px;
+    }
+    .log-sev { font-size: 10px; }
+    .education .edu-row { gap: 8px; font-size: 12px; flex-direction: column; }
+
+    /* htop */
     .htop { font-size: 12px; }
     .htop thead th { padding: 6px 8px; font-size: 9px; }
     .htop tbody td { padding: 7px 8px; }
-    .col-cmd { width: 90px; }
+    .col-cmd { width: 88px; }
     .col-bar { width: 130px; }
     .bar { width: 80px; }
     .col-note { display: none; }
     .htop tbody td:nth-child(6) { display: none; }
-    .keybar { font-size: 11px; gap: 8px; padding: 0 10px; }
+
+    /* artifacts ASCII diagram — shrink so it fits */
+    .ascii { font-size: 10px; line-height: 1.4; }
+    .artifact h3 { font-size: 16px; }
+    .artifact p { font-size: 13px; }
+
+    /* tree */
+    .tree { font-size: 11px; line-height: 1.7; }
+    .post-list a { font-size: 13px; }
+    .post-meta { font-size: 11px; }
+
+    /* contact */
+    .contact-list { padding-left: 6px; }
+    .contact-list li { font-size: 13px; }
+    .contact-list .ckey { width: 70px; }
+
+    /* keybar */
+    .keybar { font-size: 10.5px; gap: 8px; }
+    .keybar .kb:nth-of-type(n+6) { display: none; }
     .copyright { display: none; }
-    .overlay-panel { min-width: auto; width: calc(100% - 32px); padding: 22px 22px; }
+
+    /* overlay */
+    .overlay-panel {
+        min-width: auto;
+        width: calc(100% - 24px);
+        padding: 20px 20px;
+    }
+    .overlay-panel h2 { font-size: 30px; }
 }
 
-@media (max-width: 460px) {
-    .keybar .kb:nth-of-type(n+5) { display: none; }
-    .tab { padding: 0 12px; font-size: 12px; }
+/* phone portrait */
+@media (max-width: 560px) {
+    .statusbar-cell:not(.host):not(.clock) { display: none; }
+    .tab { padding: 0 10px; }
     .tab-key { margin-right: 4px; }
+
+    /* shell lines wrap naturally on tiny screens */
+    .shell-line { font-size: 12px; }
+    .shell-out { font-size: 12.5px; }
+
+    /* tighter log */
+    .log-row {
+        grid-template-columns: 72px 48px 1fr;
+        gap: 6px;
+        font-size: 11px;
+    }
+    .log-msg { line-height: 1.5; }
+
+    /* htop denser */
+    .col-yr { width: 36px; }
+    .col-st { width: 32px; }
+    .htop tbody td { padding: 6px 6px; font-size: 11px; }
+
+    /* artifacts ASCII tiny */
+    .ascii { font-size: 9px; }
+
+    /* keybar — fewer items */
+    .keybar .kb:nth-of-type(n+5) { display: none; }
+
+    /* artifact-links wrap */
+    .artifact-links { gap: 8px; }
+    .artifact-links a { font-size: 12px; }
 }
 
+/* iPhone SE / mini */
+@media (max-width: 380px) {
+    .hero-name { font-size: clamp(46px, 19vw, 80px); }
+    .panel-body { padding: 14px 12px 18px; }
+    .shell-block { padding: 10px 10px; }
+
+    .log-row {
+        grid-template-columns: 68px 40px 1fr;
+        gap: 6px;
+    }
+    .log-sev { font-size: 9px; }
+
+    .ascii { font-size: 8px; }
+    .tree { font-size: 10px; }
+
+    .keybar .kb:nth-of-type(n+4) { display: none; }
+    .keybar { gap: 6px; }
+}
+
+/* MOTION RESPECT */
 @media (prefers-reduced-motion: reduce) {
     .panel { animation: none; }
     .cursor { animation: none; }
     .bar::after { animation: none; }
+    html { scroll-behavior: auto; }
 }
