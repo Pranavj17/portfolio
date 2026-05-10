@@ -537,7 +537,7 @@
     const SECTIONS = ['home', 'work', 'skills', 'artifacts', 'projects', 'contact'];
     const SECTION_BLURB = {
         home:      "building scalable autonomous agents. senior engineer · 6+ years across the stack · elixir, ruby, javascript, postgres, MCP.",
-        work:      "14 entries · sakha (2019-2022) → scripbox (2022→present). 8 prod databases · 9 sentry channels via openclaw · 5,979 KB entries classified · mcp-server-graylog v2.0.1 in anthropic catalog · memory MCP (96.5% token cut · 94%+ dedup) · scripbox AI hackathon finalist (54 submissions) · 12 NIM models benchmarked.",
+        work:      "14 entries · sakha (2019-2022) → scripbox (2022→present). 8 prod databases · Echo agent platform triages 200+ errors/day across 9 sentry channels · 5,979 KB entries classified · mcp-server-graylog v2.0.1 in anthropic catalog · memory MCP (96.5% token cut · 94%+ dedup) · scripbox AI hackathon finalist (54 submissions · `demo` to view) · 12 NIM models benchmarked.",
         skills:    "elixir 88% · ruby 78% · javascript 72% · postgres 80% · mcp 74% (R+) · python 22% (learning) · ai-ml 18% (learning).",
         artifacts: "3 highlighted: mcp-server-graylog (anthropic catalog, PR #2913), AI agent automation platform (7 channels, 5+ services), memory MCP server (elixir, 94%+ duplicate detection).",
         projects:  "ai-automation/ · mcp/ · open-source/ (form_builder_dsl) · devops/ (automate_deployment) · writing/ (medium @jpranav97).",
@@ -565,6 +565,7 @@
                 ['theme [name]',        'phosphor · amber · ibm · paper'],
                 ['audio [on|off]',      'click sounds toggle'],
                 ['boot',                'replay boot sequence'],
+                ['demo',                'open Echo · AI agent platform demo'],
                 ['hire',                'compose hiring email'],
                 ['echo &lt;text&gt;',   'print text'],
                 ['history',             'recent commands'],
@@ -782,6 +783,12 @@ Phone: +91 8123310664
             const link = `mailto:jpranav97@gmail.com?subject=${subj}&body=${body}`;
             print(`opening compose window → <a href="${link}">${link}</a>`, 'ok');
             window.location.href = link;
+        },
+        demo() {
+            print('opening live demo of <span class="hl">Echo</span> · AI agent automation platform...', 'ok');
+            print('  → <a href="https://pranavj17.github.io/echo-demo-v2/" target="_blank" rel="noopener">https://pranavj17.github.io/echo-demo-v2/</a>', 'muted');
+            print('  → <a href="https://drive.google.com/file/d/1luekhTV4Y0NmPsa-QF6ve6MZ00Fa9OrL/view?usp=drive_link" target="_blank" rel="noopener">2-minute video walkthrough</a>', 'muted');
+            try { window.open('https://pranavj17.github.io/echo-demo-v2/', '_blank', 'noopener'); } catch (_) {}
         },
         echo(...args) { print(args.join(' ') || ''); },
         history() {

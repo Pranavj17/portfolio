@@ -537,6 +537,13 @@ main {
     font-size: 14px;
     margin-right: 2px;
 }
+.artifact-tag {
+    color: var(--dim);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin-left: 6px;
+}
 .artifact-meta {
     color: var(--dim);
     font-size: 12px;
