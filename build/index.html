@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css?v=20260510-3">
+    <link rel="stylesheet" href="/styles.css?v=20260510-4">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -56,8 +56,19 @@
     }
     </script>
 </head>
-<body>
+<body data-theme="phosphor">
     <a href="#main" class="skip">skip to content</a>
+
+    <!-- BOOT SCREEN ─ first-visit BIOS POST -->
+    <div class="boot" id="boot" hidden role="status" aria-live="polite">
+        <div class="boot-screen">
+            <div class="boot-banner">PRANAV BIOS v6.4</div>
+            <div class="boot-divider">cold start · phosphor mode · pranavjagadish.com</div>
+            <ol class="boot-lines" id="boot-lines"></ol>
+            <p class="boot-prompt">> system ready · launching <span class="boot-cursor"></span></p>
+        </div>
+        <p class="boot-hint">press any key to skip</p>
+    </div>
 
     <!-- TOP STATUS BAR (always visible) -->
     <header class="statusbar" role="banner" aria-label="status">
@@ -382,19 +393,44 @@
 
     </main>
 
+    <!-- LIVE CONSOLE ─ typeable shell drawer -->
+    <aside class="console" id="console" aria-label="interactive shell" aria-hidden="true">
+        <div class="console-head">
+            <span class="console-tag">[*]</span>
+            <span class="console-title">live shell — type <kbd>help</kbd></span>
+            <button class="console-close" id="console-close" aria-label="close shell">×</button>
+        </div>
+        <div class="console-out" id="console-out" aria-live="polite"></div>
+        <form class="console-form" id="console-form" autocomplete="off">
+            <span class="console-prompt">pranav@scripbox</span><span class="console-dollar">:</span><span class="console-path">~</span><span class="console-dollar">$</span>
+            <input class="console-input" id="console-input"
+                   autocomplete="off" autocapitalize="off"
+                   autocorrect="off" spellcheck="false"
+                   enterkeyhint="send"
+                   placeholder="type 'help' for commands">
+        </form>
+    </aside>
+
     <!-- BOTTOM KEYBINDING BAR -->
     <footer class="keybar" role="contentinfo">
         <span class="kb"><kbd>0</kbd>–<kbd>5</kbd> jump</span>
         <span class="kb sep">·</span>
+        <span class="kb"><kbd>/</kbd> shell</span>
+        <span class="kb"><kbd>t</kbd> theme</span>
+        <span class="kb"><kbd>?</kbd> help</span>
+        <span class="kb sep">·</span>
         <span class="kb"><kbd>r</kbd> resume</span>
         <span class="kb"><kbd>p</kbd> projects</span>
-        <span class="kb"><kbd>c</kbd> contact</span>
-        <span class="kb sep">·</span>
         <span class="kb"><kbd>g</kbd><kbd>g</kbd> top</span>
         <span class="kb"><kbd>G</kbd> bottom</span>
-        <span class="kb"><kbd>?</kbd> help</span>
         <span class="copyright">© 2026 pranav jagadish · MIT</span>
     </footer>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- MATRIX EASTER EGG -->
+    <canvas class="matrix-canvas" id="matrix" aria-hidden="true"></canvas>
 
     <!-- HELP OVERLAY -->
     <div class="overlay" id="help" hidden role="dialog" aria-label="keybindings help" aria-modal="true">
@@ -411,6 +447,8 @@
                     <tr><td><kbd>c</kbd></td><td>jump to contact</td></tr>
                     <tr><td><kbd>g</kbd><kbd>g</kbd></td><td>top of page</td></tr>
                     <tr><td><kbd>G</kbd></td><td>bottom of page</td></tr>
+                    <tr><td><kbd>/</kbd></td><td>open live shell · type commands</td></tr>
+                    <tr><td><kbd>t</kbd></td><td>cycle theme (phosphor / amber / ibm / paper)</td></tr>
                     <tr><td><kbd>?</kbd></td><td>toggle this help</td></tr>
                     <tr><td><kbd>esc</kbd></td><td>close overlays</td></tr>
                 </tbody>
@@ -419,7 +457,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260510-3" defer></script>
-    <script src="script.js?v=20260510-3" defer></script>
+    <script src="api.js?v=20260510-4" defer></script>
+    <script src="script.js?v=20260510-4" defer></script>
 </body>
 </html>
