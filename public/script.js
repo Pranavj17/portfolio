@@ -147,13 +147,13 @@
     }
     function printEcho(input) {
         const safe = input.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        print(`<span class="prompt">pranav@scripbox</span>:<span class="path">~</span>$ <span class="cmd">${safe}</span>`, 'echo');
+        print(`<span class="prompt">pranavjagadish</span>:<span class="path">~</span>$ <span class="cmd">${safe}</span>`, 'echo');
     }
 
     /* ── COMMAND TABLE ── */
     const SECTIONS = ['home', 'work', 'skills', 'artifacts', 'projects', 'contact'];
     const SECTION_BLURB = {
-        home:      "senior software engineer · scripbox · bengaluru. building autonomous agents that debug production at 3am.",
+        home:      "senior software engineer · 6+ years · bengaluru. building autonomous agents that debug production at 3am.",
         work:      "11 entries from sakha global (2019) → scripbox (2022→present). highlights: postgres 2.5s→80ms, MTTR -45%, ETS caching API latency -60%, mcp-server-graylog merged into anthropic catalog, memory MCP shipped (96.5% token cut).",
         skills:    "elixir 88% · ruby 78% · javascript 72% · postgres 80% · mcp 74% (R+) · python 22% (learning) · ai-ml 18% (learning).",
         artifacts: "3 highlighted: mcp-server-graylog (anthropic catalog, PR #2913), AI agent automation platform (7 channels, 5+ services), memory MCP server (elixir, 94%+ duplicate detection).",
@@ -209,7 +209,7 @@
             if (!blurb) { print(`cat: ${arg}: no such file or directory`, 'error'); return; }
             print(blurb);
         },
-        whoami() { print('guest — visiting pranav@scripbox via tty1', 'ok'); },
+        whoami() { print('guest — visiting pranavjagadish via tty1', 'ok'); },
         pwd()    { print('/' + (currentSection() || 'home'), 'ok'); },
         date()   { print(new Date().toString(), 'muted'); },
         uptime() {
