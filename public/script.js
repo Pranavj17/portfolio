@@ -1041,23 +1041,56 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             li.innerHTML = `<span class="ok">[${row[0]}]</span><span class="label">${row[1]}</span><span class="val">${row[2]}</span>`;
             bootLines.appendChild(li);
         });
-        const total = BOOT_LINES.length * 85 + 700;
-        const done = () => {
-            bootEl.classList.add('fade-out');
+
+        const linesDoneAt   = BOOT_LINES.length * 85 + 700;  // ~1.5s
+        const matrixDuration = 3000;                          // 3s rain
+        const bootFadeMs    = 240;
+        const matrixFadeMs  = 280;
+        let skipped = false;
+
+        const cleanup = () => {
             document.documentElement.style.overflow = '';
-            setTimeout(() => { bootEl.hidden = true; }, 240);
             sessionStorage.setItem('bootSeen', '1');
             window.removeEventListener('keydown', skipBoot, true);
             window.removeEventListener('pointerdown', skipBoot, true);
         };
+
+        const hideBoot = () => {
+            bootEl.classList.add('fade-out');
+            setTimeout(() => { bootEl.hidden = true; }, bootFadeMs);
+        };
+
+        // skip jumps straight past boot + matrix
         const skipBoot = (e) => {
-            if (bootEl.hidden) return;
-            done();
-            e.preventDefault?.();
+            if (skipped) return;
+            skipped = true;
+            hideBoot();
+            // hard-stop matrix immediately if it's running
+            if (matrixHandle) {
+                cancelAnimationFrame(matrixHandle);
+                matrixHandle = null;
+                const c = $('#matrix');
+                if (c) c.classList.remove('show');
+            }
+            cleanup();
+            e?.preventDefault?.();
         };
         window.addEventListener('keydown', skipBoot, true);
         window.addEventListener('pointerdown', skipBoot, true);
-        setTimeout(done, total);
+
+        // chain: boot → matrix → page
+        setTimeout(() => {
+            if (skipped) return;
+            hideBoot();
+            setTimeout(() => {
+                if (skipped) return;
+                startMatrix(matrixDuration);
+                setTimeout(() => {
+                    if (skipped) return;
+                    cleanup();
+                }, matrixDuration + matrixFadeMs);
+            }, bootFadeMs);
+        }, linesDoneAt);
     }
     runBoot();
 
