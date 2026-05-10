@@ -423,14 +423,6 @@ main {
 .log-sev.info     { color: var(--fg); }
 .log-sev.merged   { color: var(--accent); }
 .log-sev.running  { color: var(--amber); }
-.log-sev.live     { color: var(--accent); animation: log-pulse 2.2s ease-in-out infinite; }
-@keyframes log-pulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.55; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .log-sev.live { animation: none; }
-}
 .log-msg          { color: var(--fg); }
 .log-msg em       { color: var(--fg-bright); font-style: normal; font-weight: 600; }
 
