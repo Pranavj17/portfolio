@@ -731,6 +731,34 @@ kbd {
 .keybar::-webkit-scrollbar { display: none; }
 .kb { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .kb.sep { color: var(--muted); }
+
+/* tappable keybar items — buttons styled to look like kb spans */
+.kb-btn {
+    background: transparent;
+    border: 0;
+    padding: 4px 8px;
+    margin: 0 -2px;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+    border-radius: 0;
+    transition: color .12s ease, background .12s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.kb-btn:hover { color: var(--fg-bright); background: var(--bg-2); }
+.kb-btn:active { color: var(--accent); }
+.kb-btn:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
+
+/* primary call-to-action — make `[/] shell` slightly more visible
+   so mobile visitors notice it's tappable */
+.kb-btn.kb-primary {
+    background: var(--accent-soft);
+    color: var(--fg-bright);
+}
+.kb-btn.kb-primary:hover { background: var(--accent); color: var(--bg); }
+.kb-btn.kb-primary:hover kbd { color: var(--bg); border-color: var(--bg); }
 .copyright {
     margin-left: auto;
     color: var(--dim);

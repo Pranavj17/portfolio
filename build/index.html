@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/styles.css?v=20260510-13">
+    <link rel="stylesheet" href="/styles.css?v=20260510-14">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -118,7 +118,7 @@
                     </div>
                 </div>
 
-                <p class="hint dim">▸ press <kbd>?</kbd> for keybindings · <kbd>1</kbd>–<kbd>5</kbd> to jump sections</p>
+                <p class="hint dim">▸ tap or press <kbd>/</kbd> to open the shell · <kbd>t</kbd> to cycle themes · <kbd>?</kbd> for help</p>
             </div>
         </section>
 
@@ -448,16 +448,16 @@
         </form>
     </aside>
 
-    <!-- BOTTOM KEYBINDING BAR -->
+    <!-- BOTTOM KEYBINDING BAR · also tappable on touch devices -->
     <footer class="keybar" role="contentinfo">
-        <span class="kb"><kbd>0</kbd>–<kbd>5</kbd> jump</span>
+        <button type="button" class="kb kb-btn kb-primary" data-action="shell" aria-label="open shell"><kbd>/</kbd> shell</button>
+        <button type="button" class="kb kb-btn" data-action="theme" aria-label="cycle theme"><kbd>t</kbd> theme</button>
+        <button type="button" class="kb kb-btn" data-action="help" aria-label="open help"><kbd>?</kbd> help</button>
         <span class="kb sep">·</span>
-        <span class="kb"><kbd>/</kbd> shell</span>
-        <span class="kb"><kbd>t</kbd> theme</span>
-        <span class="kb"><kbd>?</kbd> help</span>
+        <button type="button" class="kb kb-btn" data-action="jump-work" aria-label="jump to resume"><kbd>r</kbd> resume</button>
+        <button type="button" class="kb kb-btn" data-action="jump-projects" aria-label="jump to projects"><kbd>p</kbd> projects</button>
+        <button type="button" class="kb kb-btn" data-action="jump-contact" aria-label="jump to contact"><kbd>c</kbd> contact</button>
         <span class="kb sep">·</span>
-        <span class="kb"><kbd>r</kbd> resume</span>
-        <span class="kb"><kbd>p</kbd> projects</span>
         <span class="kb"><kbd>g</kbd><kbd>g</kbd> top</span>
         <span class="kb"><kbd>G</kbd> bottom</span>
         <span class="copyright">© 2026 pranav jagadish · MIT</span>
@@ -494,7 +494,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260510-13" defer></script>
-    <script src="script.js?v=20260510-13" defer></script>
+    <script src="api.js?v=20260510-14" defer></script>
+    <script src="script.js?v=20260510-14" defer></script>
 </body>
 </html>

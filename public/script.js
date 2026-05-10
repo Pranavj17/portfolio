@@ -997,6 +997,25 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         help.addEventListener('click', e => { if (e.target === help) help.hidden = true; });
     }
 
+    /* ─────── 9.5 KEYBAR tap support (mobile + desktop click) ─────── */
+    $$('.kb-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            const action = btn.dataset.action;
+            switch (action) {
+                case 'shell':         consoleToggle(); break;
+                case 'theme':         cycleTheme(); break;
+                case 'help':          if (help) help.hidden = !help.hidden; break;
+                case 'jump-home':     jump('home'); break;
+                case 'jump-work':     jump('work'); break;
+                case 'jump-skills':   jump('skills'); break;
+                case 'jump-artifacts':jump('artifacts'); break;
+                case 'jump-projects': jump('projects'); break;
+                case 'jump-contact':  jump('contact'); break;
+            }
+        });
+    });
+
     // konami code → matrix
     const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
     let konamiIdx = 0;
