@@ -986,6 +986,13 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         const drops = Array(cols).fill(1);
         const chars = '01アイウエオカキクケコ$#%@&PJ_><:;-+'.split('');
         const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#6dffa6';
+        const bg     = getComputedStyle(document.body).getPropertyValue('--bg').trim()     || '#0a0e0a';
+        // paint opaque background BEFORE adding .show class so the very
+        // first visible frame already covers the page (otherwise the
+        // 0.08-alpha trail layer leaves the canvas mostly transparent
+        // and the page bleeds through during the boot→matrix transition)
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
         canvas.classList.add('show');
         let last = performance.now();
         const start = last;
@@ -1042,10 +1049,10 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             bootLines.appendChild(li);
         });
 
-        const linesDoneAt   = BOOT_LINES.length * 85 + 700;  // ~1.5s
-        const matrixDuration = 3000;                          // 3s rain
-        const bootFadeMs    = 240;
-        const matrixFadeMs  = 280;
+        const linesDoneAt    = BOOT_LINES.length * 85 + 700;  // ~1.5s
+        const matrixFadeIn   = 280;                            // wait for matrix CSS opacity 0→1 to land
+        const matrixDuration = 3000;                            // 3s rain (visible duration)
+        const matrixFadeOut  = 280;                            // matrix .show removed → fades out
         let skipped = false;
 
         const cleanup = () => {
@@ -1055,41 +1062,52 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             window.removeEventListener('pointerdown', skipBoot, true);
         };
 
-        const hideBoot = () => {
-            bootEl.classList.add('fade-out');
-            setTimeout(() => { bootEl.hidden = true; }, bootFadeMs);
+        const snapHideBoot = () => {
+            // direct hide — no fade. matrix already opaque underneath, so
+            // there's no flicker through to the page.
+            bootEl.hidden = true;
+        };
+
+        const stopMatrix = () => {
+            if (matrixHandle) {
+                cancelAnimationFrame(matrixHandle);
+                matrixHandle = null;
+            }
+            const c = $('#matrix');
+            if (c) {
+                c.classList.remove('show');
+                const ctx = c.getContext('2d');
+                if (ctx) setTimeout(() => ctx.clearRect(0, 0, c.width, c.height), 280);
+            }
         };
 
         // skip jumps straight past boot + matrix
         const skipBoot = (e) => {
             if (skipped) return;
             skipped = true;
-            hideBoot();
-            // hard-stop matrix immediately if it's running
-            if (matrixHandle) {
-                cancelAnimationFrame(matrixHandle);
-                matrixHandle = null;
-                const c = $('#matrix');
-                if (c) c.classList.remove('show');
-            }
+            snapHideBoot();
+            stopMatrix();
             cleanup();
             e?.preventDefault?.();
         };
         window.addEventListener('keydown', skipBoot, true);
         window.addEventListener('pointerdown', skipBoot, true);
 
-        // chain: boot → matrix → page
+        // chain: boot lines → start matrix BEHIND boot (z=8000 < z=9999)
+        // → wait for matrix CSS fade-in to complete → snap-hide boot
+        // → matrix visible for matrixDuration → matrix auto-fades → page
         setTimeout(() => {
             if (skipped) return;
-            hideBoot();
+            startMatrix(matrixDuration + matrixFadeIn);  // total visible time
             setTimeout(() => {
                 if (skipped) return;
-                startMatrix(matrixDuration);
-                setTimeout(() => {
-                    if (skipped) return;
-                    cleanup();
-                }, matrixDuration + matrixFadeMs);
-            }, bootFadeMs);
+                // matrix has fully faded in behind boot; safe to remove boot
+                snapHideBoot();
+            }, matrixFadeIn);
+            setTimeout(() => {
+                if (skipped) return;
+                cleanup();
+            }, matrixFadeIn + matrixDuration + matrixFadeOut);
         }, linesDoneAt);
     }
     runBoot();
