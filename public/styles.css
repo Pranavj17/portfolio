@@ -338,12 +338,14 @@ main {
 /* HERO ───────────────────────────────────────────────────── */
 .hero-name {
     font-family: var(--font-display);
-    font-size: clamp(78px, 14vw, 188px);
-    line-height: 0.82;
+    font-size: clamp(38px, 10vw, 120px);
+    line-height: 1;
     letter-spacing: 0.02em;
     color: var(--fg-bright);
-    margin: 0 0 28px;
+    margin: 0 0 22px;
     text-transform: uppercase;
+    /* keep PRANAV and JAGADISH on one line at every breakpoint */
+    white-space: nowrap;
     text-shadow:
         0 0 14px var(--hero-glow-1),
         0 0 36px var(--hero-glow-2);
@@ -811,8 +813,8 @@ kbd {
     .tab { padding: 0 14px; font-size: 12px; }
     .panel-meta { display: none; }
 
-    /* hero — keep impact, fit width */
-    .hero-name { font-size: clamp(58px, 18vw, 110px); margin-bottom: 22px; }
+    /* hero — keep on one line, scale with viewport */
+    .hero-name { font-size: clamp(34px, 9vw, 70px); margin-bottom: 18px; }
     .hero-tag { font-size: 14px; }
     .shell-block { padding: 14px 14px; }
     .shell-line { font-size: 13px; word-break: break-all; }
@@ -902,7 +904,7 @@ kbd {
 
 /* iPhone SE / mini */
 @media (max-width: 380px) {
-    .hero-name { font-size: clamp(46px, 19vw, 80px); }
+    .hero-name { font-size: clamp(28px, 8.5vw, 40px); }
     .panel-body { padding: 14px 12px 18px; }
     .shell-block { padding: 10px 10px; }
 

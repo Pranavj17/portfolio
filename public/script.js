@@ -667,58 +667,74 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
     }
     runBoot();
 
-    /* ─────── 8.5 LIVE github feed → /var/log/career.log ─────── */
+    /* ─────── 8.5 LIVE github feed → /var/log/career.log
+       /users/{u}/events/public strips commit messages, so we do it
+       in two steps: events → find most active repo → fetch its
+       /repos/{owner}/{name}/commits which has full commit data.
+       Both calls are cached in sessionStorage with a 10-min TTL. */
     async function loadGitHubFeed() {
         const log = $('#work .log');
         if (!log) return;
 
-        const KEY = 'gh-events';
-        const KEY_AT = 'gh-events-at';
-        const TTL = 10 * 60_000; // 10 min
-
-        let events;
-        try {
-            const cached = sessionStorage.getItem(KEY);
-            const cachedAt = parseInt(sessionStorage.getItem(KEY_AT) || '0', 10);
-            if (cached && (Date.now() - cachedAt) < TTL) {
-                events = JSON.parse(cached);
-            } else {
-                const res = await fetch('https://api.github.com/users/Pranavj17/events/public?per_page=30', {
-                    headers: { 'Accept': 'application/vnd.github+json' }
-                });
-                if (!res.ok) return; // rate-limited or offline → skip silently
-                events = await res.json();
+        const TTL = 10 * 60_000;
+        const fetchCached = async (url, key) => {
+            try {
+                const cached = sessionStorage.getItem('gh-' + key);
+                const cachedAt = parseInt(sessionStorage.getItem('gh-' + key + '-at') || '0', 10);
+                if (cached && (Date.now() - cachedAt) < TTL) return JSON.parse(cached);
+                const res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+                if (!res.ok) return null;
+                const data = await res.json();
                 try {
-                    sessionStorage.setItem(KEY, JSON.stringify(events));
-                    sessionStorage.setItem(KEY_AT, String(Date.now()));
+                    sessionStorage.setItem('gh-' + key, JSON.stringify(data));
+                    sessionStorage.setItem('gh-' + key + '-at', String(Date.now()));
                 } catch (_) {}
-            }
-        } catch (_) { return; }
+                return data;
+            } catch (_) { return null; }
+        };
 
+        // step 1: find most active public repo
+        const events = await fetchCached('https://api.github.com/users/Pranavj17/events/public?per_page=30', 'events');
         if (!Array.isArray(events) || !events.length) return;
 
-        const pushEvents = events
-            .filter(e => e.type === 'PushEvent' && e.payload && e.payload.commits)
-            .slice(0, 5);
-        if (!pushEvents.length) return;
+        const counts = {};
+        events.filter(e => e.type === 'PushEvent').forEach(e => {
+            const r = e.repo && e.repo.name;
+            if (!r) return;
+            counts[r] = (counts[r] || 0) + 1;
+        });
+        const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([r]) => r);
+        if (!ranked.length) return;
 
+        // step 2: fetch full commit data for top active repo
+        const topRepo = ranked[0];
+        const commits = await fetchCached(
+            `https://api.github.com/repos/${topRepo}/commits?per_page=5`,
+            'commits-' + topRepo.replace(/\//g, '-')
+        );
+        if (!Array.isArray(commits) || !commits.length) return;
+
+        // step 3: render rows
+        const repoName = topRepo.split('/').pop();
         const escape = s => String(s)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        pushEvents.forEach(e => {
-            const ts = new Date(e.created_at).toISOString().slice(0, 10);
-            const repo = (e.repo?.name || '').split('/').pop() || 'repo';
-            const commit = e.payload.commits[e.payload.commits.length - 1]; // most recent
-            const msgRaw = (commit?.message || 'pushed commits').split('\n')[0];
+        commits.slice(0, 5).forEach(c => {
+            const date = (c.commit && c.commit.author && c.commit.author.date) ||
+                         (c.commit && c.commit.committer && c.commit.committer.date);
+            if (!date) return;
+            const ts = String(date).slice(0, 10);
+            const msgRaw = ((c.commit && c.commit.message) || '').split('\n')[0];
+            if (!msgRaw) return;
             const msg = escape(msgRaw.length > 88 ? msgRaw.slice(0, 85) + '…' : msgRaw);
             const li = document.createElement('li');
             li.className = 'log-row';
             li.innerHTML =
                 `<span class="log-ts">${ts}</span>` +
                 `<span class="log-sev live">LIVE</span>` +
-                `<span class="log-msg">▸ <em>${escape(repo)}</em> · ${msg}</span>`;
+                `<span class="log-msg">▸ <em>${escape(repoName)}</em> · ${msg}</span>`;
             log.appendChild(li);
         });
 
