@@ -153,7 +153,7 @@
     /* ── COMMAND TABLE ── */
     const SECTIONS = ['home', 'work', 'skills', 'artifacts', 'projects', 'contact'];
     const SECTION_BLURB = {
-        home:      "senior software engineer · 6+ years · bengaluru. building autonomous agents that debug production at 3am.",
+        home:      "building scalable autonomous agents. senior engineer · 6+ years across the stack · elixir, ruby, javascript, postgres, MCP.",
         work:      "11 entries from sakha global (2019) → scripbox (2022→present). highlights: postgres 2.5s→80ms, MTTR -45%, ETS caching API latency -60%, mcp-server-graylog merged into anthropic catalog, memory MCP shipped (96.5% token cut).",
         skills:    "elixir 88% · ruby 78% · javascript 72% · postgres 80% · mcp 74% (R+) · python 22% (learning) · ai-ml 18% (learning).",
         artifacts: "3 highlighted: mcp-server-graylog (anthropic catalog, PR #2913), AI agent automation platform (7 channels, 5+ services), memory MCP server (elixir, 94%+ duplicate detection).",
