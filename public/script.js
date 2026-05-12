@@ -826,8 +826,15 @@ Phone: +91 8123310664
             ];
             print(lines[Math.floor(Math.random() * lines.length)], 'muted');
         },
-        matrix() {
+        async matrix() {
             print('booting easter egg... ctrl+c to abort. (just kidding, it auto-stops.)', 'warn');
+            // dismiss the soft keyboard so the visual viewport reflows back
+            // to full size BEFORE the matrix canvas is sized. without this,
+            // matrix gets sized to the keyboard-shrunken viewport on mobile
+            // and stays small after the keyboard dismisses → page bleeds
+            // through around the edges and looks irregular.
+            consoleInp?.blur();
+            await sleep(380);
             startMatrix(5000);
         },
         exit()    { print('logging out...', 'muted'); setTimeout(consoleClose_, 250); },
@@ -987,28 +994,58 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
 
     /* ─────── 7. MATRIX easter egg ─────── */
     let matrixHandle = null;
+    let matrixResizeHandler = null;
     function startMatrix(durationMs = 5000) {
         const canvas = $('#matrix');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
-        const W = canvas.width = innerWidth * dpr;
-        const H = canvas.height = innerHeight * dpr;
-        canvas.style.width = innerWidth + 'px';
-        canvas.style.height = innerHeight + 'px';
-        const fontSize = 16 * dpr;
-        const cols = Math.floor(W / fontSize);
-        const drops = Array(cols).fill(1);
         const chars = '01アイウエオカキクケコ$#%@&PJ_><:;-+'.split('');
         const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#6dffa6';
         const bg     = getComputedStyle(document.body).getPropertyValue('--bg').trim()     || '#0a0e0a';
-        // paint opaque background BEFORE adding .show class so the very
-        // first visible frame already covers the page (otherwise the
-        // 0.08-alpha trail layer leaves the canvas mostly transparent
-        // and the page bleeds through during the boot→matrix transition)
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, W, H);
+
+        // closured size state so the resize handler can update them
+        let W, H, fontSize, cols, drops = [];
+
+        // viewportSize() prefers visualViewport (which excludes the on-screen
+        // keyboard on iOS) over innerWidth/innerHeight. Falls back gracefully.
+        const viewportSize = () => {
+            const vv = window.visualViewport;
+            return {
+                w: Math.max(vv?.width  || 0, window.innerWidth),
+                h: Math.max(vv?.height || 0, window.innerHeight),
+            };
+        };
+
+        const configure = () => {
+            const dpr = window.devicePixelRatio || 1;
+            const { w, h } = viewportSize();
+            W = canvas.width  = Math.floor(w * dpr);
+            H = canvas.height = Math.floor(h * dpr);
+            canvas.style.width  = w + 'px';
+            canvas.style.height = h + 'px';
+            fontSize = 16 * dpr;
+            const newCols = Math.floor(W / fontSize);
+            // preserve existing drop positions when resizing (no animation reset)
+            const oldDrops = drops.slice();
+            drops = Array(newCols).fill(1);
+            for (let i = 0; i < Math.min(oldDrops.length, newCols); i++) {
+                drops[i] = oldDrops[i];
+            }
+            cols = newCols;
+            // re-paint opaque bg so the canvas always covers the page,
+            // even right after a resize
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, W, H);
+        };
+
+        configure();
         canvas.classList.add('show');
+
+        // mid-animation resize handling (keyboard dismiss, orientation, etc.)
+        matrixResizeHandler = configure;
+        window.addEventListener('resize', matrixResizeHandler);
+        window.visualViewport?.addEventListener('resize', matrixResizeHandler);
+
         let last = performance.now();
         const start = last;
         function frame(now) {
@@ -1025,6 +1062,11 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             if (now - start < durationMs) {
                 matrixHandle = requestAnimationFrame(frame);
             } else {
+                if (matrixResizeHandler) {
+                    window.removeEventListener('resize', matrixResizeHandler);
+                    window.visualViewport?.removeEventListener('resize', matrixResizeHandler);
+                    matrixResizeHandler = null;
+                }
                 canvas.classList.remove('show');
                 setTimeout(() => ctx.clearRect(0, 0, W, H), 280);
                 matrixHandle = null;
@@ -1092,6 +1134,12 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             if (matrixHandle) {
                 cancelAnimationFrame(matrixHandle);
                 matrixHandle = null;
+            }
+            // tear down the resize listener that startMatrix attached
+            if (matrixResizeHandler) {
+                window.removeEventListener('resize', matrixResizeHandler);
+                window.visualViewport?.removeEventListener('resize', matrixResizeHandler);
+                matrixResizeHandler = null;
             }
             const c = $('#matrix');
             if (c) {
