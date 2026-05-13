@@ -203,6 +203,10 @@
     const history = [];
     let histIdx = -1;
     let draft = '';
+    // Guards against overlapping `mcp <q>` invocations interleaving their
+    // tool-call streams into the same terminal output. The fetch + the
+    // staggered tool-call animation can take 5-15s end to end.
+    let mcpInFlight = false;
 
     function consoleOpen() {
         if (!consoleEl) return;
@@ -746,8 +750,19 @@ Phone: +91 8123310664
                 for (const line of lines) { print(line); await sleep(35); }
                 return;
             }
+            // Concurrency guard · a second `mcp <q>` while the first is still
+            // streaming would interleave both answers' tool-call lines into
+            // one output stream. Politely refuse and wait.
+            if (mcpInFlight) {
+                print('<span class="muted">mcp: busy · previous query still streaming · please wait</span>');
+                return;
+            }
+            mcpInFlight = true;
 
-            print(`<span class="muted">&gt; querying mcp-server-graylog (live · NVIDIA NIM · mistral-nemotron) ...</span>`);
+            // Don't name a model in the pre-fetch banner. When NIM has Mistral
+            // DEGRADED and Llama actually answers, hardcoding "mistral-nemotron"
+            // would lie. The post-response footer reports `data.model` truthfully.
+            print(`<span class="muted">&gt; querying mcp-server-graylog (live · NVIDIA NIM) ...</span>`);
 
             // Build a compact, human-readable summary of a tool call's args.
             // ≤60 chars total, string values truncated to ~22 chars + "..."
@@ -814,16 +829,43 @@ Phone: +91 8123310664
                     return await fallback(reason);
                 }
 
-                const data = await res.json();
+                let data;
+                try { data = await res.json(); }
+                catch { return await fallback('bad response · server returned non-JSON'); }
 
-                // Phase 2: stream tool calls "watch-the-agent-think" UX
+                // F2 · Fallback-model warning. If the primary model (slot 0 of
+                // models_available) didn't answer, the visitor should know which
+                // model actually served their query. Otherwise they think
+                // Mistral answered when Llama did.
+                const primary = Array.isArray(data.models_available) ? data.models_available[0] : null;
+                if (primary && data.model && primary !== data.model) {
+                    print(`<span class="hl-amber">note: primary model ${escapeHtml(primary)} unavailable · ${escapeHtml(data.model)} answered instead</span>`);
+                    await sleep(40);
+                }
+
+                // F5 · Surface the worker's `note` field (currently emitted only
+                // when [TOOL_CALLS] leak recovery happened). Amber line BEFORE
+                // the tool-call stream so visitors see the warning in-context.
+                if (typeof data.note === 'string' && data.note) {
+                    print(`<span class="hl-amber">note: ${escapeHtml(data.note)}</span>`);
+                    await sleep(40);
+                }
+
+                // Phase 2: stream tool calls "watch-the-agent-think" UX.
                 const toolCalls = Array.isArray(data.tool_calls) ? data.tool_calls : [];
                 if (toolCalls.length > 0) {
                     for (const tc of toolCalls) {
                         const name = escapeHtml(String(tc?.name ?? 'unknown'));
                         const argsSummary = escapeHtml(summarizeArgs(tc?.args));
                         const summary = escapeHtml(String(tc?.result_summary ?? ''));
-                        print(`<span class="muted">▸ calling </span><span class="hl">${name}</span><span class="muted">(${argsSummary})</span>`);
+                        // F4 · Flag leak-recovered calls with an amber asterisk
+                        // instead of the green bullet, so the visitor sees that
+                        // upstream emitted unstructured markup but the worker
+                        // parsed it cleanly.
+                        const flag = tc?.source === 'leaked-recovered'
+                            ? '<span class="hl-amber">*</span>'
+                            : '<span class="hl">▸</span>';
+                        print(`${flag}<span class="muted"> calling </span><span class="hl">${name}</span><span class="muted">(${argsSummary})</span>`);
                         await sleep(80);
                         print(`<span class="muted">   ↓ ${summary}</span>`);
                         await sleep(80);
@@ -831,23 +873,22 @@ Phone: +91 8123310664
                     print('');
                 }
 
-                // Render final answer line-by-line (Phase 1 shape is `answer`,
-                // Phase 2 shape is `final_answer` — accept either for safety).
-                const answerText = data.final_answer ?? data.answer ?? '';
-                await renderAnswerLines(answerText);
+                // F8 · Removed the `?? data.answer` Phase 1 fallback.
+                await renderAnswerLines(data.final_answer ?? '');
 
+                // F6 · Unified footer. Round count works regardless of whether
+                // any tool was called (the old dataset-entries branch was a
+                // Phase 1 leftover that always confused the message).
                 const remaining = (data.remaining ?? '?');
                 const model = escapeHtml(String(data.model || ''));
-                if (toolCalls.length > 0) {
-                    const rounds = Number.isFinite(data.rounds) ? data.rounds : toolCalls.length;
-                    print(`<span class="muted">[live · ${model} · ${rounds} tool-call rounds · ${remaining} queries left this hour]</span>`);
-                } else {
-                    // No tool calls — fall back to Phase 1 style footer with dataset stats
-                    const entries = data?.dataset?.entries || '?';
-                    print(`<span class="muted">[live · ${model} · ${entries} log entries · ${remaining} queries left this hour]</span>`);
-                }
+                const rounds = Number.isFinite(data.rounds) ? data.rounds : toolCalls.length;
+                print(`<span class="muted">[live · ${model} · ${rounds} round${rounds === 1 ? '' : 's'} · ${remaining} queries left this hour]</span>`);
             } catch (e) {
                 await fallback(`network: ${e.message || 'fetch failed'}`);
+            } finally {
+                // Release the concurrency guard regardless of how we exited
+                // (success, fallback, thrown error).
+                mcpInFlight = false;
             }
         },
         async sign(...rest) {

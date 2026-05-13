@@ -537,12 +537,20 @@ async function callLLM(messages, apiKey, opts = {}) {
             return { ok: true, data, model_used: model };
         }
 
-        // res not OK · decide whether to retry next model or surface immediately
+        // res not OK · decide whether to retry next model or surface immediately.
+        // Strict transient gate: only 5xx + 429 (server-side faults) warrant
+        // retrying a different model. Plain 4xx means WE sent something wrong —
+        // Llama / Qwen would reject it the same way, so we'd just 3x our cost
+        // for nothing. The lone 400-shaped exception is NIM's "DEGRADED function"
+        // response which IS provider-side and DOES warrant fallback.
         const txt = await res.text().catch(() => '');
-        const isDegraded = /degraded|capacity|temporarily|503|429|524|529/i.test(txt) || res.status === 429 || res.status >= 500;
-        const status400Degraded = res.status === 400 && /degraded function|capacity|unavailable/i.test(txt);
-        lastError = { status: 502, error: `upstream LLM error (${model}) · HTTP ${res.status}${txt ? ' · ' + txt.slice(0, 160) : ''}` };
-        if (isDegraded || status400Degraded) continue;  // try next model
+        const isTransient   = res.status === 429 || res.status >= 500;
+        const isDegraded400 = res.status === 400 && /degraded function|capacity|unavailable/i.test(txt);
+        // Pass through 429 to the client so they see "upstream rate-limited"
+        // distinctly from a generic 502 bad-gateway.
+        const surfaceStatus = res.status === 429 ? 429 : 502;
+        lastError = { status: surfaceStatus, error: `upstream LLM error (${model}) · HTTP ${res.status}${txt ? ' · ' + txt.slice(0, 160) : ''}` };
+        if (isTransient || isDegraded400) continue;  // try next model
         return lastError;  // non-retryable error · stop walking the chain
     }
     // Exhausted all models
@@ -577,12 +585,23 @@ async function handleQuery(request, env) {
         return errResp(429, `rate limit · max ${RATE_LIMIT_PER_HOUR} queries/hour per IP · try again later`);
     }
 
+    // Pre-increment the rate counter: every attempt (success OR failure) spends
+    // upstream NIM tokens, so we charge the visitor's 10/hr quota on attempt,
+    // not on success. A degraded model + 3-way fallback chain otherwise lets
+    // one bad request 3x our NIM cost without ever touching the quota.
+    // KV has no atomic increment; the small race window (two concurrent reads
+    // both seeing the same `cur`) is acceptable for a 10/hr-per-IP demo limit.
+    try {
+        await env.MCP_RATELIMIT.put(rateKey, String(cur + 1), { expirationTtl: 3600 });
+    } catch (_) {}
+
     // ─── tool-calling loop ────────────────────────────────────────────
     const messages = [
         { role: 'system', content: buildSystemPrompt() },
         { role: 'user',   content: q },
     ];
     const toolCallsLog = [];   // for the response payload
+    const leakedCallIds = new Set();   // tc.id of calls recovered from [TOOL_CALLS] leak
     let finalAnswer = '';
     let rounds = 0;
     let modelUsed = NIM_MODEL;  // track which model actually answered (may differ on fallback)
@@ -619,6 +638,9 @@ async function handleQuery(request, env) {
                     type: 'function',
                     function: { name: lc.name, arguments: JSON.stringify(lc.args) },
                 }));
+                // Mark these tc.ids as leak-recovered so the response payload
+                // can flag them and the visitor sees the recovery happened.
+                for (const tc of toolCalls) leakedCallIds.add(tc.id);
                 content = '';   // discard the leaked text · we don't trust its fabricated "result"
             }
         }
@@ -657,6 +679,7 @@ async function handleQuery(request, env) {
                 args: parsedArgs,
                 result_summary: summary,
                 result,
+                source: leakedCallIds.has(tc.id) ? 'leaked-recovered' : 'structured',
             });
 
             messages.push({
@@ -672,10 +695,12 @@ async function handleQuery(request, env) {
         return errResp(502, 'LLM produced no final answer after tool loop');
     }
 
-    // increment rate counter only on success
-    try {
-        await env.MCP_RATELIMIT.put(rateKey, String(cur + 1), { expirationTtl: 3600 });
-    } catch (_) {}
+    // Surface a one-line note when ANY tool call was recovered from a leak,
+    // so the frontend can flag this as a "watch this — upstream model emitted
+    // unstructured markup but we parsed it cleanly" moment.
+    const note = leakedCallIds.size > 0
+        ? `mistral nemotron emitted unstructured tool-call markup · parsed & recovered ${leakedCallIds.size} call${leakedCallIds.size > 1 ? 's' : ''}`
+        : undefined;
 
     return jsonResp(200, {
         ok: true,
@@ -691,6 +716,7 @@ async function handleQuery(request, env) {
             services: Object.keys(DATASET.aggregates.by_service).length,
             errors:   DATASET.aggregates.by_level.ERROR || 0,
         },
+        ...(note ? { note } : {}),
     });
 }
 
