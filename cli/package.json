@@ -1,0 +1,43 @@
+{
+    "name": "pranav-j",
+    "version": "1.0.0",
+    "description": "Pranav Jagadish's portfolio in your terminal · npx pranav-j",
+    "bin": {
+        "pranav-j": "./index.js"
+    },
+    "main": "./index.js",
+    "files": [
+        "index.js",
+        "README.md"
+    ],
+    "scripts": {
+        "start": "node index.js",
+        "prepublishOnly": "node index.js --no-color > /dev/null && echo 'self-test ok'"
+    },
+    "engines": {
+        "node": ">=14"
+    },
+    "dependencies": {
+        "picocolors": "^1.1.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Pranavj17/portfolio.git",
+        "directory": "cli"
+    },
+    "homepage": "https://pranavjagadish.com",
+    "bugs": {
+        "url": "https://github.com/Pranavj17/portfolio/issues"
+    },
+    "author": "Pranav Jagadish <jpranav97@gmail.com> (https://pranavjagadish.com)",
+    "license": "MIT",
+    "keywords": [
+        "portfolio",
+        "resume",
+        "cli",
+        "terminal",
+        "mcp",
+        "ai-agents",
+        "elixir"
+    ]
+}

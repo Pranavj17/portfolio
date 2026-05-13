@@ -229,6 +229,7 @@
         theme:   'switch terminal theme',
         boot:    'replay the BIOS-POST animation',
         hire:    'compose a hiring email',
+        cli:     'this portfolio in your real terminal · npx pranav-j',
         demo:    'play the Echo demo video',
         resume:  'open the printable resume',
         history: 'show typed-command history',
@@ -1131,6 +1132,16 @@ Phone: +91 8123310664
             const link = `mailto:jpranav97@gmail.com?subject=${subj}&body=${body}`;
             print(`opening compose window → <a href="${link}">${link}</a>`, 'ok');
             window.location.href = link;
+        },
+        cli() {
+            print('this portfolio also lives on npm. install nothing, just run:', 'muted');
+            print('');
+            print('  <span class="hl">$ npx pranav-j</span>', 'ok');
+            print('');
+            print('<span class="muted">flags ·</span> --resume <span class="muted">·</span> --projects <span class="muted">·</span> --contact <span class="muted">·</span> --no-color <span class="muted">·</span> --help', 'muted');
+            print('');
+            print('<span class="muted">source</span>  <a href="https://github.com/Pranavj17/portfolio/tree/main/cli" target="_blank" rel="noopener">github.com/Pranavj17/portfolio/tree/main/cli</a>', 'muted');
+            print('<span class="muted">npm</span>     <a href="https://www.npmjs.com/package/pranav-j" target="_blank" rel="noopener">npmjs.com/package/pranav-j</a>', 'muted');
         },
         demo() {
             print('opening live demo of <span class="hl">Echo</span> · AI agent automation platform...', 'ok');
