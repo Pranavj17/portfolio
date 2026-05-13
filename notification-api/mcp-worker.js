@@ -21,7 +21,15 @@
 import DATASET from './mcp-dataset.json';
 
 const NIM_URL              = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const NIM_MODEL            = 'mistralai/mistral-nemotron';
+// Model fallback chain (same priority order as OpenClaw on Mac Mini).
+// First model is tried; on DEGRADED / transient failures, we fall through.
+// All three support OpenAI-style function-calling per NIM benchmarks.
+const NIM_MODELS = [
+    'mistralai/mistral-nemotron',
+    'meta/llama-3.3-70b-instruct',
+    'qwen/qwen3-coder-480b-a35b-instruct',
+];
+const NIM_MODEL            = NIM_MODELS[0];   // primary, reported in /api/mcp/query status
 const MAX_QUESTION_LEN     = 200;
 const MAX_ANSWER_TOKENS    = 600;
 const RATE_LIMIT_PER_HOUR  = 10;
@@ -127,6 +135,57 @@ const TOOL_SCHEMAS = [
         },
     },
 ];
+
+// ─── Mistral [TOOL_CALLS] leak recovery ──────────────────────────────
+//
+// Mistral Nemotron's underlying chat template uses literal `[TOOL_CALLS]`
+// markers to delimit tool-use sections. Most of the time NIM normalizes
+// these into structured `message.tool_calls`. When the normalization
+// fails (~10% of responses), the markers leak into `message.content`
+// in a format like:
+//
+//   [TOOL_CALLS]count_messages{"query":"level:ERROR","groupby":"service"}[TOOL_CALLS]p5A8IozoY[TOOL_CALLS]{"counts":[...]}
+//
+// We parse out the FIRST segment after the opening `[TOOL_CALLS]` (tool
+// name + JSON args) and discard the rest, including the LLM's fabricated
+// inline "result" which we should never trust. Then we execute the tool
+// for real and continue the loop.
+
+const _KNOWN_TOOL_NAMES = new Set(TOOL_SCHEMAS.map(s => s.function.name));
+
+function extractLeakedToolCalls(text) {
+    if (!text || !text.includes('[TOOL_CALLS]')) return [];
+    const parts = text.split('[TOOL_CALLS]');
+    // parts[0] = text before the first marker (usually empty); subsequent
+    // parts are segments BETWEEN markers. We only trust the first non-empty
+    // segment that looks like `<name>{<json>}` AND names a known tool.
+    const calls = [];
+    for (let i = 1; i < parts.length; i++) {
+        const p = parts[i].trim();
+        if (!p) continue;
+        const m = p.match(/^(\w+)\s*(\{[\s\S]*\})\s*$/);
+        if (!m) continue;
+        const [, name, argsJson] = m;
+        if (!_KNOWN_TOOL_NAMES.has(name)) continue;
+        try {
+            const args = JSON.parse(argsJson);
+            if (args && typeof args === 'object') {
+                calls.push({ name, args });
+                break;   // stop after first valid · rest are LLM-fabricated noise
+            }
+        } catch (_) { /* malformed JSON · keep scanning */ }
+    }
+    return calls;
+}
+
+function stripLeakMarkup(text) {
+    if (!text || !text.includes('[TOOL_CALLS]')) return text;
+    // Remove every `[TOOL_CALLS]...` chunk up to the next `[TOOL_CALLS]` OR
+    // end of string. Leaves any non-tool-call surrounding prose intact.
+    return text
+        .replace(/\[TOOL_CALLS\][^[]*(?=\[TOOL_CALLS\]|$)/g, '')
+        .trim();
+}
 
 // ─── query parser & predicate builder ────────────────────────────────
 //
@@ -438,37 +497,56 @@ ANSWER STYLE:
 // ─── LLM call ────────────────────────────────────────────────────────
 
 async function callLLM(messages, apiKey, opts = {}) {
-    const body = {
-        model: NIM_MODEL,
-        messages,
-        tools: TOOL_SCHEMAS,
-        tool_choice: opts.toolChoice ?? 'auto',
-        max_tokens: MAX_ANSWER_TOKENS,
-        temperature: 0.4,
-        stream: false,
-    };
-    let res;
-    try {
-        res = await fetch(NIM_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type':  'application/json',
-                'Accept':        'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-    } catch (e) {
-        return { ok: false, status: 502, error: `upstream LLM unreachable · ${e?.message || 'fetch failed'}` };
-    }
-    if (!res.ok) {
+    // Walk the model fallback chain. Retry on transient/DEGRADED upstream
+    // failures (HTTP 400/429/5xx · network errors) but bail immediately on
+    // a clean answer or on errors that look like client mistakes that
+    // wouldn't change between models.
+    let lastError = null;
+    for (let i = 0; i < NIM_MODELS.length; i++) {
+        const model = NIM_MODELS[i];
+        const body = {
+            model,
+            messages,
+            tools: TOOL_SCHEMAS,
+            tool_choice: opts.toolChoice ?? 'auto',
+            max_tokens: MAX_ANSWER_TOKENS,
+            temperature: 0.4,
+            stream: false,
+        };
+        let res;
+        try {
+            res = await fetch(NIM_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type':  'application/json',
+                    'Accept':        'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+        } catch (e) {
+            lastError = { status: 502, error: `upstream LLM unreachable (${model}) · ${e?.message || 'fetch failed'}` };
+            continue;  // try next model
+        }
+
+        if (res.ok) {
+            let data;
+            try { data = await res.json(); }
+            catch { lastError = { status: 502, error: `upstream LLM returned non-JSON (${model})` }; continue; }
+            // Annotate which model actually answered (used in response payload)
+            return { ok: true, data, model_used: model };
+        }
+
+        // res not OK · decide whether to retry next model or surface immediately
         const txt = await res.text().catch(() => '');
-        return { ok: false, status: 502, error: `upstream LLM error · HTTP ${res.status}${txt ? ' · ' + txt.slice(0, 160) : ''}` };
+        const isDegraded = /degraded|capacity|temporarily|503|429|524|529/i.test(txt) || res.status === 429 || res.status >= 500;
+        const status400Degraded = res.status === 400 && /degraded function|capacity|unavailable/i.test(txt);
+        lastError = { status: 502, error: `upstream LLM error (${model}) · HTTP ${res.status}${txt ? ' · ' + txt.slice(0, 160) : ''}` };
+        if (isDegraded || status400Degraded) continue;  // try next model
+        return lastError;  // non-retryable error · stop walking the chain
     }
-    let data;
-    try { data = await res.json(); }
-    catch { return { ok: false, status: 502, error: 'upstream LLM returned non-JSON' }; }
-    return { ok: true, data };
+    // Exhausted all models
+    return lastError ?? { status: 502, error: 'all upstream LLM models failed' };
 }
 
 // ─── handlers ────────────────────────────────────────────────────────
@@ -507,6 +585,7 @@ async function handleQuery(request, env) {
     const toolCallsLog = [];   // for the response payload
     let finalAnswer = '';
     let rounds = 0;
+    let modelUsed = NIM_MODEL;  // track which model actually answered (may differ on fallback)
 
     for (let round = 1; round <= MAX_ROUNDS + 1; round++) {
         rounds = round;
@@ -514,18 +593,43 @@ async function handleQuery(request, env) {
         const forceFinal = round > MAX_ROUNDS;
         const llm = await callLLM(messages, env.NVIDIA_API_KEY, { toolChoice: forceFinal ? 'none' : 'auto' });
         if (!llm.ok) return errResp(llm.status || 502, llm.error);
+        if (llm.model_used) modelUsed = llm.model_used;
 
         const choice = llm.data?.choices?.[0];
         const msg    = choice?.message;
         if (!msg) return errResp(502, 'upstream LLM returned no message');
 
-        const toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
-        const content   = (msg.content || '').trim();
+        let toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+        let content   = (msg.content || '').trim();
+
+        // ─── Mistral leak recovery ─────────────────────────────────────
+        // Mistral Nemotron sometimes emits tool calls as text with
+        // [TOOL_CALLS] markers instead of structured tool_calls. When we
+        // see no structured calls AND we're not in the forced-final pass,
+        // check the text content for leaked tool-call markup.  If found,
+        // we PARSE the requested call, execute it for real (discarding
+        // the LLM's hallucinated inline result), synthesize a structured
+        // tool_calls entry, and continue the loop — exactly as if the
+        // call had been emitted properly.
+        if (toolCalls.length === 0 && !forceFinal && content.includes('[TOOL_CALLS]')) {
+            const leaked = extractLeakedToolCalls(content);
+            if (leaked.length > 0) {
+                toolCalls = leaked.map((lc, i) => ({
+                    id: `leak-r${round}-${i}`,
+                    type: 'function',
+                    function: { name: lc.name, arguments: JSON.stringify(lc.args) },
+                }));
+                content = '';   // discard the leaked text · we don't trust its fabricated "result"
+            }
+        }
 
         // If LLM produced no tool calls (or we're in the forced-final pass),
         // treat its content as the final answer and exit.
         if (toolCalls.length === 0 || forceFinal) {
-            finalAnswer = content || (toolCalls.length === 0 ? '' : '(LLM exhausted tool budget without a final answer)');
+            // Defensive: strip any residual [TOOL_CALLS] markup before returning
+            // (covers the edge case where extractLeakedToolCalls couldn't parse
+            // anything valid but markup is still in the text).
+            finalAnswer = stripLeakMarkup(content) || (toolCalls.length === 0 ? '' : '(LLM exhausted tool budget without a final answer)');
             // Persist the assistant message (even if empty) for completeness
             messages.push({ role: 'assistant', content: finalAnswer });
             break;
@@ -579,7 +683,8 @@ async function handleQuery(request, env) {
         tool_calls: toolCallsLog,
         final_answer: finalAnswer,
         rounds,
-        model: NIM_MODEL,
+        model: modelUsed,
+        models_available: NIM_MODELS,
         remaining: Math.max(0, RATE_LIMIT_PER_HOUR - cur - 1),
         dataset: {
             entries:  DATASET.aggregates.total_entries,
