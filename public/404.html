@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 · command not found · pranavjagadish</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="shortcut icon" href="/favicon.ico">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:           #0a0e0a;
+    --bg-1:         #0e130d;
+    --fg:           #c8d3bf;
+    --fg-bright:    #e8f0dd;
+    --dim:          #6f7d68;
+    --muted:        #2a3329;
+    --border:       #232b22;
+    --accent:       #6dffa6;
+    --amber:        #ffb000;
+    --red:          #ff5e5e;
+}
+
+html, body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* subtle scanline overlay */
+body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.012) 0,
+        rgba(255,255,255,0.012) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    mix-blend-mode: overlay;
+}
+
+main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 56px 24px;
+}
+
+.glyph {
+    font-family: 'VT323', 'IBM Plex Mono', monospace;
+    font-size: clamp(64px, 14vw, 132px);
+    color: var(--red);
+    line-height: 0.9;
+    margin-bottom: 8px;
+    text-shadow: 0 0 14px rgba(255,94,94,0.18), 0 0 36px rgba(255,94,94,0.06);
+}
+
+.label {
+    font-size: 16px;
+    color: var(--fg-bright);
+    margin-bottom: 32px;
+    letter-spacing: 0.02em;
+}
+
+.shell {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--red);
+    padding: 18px 20px;
+    margin: 28px 0;
+}
+
+.shell-line { margin: 0 0 6px; }
+
+.prompt { color: var(--accent); }
+.path   { color: var(--amber); }
+.dollar { color: var(--dim); margin: 0 4px; }
+.cmd    { color: var(--fg-bright); font-weight: 500; }
+.error  { color: var(--red); }
+.muted  { color: var(--dim); }
+
+h2 {
+    font-size: 13px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    margin: 28px 0 10px;
+    font-weight: 600;
+}
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+ul li {
+    padding: 4px 0;
+    font-size: 14px;
+}
+ul li a {
+    color: var(--fg-bright);
+    text-decoration: none;
+    border-bottom: 1px solid var(--dim);
+    padding-bottom: 1px;
+    transition: color .12s, border-color .12s;
+}
+ul li a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+ul li::before {
+    content: '▸';
+    color: var(--accent);
+    margin-right: 8px;
+}
+
+.cursor {
+    display: inline-block;
+    width: 9px;
+    height: 16px;
+    background: var(--fg-bright);
+    vertical-align: -2px;
+    margin-left: 2px;
+    box-shadow: 0 0 8px rgba(232,240,221,0.5);
+    animation: blink 1.05s steps(2) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.footer {
+    margin-top: 48px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--muted);
+    font-size: 12px;
+    color: var(--dim);
+    text-align: center;
+}
+
+@media (max-width: 520px) {
+    main { padding: 36px 16px; }
+    .shell { padding: 14px 14px; }
+    ul li { font-size: 13px; }
+}
+</style>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
+</head>
+<body>
+<main>
+    <div class="glyph">404</div>
+    <p class="label">command not found</p>
+
+    <div class="shell">
+        <div class="shell-line">
+            <span class="prompt">pranavjagadish</span>:<span class="path">~</span><span class="dollar">$</span> <span class="cmd"><script>document.write('cat ' + (location.pathname || '/'))</script><noscript>cat /requested-path</noscript></span>
+        </div>
+        <div class="shell-line error">cat: that path does not exist on this server</div>
+        <div class="shell-line muted">exit status: 404</div>
+        <div class="shell-line">
+            <span class="prompt">pranavjagadish</span>:<span class="path">~</span><span class="dollar">$</span> <span class="cursor"></span>
+        </div>
+    </div>
+
+    <h2>available paths</h2>
+    <ul>
+        <li><a href="/">/ <span class="muted">— home · the live terminal</span></a></li>
+        <li><a href="/resume.html">/resume.html <span class="muted">— senior engineer resume</span></a></li>
+        <li><a href="/resume.pdf">/resume.pdf <span class="muted">— printable resume</span></a></li>
+        <li><a href="https://pranavj17.github.io/echo-demo-v2/">echo-demo-v2 <span class="muted">— Echo AI agent platform demo</span></a></li>
+        <li><a href="https://github.com/Pranavj17/mcp-server-graylog">mcp-server-graylog <span class="muted">— Anthropic catalog</span></a></li>
+    </ul>
+
+    <div class="footer">
+        pranavjagadish.com · accidentally arrived here · the home page has a live shell and a working terminal · go explore
+    </div>
+</main>
+</body>
+</html>

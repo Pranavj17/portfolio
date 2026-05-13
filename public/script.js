@@ -477,19 +477,30 @@
 
     async function renderGuestbook() {
         const remote = await fetchGuestbookFromWorker();
-        const local = JSON.parse(localStorage.getItem('guestbook') || '[]');
-        const all = [...SEED_GUESTBOOK, ...(Array.isArray(remote) ? remote : []), ...local]
-            .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        let entries;
+        let workerOffline = false;
+        if (Array.isArray(remote)) {
+            // worker online · KV is the single source of truth · NO merging
+            // (avoids duplicates when a sign was written to both KV and
+            // localStorage during the worker POST)
+            entries = remote;
+        } else {
+            // worker unreachable · graceful degradation · seed + local only
+            workerOffline = true;
+            const local = JSON.parse(localStorage.getItem('guestbook') || '[]');
+            entries = [...SEED_GUESTBOOK, ...local];
+        }
+        entries.sort((a, b) => String(b.date).localeCompare(String(a.date)));
         const pre = document.createElement('pre');
-        pre.innerHTML = all.map(s => {
+        pre.innerHTML = entries.map(s => {
             const d = escapeHtml(String(s.date || '????-??-??').slice(0, 10));
             const n = escapeHtml(String(s.name || 'guest')).slice(0, 24).padEnd(12, ' ');
             const m = escapeHtml(String(s.msg || ''));
             return `  <span class="muted">${d}</span>  <span class="hl">${n}</span>  ${m}`;
         }).join('\n');
         print(pre);
-        if (!remote) {
-            print('<span class="muted">[showing seed + your local signs · worker offline or not deployed]</span>');
+        if (workerOffline) {
+            print('<span class="muted">[worker offline · showing seed + your local signs only]</span>');
         }
     }
 
