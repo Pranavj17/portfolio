@@ -200,6 +200,46 @@
     const consoleInp  = $('#console-input');
     const consoleClose = $('#console-close');
 
+    // Ghost-text suggestion (fish-style). The DOM lives in index.html;
+    // here we just hold refs and define the update/accept helpers. The
+    // COMMANDS map is defined later in this scope; we close over its name
+    // and look it up lazily on first call.
+    const consoleGhostWrap = $('#console-ghost');
+    const consoleGhostPad  = consoleGhostWrap?.querySelector('.g-pad');
+    const consoleGhostText = consoleGhostWrap?.querySelector('.g-ghost');
+    let _commandNamesCache = null;
+    function updateGhost() {
+        if (!consoleGhostPad || !consoleGhostText) return;
+        const v = consoleInp?.value ?? '';
+        // Only suggest on the first word — once the user has typed a space,
+        // they're working on arguments and we don't have arg-aware completion
+        // (yet). Also bail on empty input.
+        if (!v || /\s/.test(v)) {
+            consoleGhostPad.textContent  = '';
+            consoleGhostText.textContent = '';
+            return;
+        }
+        if (_commandNamesCache === null && typeof COMMANDS !== 'undefined') {
+            _commandNamesCache = Object.keys(COMMANDS).sort();
+        }
+        if (!_commandNamesCache) return;
+        const pre = v.toLowerCase();
+        const match = _commandNamesCache.find(c => c.startsWith(pre) && c !== pre);
+        if (match) {
+            consoleGhostPad.textContent  = v;
+            consoleGhostText.textContent = match.slice(v.length);
+        } else {
+            consoleGhostPad.textContent  = '';
+            consoleGhostText.textContent = '';
+        }
+    }
+    function acceptGhost() {
+        if (!consoleGhostText?.textContent) return false;
+        consoleInp.value = consoleInp.value + consoleGhostText.textContent + ' ';
+        updateGhost();
+        return true;
+    }
+
     const history = [];
     let histIdx = -1;
     let draft = '';
@@ -1136,22 +1176,45 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         e.preventDefault();
         const raw = consoleInp.value;
         consoleInp.value = '';
+        updateGhost();
         dispatch(raw);
     });
     consoleClose?.addEventListener('click', consoleClose_);
+
+    // Live ghost-text suggestion on every keystroke. The 'input' event fires
+    // after the value has been updated, including paste/cut/IME compositions.
+    consoleInp?.addEventListener('input', updateGhost);
+
     consoleInp?.addEventListener('keydown', e => {
         if (audioOn) playClick();
         if (e.key === 'ArrowUp') {
             if (histIdx === history.length) draft = consoleInp.value;
             histIdx = Math.max(0, histIdx - 1);
             if (history[histIdx] !== undefined) consoleInp.value = history[histIdx];
+            updateGhost();
             e.preventDefault();
         } else if (e.key === 'ArrowDown') {
             histIdx = Math.min(history.length, histIdx + 1);
             consoleInp.value = histIdx === history.length ? draft : history[histIdx] || '';
+            updateGhost();
             e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+            // Fish-style: → at end of input accepts the ghost suggestion.
+            // Anywhere else, let the arrow do its normal cursor-movement.
+            const atEnd = consoleInp.selectionStart === consoleInp.value.length
+                       && consoleInp.selectionEnd === consoleInp.value.length;
+            if (atEnd && acceptGhost()) {
+                e.preventDefault();
+            }
         } else if (e.key === 'Tab') {
-            // tab completion — best-prefix match against command names
+            // Prefer accepting the ghost (covers the typical 1-match case
+            // cleanly). Falls through to the old multi-candidate printing
+            // only when there's no ghost — e.g. after a space, where ghost
+            // is suppressed, or for prefixes that match nothing.
+            if (acceptGhost()) {
+                e.preventDefault();
+                return;
+            }
             const cur = consoleInp.value;
             const m = cur.match(/^(\S*)$/);
             if (m) {
@@ -1159,12 +1222,18 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
                 const cands = Object.keys(COMMANDS).filter(c => c.startsWith(prefix));
                 if (cands.length === 1) {
                     consoleInp.value = cands[0] + ' ';
+                    updateGhost();
                 } else if (cands.length > 1) {
                     print(cands.join('  '), 'muted');
                     consoleOut.scrollTop = consoleOut.scrollHeight;
                 }
             }
             e.preventDefault();
+        } else if (e.key === 'Escape') {
+            // Clear ghost without intercepting the key — Escape may still
+            // close the console via other handlers in this file.
+            if (consoleGhostPad)  consoleGhostPad.textContent  = '';
+            if (consoleGhostText) consoleGhostText.textContent = '';
         }
     });
 

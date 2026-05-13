@@ -1306,6 +1306,44 @@ kbd {
     min-width: 0;
 }
 .console-input::placeholder { color: var(--muted); }
+
+/* Ghost-text completion (fish-shell style).
+   .console-input-wrap is a relative wrapper that takes the flex slot the
+   input used to have. Inside, the input keeps its full width; the ghost
+   overlay sits absolutely-positioned at the same x/y. The ghost has TWO
+   spans: an invisible <g-pad> that mirrors the user's typed text (so it
+   takes up exactly the cursor-x of monospace text), and a muted <g-ghost>
+   that shows the suggested completion right after it. pointer-events:none
+   keeps the input fully clickable underneath. */
+.console-input-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.console-input-wrap .console-input {
+    width: 100%;
+    flex: 1 1 auto;
+    position: relative;
+    z-index: 2;
+}
+.console-ghost {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    pointer-events: none;
+    user-select: none;
+    white-space: pre;
+    overflow: hidden;
+    z-index: 1;
+}
+.console-ghost .g-pad   { visibility: hidden; }
+.console-ghost .g-ghost { color: var(--muted); opacity: 0.55; }
+
 @media (max-width: 560px) {
     .console {
         height: 70dvh;
@@ -1314,6 +1352,7 @@ kbd {
     .console-out { font-size: 12px; padding: 10px 12px; }
     .console-form { padding: 8px 12px; }
     .console-input { font-size: 12px; }
+    .console-ghost { font-size: 12px; }
     .console-line pre { font-size: 10px; }
 }
 

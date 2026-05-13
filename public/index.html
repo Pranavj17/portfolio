@@ -473,11 +473,15 @@
         <div class="console-out" id="console-out" aria-live="polite"></div>
         <form class="console-form" id="console-form" autocomplete="off">
             <span class="console-prompt">pranavjagadish</span><span class="console-dollar">:</span><span class="console-path">~</span><span class="console-dollar">$</span>
-            <input class="console-input" id="console-input"
-                   autocomplete="off" autocapitalize="off"
-                   autocorrect="off" spellcheck="false"
-                   enterkeyhint="send"
-                   placeholder="type 'help' for commands">
+            <span class="console-input-wrap">
+                <input class="console-input" id="console-input"
+                       autocomplete="off" autocapitalize="off"
+                       autocorrect="off" spellcheck="false"
+                       enterkeyhint="send"
+                       placeholder="type 'help' for commands">
+                <!-- ghost-text suggestion (fish-style) · filled by script.js on input -->
+                <span class="console-ghost" id="console-ghost" aria-hidden="true"><span class="g-pad"></span><span class="g-ghost"></span></span>
+            </span>
         </form>
     </aside>
 
