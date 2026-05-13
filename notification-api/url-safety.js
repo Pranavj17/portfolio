@@ -79,6 +79,14 @@ function reasonForIpv6(ip) {
     // IPv4-mapped IPv6 (::ffff:a.b.c.d). Extract and re-check.
     const v4Match = lower.match(/(?:^|:)ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (v4Match) return reasonForIpv4(v4Match[1]);
+    // 6to4 (2002::/16) — embeds an IPv4 address in bits 16..47. The simplest
+    // safe stance is to reject the whole /16; it's a deprecated transition tech
+    // and abuse would let an attacker tunnel to private v4 space.
+    if (/^2002:/.test(lower)) return '6to4 IPv6 (2002::/16 · deprecated, blocked)';
+    // NAT64 well-known prefix (64:ff9b::/96) — translates IPv6 to public IPv4.
+    // Block it because we can't validate the embedded v4 without parsing the
+    // last 32 bits, and we'd rather lose this transition path than risk SSRF.
+    if (/^64:ff9b:/.test(lower)) return 'NAT64 well-known prefix (64:ff9b::/96 · blocked)';
     return null;
 }
 
@@ -160,17 +168,23 @@ export async function assertSafePublicUrl(rawUrl) {
         throw new Error(`SSRF_BLOCKED: ${hostBlock}`);
     }
 
-    // DoH-resolve A + AAAA, reject if any returned address is private.
-    let answers;
-    try {
-        const [a, aaaa] = await Promise.all([
-            dohResolve(hostname, 'A').catch(() => []),
-            dohResolve(hostname, 'AAAA').catch(() => []),
-        ]);
-        answers = [...a, ...aaaa];
-    } catch (e) {
-        throw new Error(`SSRF_BLOCKED: DNS lookup failed (${e?.message || 'unknown'})`);
+    // DoH-resolve A + AAAA. We fail CLOSED on any lookup error — a transient
+    // DoH failure for A while AAAA happily returns a public v6 would otherwise
+    // approve a hostname whose v4 resolution is unknown (and possibly private).
+    const [aRes, aaaaRes] = await Promise.allSettled([
+        dohResolve(hostname, 'A'),
+        dohResolve(hostname, 'AAAA'),
+    ]);
+    if (aRes.status === 'rejected' && aaaaRes.status === 'rejected') {
+        throw new Error(`SSRF_BLOCKED: DNS lookup failed (${aRes.reason?.message || 'unknown'} · ${aaaaRes.reason?.message || 'unknown'})`);
     }
+    if (aRes.status === 'rejected') {
+        throw new Error(`SSRF_BLOCKED: A-record lookup failed for ${hostname} (${aRes.reason?.message || 'unknown'})`);
+    }
+    if (aaaaRes.status === 'rejected') {
+        throw new Error(`SSRF_BLOCKED: AAAA-record lookup failed for ${hostname} (${aaaaRes.reason?.message || 'unknown'})`);
+    }
+    const answers = [...aRes.value, ...aaaaRes.value];
 
     if (answers.length === 0) {
         throw new Error(`SSRF_BLOCKED: hostname does not resolve (${hostname})`);

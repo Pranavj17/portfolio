@@ -121,6 +121,14 @@ t('ff02::1 → blocked (multicast)', () => {
 t('::ffff:10.0.0.1 → blocked (IPv4-mapped private)', () => {
     assert.ok(isPrivateIp('::ffff:10.0.0.1'));
 });
+t('2002:a00:0::1 → blocked (6to4 /16, deprecated transition)', () => {
+    const r = isPrivateIp('2002:a00:0::1');
+    assert.ok(r && /6to4/i.test(r), `expected 6to4, got ${r}`);
+});
+t('64:ff9b::a00:1 → blocked (NAT64 well-known prefix)', () => {
+    const r = isPrivateIp('64:ff9b::a00:1');
+    assert.ok(r && /NAT64/i.test(r), `expected NAT64, got ${r}`);
+});
 t('2606:4700:4700::1111 → allowed (Cloudflare public)', () => {
     assert.strictEqual(isPrivateIp('2606:4700:4700::1111'), null);
 });
@@ -288,6 +296,65 @@ await ta('public host with public A but private AAAA → rejected (any private r
     await assert.rejects(
         () => assertSafePublicUrl('https://rebind.example.com'),
         /SSRF_BLOCKED.*resolves to/i,
+    );
+});
+
+// ─── DoH fail-closed semantics ──────────────────────────────────────────
+console.log('\nassertSafePublicUrl · DoH fail-closed on lookup errors');
+
+// Stub that throws for specific (name/type) combos. Any combo not in the
+// `throwsFor` set returns whatever's in `answersByHost` (defaulting to []).
+function stubDohWithFailures(answersByHost, throwsFor = new Set()) {
+    globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        if (u.hostname !== 'cloudflare-dns.com') {
+            throw new Error(`unexpected fetch in test: ${url}`);
+        }
+        const name = u.searchParams.get('name');
+        const type = u.searchParams.get('type');
+        const key  = `${name}/${type}`;
+        if (throwsFor.has(key)) throw new Error(`stubbed transport failure for ${key}`);
+        const answers = answersByHost[key] ?? answersByHost[name] ?? [];
+        return new Response(JSON.stringify({ Status: 0, Answer: answers }), {
+            headers: { 'Content-Type': 'application/dns-json' },
+        });
+    };
+}
+
+stubDohWithFailures(
+    {
+        'mixedfail.example.com/AAAA': [{ data: '2606:4700:4700::1111', type: 28, TTL: 60 }],
+    },
+    new Set(['mixedfail.example.com/A']),
+);
+await ta('A-lookup transport failure → rejected (fail-closed, even if AAAA returns a public address)', async () => {
+    await assert.rejects(
+        () => assertSafePublicUrl('https://mixedfail.example.com'),
+        /SSRF_BLOCKED.*A-record lookup failed/i,
+    );
+});
+
+stubDohWithFailures(
+    {
+        'aaaafail.example.com/A': [{ data: '93.184.216.34', type: 1, TTL: 60 }],
+    },
+    new Set(['aaaafail.example.com/AAAA']),
+);
+await ta('AAAA-lookup transport failure → rejected (fail-closed, even if A returns a public address)', async () => {
+    await assert.rejects(
+        () => assertSafePublicUrl('https://aaaafail.example.com'),
+        /SSRF_BLOCKED.*AAAA-record lookup failed/i,
+    );
+});
+
+stubDohWithFailures({}, new Set([
+    'bothfail.example.com/A',
+    'bothfail.example.com/AAAA',
+]));
+await ta('A+AAAA both fail → rejected with combined error', async () => {
+    await assert.rejects(
+        () => assertSafePublicUrl('https://bothfail.example.com'),
+        /SSRF_BLOCKED.*DNS lookup failed/i,
     );
 });
 

@@ -43,7 +43,16 @@ const MAX_MSG_LEN   = 200;
 const MAX_NAME_LEN  = 50;
 const MAX_SIGNS     = 100;
 const RATE_LIMIT_MS = 60 * 60 * 1000;        // 1 hour per IP
-const KV_KEY        = 'guestbook:signs';
+// LEGACY: previously all entries were stored under one KV key as a JSON array,
+// which is racy under concurrent writes (read-modify-write loses entries).
+// New writes go to per-entry keys at `guestbook:entry:<ts>-<rand>` — each
+// write is atomic. Reads merge both sources for backwards compatibility.
+const KV_LEGACY_KEY = 'guestbook:signs';
+const KV_ENTRY_PFX  = 'guestbook:entry:';
+const ALLOWED_POST_ORIGINS = new Set([
+    'https://pranavjagadish.com',
+    'https://www.pranavjagadish.com',
+]);
 
 const BLOCKED_TERMS = [
     // extend with anything you want auto-rejected; case-insensitive substring match
@@ -57,10 +66,19 @@ export default {
             return new Response('not found', { status: 404 });
         }
         if (request.method === 'OPTIONS') {
+            const requestedMethod = request.headers.get('Access-Control-Request-Method');
+            if (requestedMethod === 'POST') {
+                const headers = postCors(request);
+                if (!headers) return forbiddenCors();
+                return new Response(null, { status: 204, headers });
+            }
             return new Response(null, { status: 204, headers: cors() });
         }
         if (request.method === 'GET')  return handleGet(env);
-        if (request.method === 'POST') return handlePost(request, env);
+        if (request.method === 'POST') {
+            if (!postCors(request)) return forbiddenCors();
+            return handlePost(request, env);
+        }
         return errorResponse(405, 'method not allowed');
     }
 };
@@ -68,10 +86,25 @@ export default {
 // ─── handlers ──────────────────────────────────────────────────────
 
 export async function handleGet(env) {
-    const raw = await env.GUESTBOOK.get(KV_KEY);
-    const signs = raw ? JSON.parse(raw) : [];
-    // sort newest-first by ts
-    signs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    // Pull new-style per-entry keys AND legacy aggregate, merge, dedupe by ts,
+    // sort newest-first, cap at MAX_SIGNS.
+    const [listResult, legacyRaw] = await Promise.all([
+        env.GUESTBOOK.list({ prefix: KV_ENTRY_PFX, limit: 1000 }),
+        env.GUESTBOOK.get(KV_LEGACY_KEY),
+    ]);
+    const entryFetches = (listResult.keys || []).map(k =>
+        env.GUESTBOOK.get(k.name).then(v => { try { return JSON.parse(v); } catch { return null; } })
+    );
+    const newStyle = (await Promise.all(entryFetches)).filter(Boolean);
+    const legacy   = (() => { try { return legacyRaw ? JSON.parse(legacyRaw) : []; } catch { return []; } })();
+
+    const merged = new Map();
+    for (const e of [...legacy, ...newStyle]) {
+        if (e && typeof e === 'object' && e.ts != null) merged.set(e.ts, e);
+    }
+    const signs = Array.from(merged.values())
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+        .slice(0, MAX_SIGNS);
     return jsonResponse(200, signs);
 }
 
@@ -104,20 +137,18 @@ export async function handlePost(request, env) {
         }
     }
 
-    // append + cap
-    const raw = await env.GUESTBOOK.get(KV_KEY);
-    const signs = raw ? JSON.parse(raw) : [];
     const entry = {
         name,
         msg,
         date: new Date().toISOString().slice(0, 10),
         ts:   Date.now(),
     };
-    signs.push(entry);
-    if (signs.length > MAX_SIGNS) signs.splice(0, signs.length - MAX_SIGNS);
 
-    // store + ip-throttle (auto-expires after rate-limit window)
-    await env.GUESTBOOK.put(KV_KEY, JSON.stringify(signs));
+    // Write to per-entry key — atomic, no read-modify-write race. The random
+    // suffix prevents key collisions on same-millisecond writes from different IPs.
+    const randSuffix = Math.random().toString(36).slice(2, 8);
+    const entryKey   = `${KV_ENTRY_PFX}${entry.ts}-${randSuffix}`;
+    await env.GUESTBOOK.put(entryKey, JSON.stringify(entry));
     await env.GUESTBOOK.put(ipKey, String(Date.now()), {
         expirationTtl: Math.ceil(RATE_LIMIT_MS / 1000) + 60,
     });
@@ -134,6 +165,29 @@ function cors() {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Max-Age':       '86400',
     };
+}
+
+// CSRF guard for POST: require Origin to be one of the allowlist, OR absent
+// (non-browser clients like curl never send Origin and shouldn't be blocked).
+// Returns the header map to use, or null if the Origin is unrecognized.
+function postCors(request) {
+    const origin = request.headers.get('Origin') || '';
+    if (!origin) return cors();
+    if (!ALLOWED_POST_ORIGINS.has(origin)) return null;
+    return {
+        'Access-Control-Allow-Origin':  origin,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age':       '86400',
+        'Vary':                         'Origin',
+    };
+}
+
+function forbiddenCors() {
+    return new Response(JSON.stringify({ error: 'origin not allowed' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', 'Vary': 'Origin' },
+    });
 }
 
 function jsonResponse(status, payload) {

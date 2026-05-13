@@ -24,6 +24,11 @@ on:
       - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
 
+# Workflow auth uses explicit CLOUDFLARE_* secrets — repo-scoped GITHUB_TOKEN
+# only needs read access for `actions/checkout`.
+permissions:
+  contents: read
+
 # Cancel any in-flight Worker deploy if a new push arrives. Worker deploys
 # are fast (~20s) but back-to-back commits can otherwise queue up.
 concurrency:
