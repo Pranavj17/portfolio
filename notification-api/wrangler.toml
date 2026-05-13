@@ -1,0 +1,11 @@
+name = "pranavjagadish-guestbook"
+main = "guestbook-worker.js"
+compatibility_date = "2026-05-01"
+
+kv_namespaces = [
+    { binding = "GUESTBOOK", id = "47070fb639ab4f96a67e514dad7ef6ea" }
+]
+
+routes = [
+    { pattern = "pranavjagadish.com/api/guestbook", zone_name = "pranavjagadish.com" }
+]
