@@ -1,0 +1,61 @@
+name: Publish pranav-j to npm
+
+# Auto-publishes the `cli/` package to npm when a tag matching `cli-v*`
+# is pushed. Tag namespace is deliberately split from any future site
+# release tags (`site-v*`) so cross-publishes are impossible.
+#
+# Required repo secrets:
+#   NPM_TOKEN  ·  npm → Account → Access Tokens → "Granular Access Token"
+#                 with publish scope on the pranav-j package
+#
+# Manual trigger via `workflow_dispatch` is also enabled for emergency
+# republishes (e.g. unpublishing a borked version and pushing the same SHA).
+#
+# Bump the version in cli/package.json BEFORE tagging:
+#   cd cli && npm version patch         # 1.1.0 → 1.1.1
+#   git push && git push --tags
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js + npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm install --no-package-lock
+
+      # Self-test gates the publish · matches the prepublishOnly script in
+      # cli/package.json but runs explicitly here so a failure surfaces as
+      # a distinct CI step rather than buried in `npm publish` output.
+      - name: Self-test (default print)
+        working-directory: cli
+        run: node index.js --no-color > /dev/null
+
+      - name: Self-test (--mcp initialize)
+        working-directory: cli
+        run: |
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | timeout 3 node index.js --mcp | grep -q '"protocolVersion":"2024-11-05"'
+
+      - name: Publish to npm
+        working-directory: cli
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

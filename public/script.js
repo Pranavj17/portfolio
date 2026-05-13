@@ -1147,9 +1147,14 @@ Phone: +91 8123310664
         cli() {
             print('this portfolio also lives on npm. install nothing, just run:', 'muted');
             print('');
-            print('  <span class="hl">$ npx pranav-j</span>', 'ok');
+            print('  <span class="hl">$ npx pranav-j</span>           <span class="muted"># full portfolio</span>', 'ok');
+            print('  <span class="hl">$ npx pranav-j --live</span>    <span class="muted"># + latest medium + recent commits</span>', 'ok');
+            print('  <span class="hl">$ npx pranav-j --mcp</span>     <span class="muted"># run as an MCP server</span>', 'ok');
             print('');
-            print('<span class="muted">flags ·</span> --resume <span class="muted">·</span> --projects <span class="muted">·</span> --contact <span class="muted">·</span> --no-color <span class="muted">·</span> --help', 'muted');
+            print('<span class="muted">claude desktop:</span> <span class="hl">claude mcp add pranav-j -- npx pranav-j --mcp</span>', 'muted');
+            print('<span class="muted">  → exposes 7 tools (get_about, get_experience, get_writing, …)</span>', 'muted');
+            print('');
+            print('<span class="muted">flags ·</span> --resume <span class="muted">·</span> --projects <span class="muted">·</span> --contact <span class="muted">·</span> --live <span class="muted">·</span> --mcp <span class="muted">·</span> --no-color <span class="muted">·</span> --help', 'muted');
             print('');
             print('<span class="muted">source</span>  <a href="https://github.com/Pranavj17/portfolio/tree/main/cli" target="_blank" rel="noopener">github.com/Pranavj17/portfolio/tree/main/cli</a>', 'muted');
             print('<span class="muted">npm</span>     <a href="https://www.npmjs.com/package/pranav-j" target="_blank" rel="noopener">npmjs.com/package/pranav-j</a>', 'muted');

@@ -1,13 +1,14 @@
 {
     "name": "pranav-j",
-    "version": "1.0.0",
-    "description": "Pranav Jagadish's portfolio in your terminal · npx pranav-j",
+    "version": "1.1.0",
+    "description": "Pranav Jagadish's portfolio in your terminal · npx pranav-j · also an MCP server (--mcp)",
     "bin": {
         "pranav-j": "./index.js"
     },
     "main": "./index.js",
     "files": [
         "index.js",
+        "lib/",
         "README.md"
     ],
     "scripts": {

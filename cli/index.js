@@ -6,30 +6,37 @@
  *   npx pranav-j --resume       # experience + skills
  *   npx pranav-j --projects     # projects section only
  *   npx pranav-j --contact      # contact info
+ *   npx pranav-j --live         # ↑ + latest medium posts + recent commits
+ *   npx pranav-j --mcp          # run as MCP server (stdio JSON-RPC)
  *   npx pranav-j --no-color     # strip ANSI · pipe-safe
  *   npx pranav-j --help         # usage
  *
- * Static print + exit by design — no interactive prompts. Honors the
- * existing terminal-portfolio convention so visitors can `npx pranav-j
- * > pranav.txt` or pipe to less without ANSI noise.
- *
- * Only runtime dependency: picocolors (3KB, no transitive deps).
+ * Static print + flag dispatch — no interactive prompts. Runtime deps:
+ * picocolors only (3 kB, zero transitive deps). All content lives in
+ * lib/content.js; renderers (this file) and MCP server (lib/mcp.js)
+ * read from there.
  */
 const c = require('picocolors');
+const content = require('./lib/content');
 
 const args = process.argv.slice(2);
+
+// --mcp short-circuits everything else · stdio JSON-RPC server mode.
+// stdout is reserved for JSON-RPC messages, so we MUST NOT print anything
+// here outside of lib/mcp.js's own framing.
+if (args.includes('--mcp')) {
+    require('./lib/mcp').start();
+    return;   // top-level await isn't available without "type": "module"; explicit return.
+}
+
 const useColor = !args.includes('--no-color')
               && process.env.NO_COLOR === undefined
               && process.stdout.isTTY;
 
-// When color is disabled, fall through to identity functions so the
-// rest of the code reads the same.
 const fg = useColor ? c : Object.keys(c).reduce((acc, k) => {
     acc[k] = (s) => s;
     return acc;
 }, {});
-
-// ─── ascii palette ──────────────────────────────────────────────────
 
 const ACCENT = fg.green;
 const MUTED  = fg.gray;
@@ -37,68 +44,62 @@ const BOLD   = fg.bold;
 const DIM    = fg.dim;
 const HL     = (s) => fg.bold(fg.cyan(s));
 
-// Width hint — clamp lines that go wider than this on narrow terminals.
-// 78 is the conservative "looks fine on most setups" default.
 const W = Math.min(process.stdout.columns || 78, 78);
 
-// ─── sections ───────────────────────────────────────────────────────
+// ─── render helpers ─────────────────────────────────────────────────
 
 function rule() {
     return MUTED('─'.repeat(W));
 }
-
-function header() {
-    console.log();
-    console.log('  ' + rule());
-    console.log('   ' + BOLD(ACCENT('pranav j')) + MUTED(' · senior software engineer · ') + ACCENT('ai infrastructure'));
-    console.log('   ' + MUTED('bangalore, india · 6+ years · open to remote'));
-    console.log('  ' + rule());
-    console.log();
-}
-
 function section(title) {
     console.log('  ' + BOLD(ACCENT(title.toUpperCase())));
     console.log('  ' + MUTED('─'.repeat(Math.min(W - 2, title.length + 6))));
 }
+function header() {
+    console.log();
+    console.log('  ' + rule());
+    console.log('   ' + BOLD(ACCENT(content.HEADER.name)) + MUTED(' · ') + content.HEADER.title.split(' · ').map((s, i) => i === 1 ? ACCENT(s) : MUTED(s)).join(MUTED(' · ')));
+    console.log('   ' + MUTED(content.HEADER.location));
+    console.log('  ' + rule());
+    console.log();
+}
 
 function about() {
     section('about');
-    console.log('  builds autonomous ai agents for production rca.');
-    console.log('  specializes in elixir, distributed systems, and the model');
-    console.log('  context protocol ecosystem. anthropic mcp catalog contributor');
-    console.log('  (' + HL('mcp-server-graylog') + ' · ' + MUTED('pr #2913') + ').');
+    // soft-wrap the paragraph for the current width (W chars)
+    const words = content.ABOUT.split(/\s+/);
+    let line = '  ';
+    for (const word of words) {
+        if ((line + word).length > W - 4) {
+            console.log(line.trimEnd());
+            line = '  ' + word + ' ';
+        } else {
+            line += word + ' ';
+        }
+    }
+    if (line.trim()) console.log(line.trimEnd());
     console.log();
 }
 
 function experience() {
     section('experience');
-    console.log('  ' + BOLD('scripbox') + MUTED('  ·  sep 2022 – present'));
-    console.log('    ' + ACCENT('▸') + ' ai agent automation platform · 10+ eng hours/week saved');
-    console.log('    ' + ACCENT('▸') + ' mcp-server-graylog · official anthropic catalog');
-    console.log('    ' + ACCENT('▸') + ' openclaw gateway · sentry triage + auto-fix MR pipeline');
-    console.log('    ' + ACCENT('▸') + ' memory mcp server · postgres-backed claude desktop memory');
-    console.log('    ' + ACCENT('▸') + ' kubernetes migration · 11 services on EKS · zero-downtime');
-    console.log();
-    console.log('  ' + BOLD('sakha global') + MUTED('  ·  jul 2019 – sep 2022'));
-    console.log('    ' + ACCENT('▸') + ' senior dev · elixir · payment processing · 99.99% sla');
-    console.log('    ' + ACCENT('▸') + ' built form builder dsl · in-house low-code engine');
-    console.log();
-    console.log('  ' + BOLD('education') + MUTED('  ·  dayananda sagar college of engineering'));
-    console.log('    ' + DIM('  mechanical engineering · 2015–2019 · cgpa 7.75'));
+    for (const role of content.EXPERIENCE) {
+        console.log('  ' + BOLD(role.company) + MUTED('  ·  ' + role.period));
+        for (const b of role.bullets) {
+            console.log('    ' + ACCENT('▸') + ' ' + b);
+        }
+        console.log();
+    }
+    const ed = content.EDUCATION;
+    console.log('  ' + BOLD('education') + MUTED('  ·  ' + ed.school));
+    console.log('    ' + DIM('  ' + ed.degree + ' · ' + ed.period + ' · ' + ed.detail));
     console.log();
 }
 
 function skills() {
     section('skills');
-    const stacks = [
-        ['languages',  'elixir · ruby · javascript · python (learning)'],
-        ['ai/ml',      'mcp · claude api · openai sdk · ollama · lora (learning)'],
-        ['systems',    'distributed systems · postgresql · kafka · redis'],
-        ['infra',      'cloudflare workers · kubernetes · docker · grafana · sentry'],
-        ['tools',      'gitlab ci · github actions · asana · graylog'],
-    ];
-    const labelW = Math.max(...stacks.map(([k]) => k.length));
-    for (const [k, v] of stacks) {
+    const labelW = Math.max(...content.SKILLS.map(([k]) => k.length));
+    for (const [k, v] of content.SKILLS) {
         console.log('  ' + ACCENT(k.padEnd(labelW)) + '  ' + v);
     }
     console.log();
@@ -106,39 +107,25 @@ function skills() {
 
 function projects() {
     section('projects');
-    const ps = [
-        ['live mcp demo',       'real LLM + 12 tools · graylog + internet I/O', 'pranavjagadish.com'],
-        ['mcp-server-graylog',  'official anthropic catalog · npm + github',     'github.com/Pranavj17/mcp-server-graylog'],
-        ['memory mcp server',   'postgres-backed claude desktop memory',         '~/Documents/memory'],
-        ['openclaw',            'slack agent gateway · 8 skills · 9 channels',   'private · production at scripbox'],
-        ['url-safety',          'cloudflare workers SSRF guard · 48 tests',      'github.com/Pranavj17/portfolio/cli'],
-    ];
-    const nameW = Math.max(...ps.map(([n]) => n.length));
-    for (const [name, desc, url] of ps) {
-        console.log('  ' + BOLD(name.padEnd(nameW)) + '  ' + MUTED(desc));
-        console.log('  ' + ' '.repeat(nameW + 2) + DIM(url));
+    const nameW = Math.max(...content.PROJECTS.map(p => p.name.length));
+    for (const p of content.PROJECTS) {
+        console.log('  ' + BOLD(p.name.padEnd(nameW)) + '  ' + MUTED(p.desc));
+        console.log('  ' + ' '.repeat(nameW + 2) + DIM(p.url));
     }
     console.log();
 }
 
 function writing() {
     section('writing');
-    console.log('  ' + ACCENT('▸') + ' medium @jpranav97 · ai agents, mcp, ops automation');
-    console.log('    ' + DIM('medium.com/@jpranav97'));
+    console.log('  ' + ACCENT('▸') + ' ' + content.WRITING.handle + ' · ' + content.WRITING.topics);
+    console.log('    ' + DIM(content.WRITING.url));
     console.log();
 }
 
 function contact() {
     section('connect');
-    const links = [
-        ['site',     'pranavjagadish.com'],
-        ['github',   'github.com/Pranavj17'],
-        ['linkedin', 'linkedin.com/in/pranav-jagadish-9392137a'],
-        ['medium',   'medium.com/@jpranav97'],
-        ['email',    'jpranav97@gmail.com'],
-    ];
-    const labelW = Math.max(...links.map(([k]) => k.length));
-    for (const [k, v] of links) {
+    const labelW = Math.max(...content.CONTACT.map(([k]) => k.length));
+    for (const [k, v] of content.CONTACT) {
         console.log('  ' + ACCENT(k.padEnd(labelW)) + '  ' + v);
     }
     console.log();
@@ -146,33 +133,89 @@ function contact() {
 
 function footer() {
     console.log('  ' + rule());
-    console.log('  ' + MUTED('looking for senior eng / staff roles in ai infra or mcp tooling.'));
-    console.log('  ' + MUTED('full portfolio + live mcp demo: ') + HL('pranavjagadish.com'));
+    console.log('  ' + MUTED(content.FOOTER));
     console.log('  ' + rule());
     console.log();
 }
+
+// ─── --live extras ──────────────────────────────────────────────────
+
+async function liveExtras() {
+    let live;
+    try { live = require('./lib/live'); }
+    catch (e) {
+        console.log('  ' + MUTED('(live mode unavailable: ' + e.message + ')'));
+        return;
+    }
+
+    console.log('  ' + DIM('fetching latest activity…'));
+    const [medium, gh] = await Promise.all([
+        live.fetchMediumPosts(5),
+        live.fetchGitHubActivity(5),
+    ]);
+    // Move cursor up one line + clear the "fetching..." note for a clean
+    // result. Falls back gracefully on non-ANSI terminals.
+    if (useColor) process.stdout.write('\x1b[1A\x1b[2K');
+
+    section('latest writing');
+    if (medium.error) {
+        console.log('  ' + MUTED('(' + medium.error + ' · showing static handle)'));
+        console.log('  ' + ACCENT('▸') + ' ' + content.WRITING.handle + ' · ' + content.WRITING.topics);
+    } else if (medium.items.length === 0) {
+        console.log('  ' + MUTED('(no recent posts)'));
+    } else {
+        for (const p of medium.items) {
+            console.log('  ' + ACCENT('▸') + ' ' + p.title);
+            console.log('    ' + DIM(p.date + ' · ' + p.url));
+        }
+    }
+    console.log();
+
+    section('recent commits');
+    if (gh.error) {
+        console.log('  ' + MUTED('(' + gh.error + ')'));
+    } else if (gh.items.length === 0) {
+        console.log('  ' + MUTED('(no recent push events)'));
+    } else {
+        const repoW = Math.max(...gh.items.map(e => e.repo.length));
+        for (const e of gh.items) {
+            console.log('  ' + ACCENT('▸') + ' ' + BOLD(e.repo.padEnd(repoW)) + '  ' + MUTED(e.date));
+            if (e.message) console.log('    ' + DIM(e.message));
+        }
+    }
+    console.log();
+}
+
+// ─── help ───────────────────────────────────────────────────────────
 
 function printHelp() {
     console.log(`
   ${BOLD('npx pranav-j')} ${MUTED('· pranav jagadish\'s portfolio in your terminal')}
 
   ${BOLD('USAGE')}
-    npx pranav-j ${MUTED('[--resume|--projects|--contact|--no-color|--help]')}
+    npx pranav-j ${MUTED('[--resume|--projects|--contact|--live|--mcp|--no-color|--help]')}
 
   ${BOLD('OPTIONS')}
     ${ACCENT('--resume')}     experience + skills
     ${ACCENT('--projects')}   projects section only
     ${ACCENT('--contact')}    contact info
+    ${ACCENT('--live')}       full portfolio + latest medium posts + recent commits
+    ${ACCENT('--mcp')}        run as MCP server on stdio (for Claude Desktop)
     ${ACCENT('--no-color')}   strip ANSI colors (pipe-safe)
     ${ACCENT('--help')}       this message
 
   ${BOLD('EXAMPLES')}
+    ${MUTED('# default · static snapshot')}
+    npx pranav-j
+
     ${MUTED('# pipe to a file')}
     npx pranav-j --no-color > pranav.txt
-    ${MUTED('# just the resume')}
-    npx pranav-j --resume
-    ${MUTED('# share with someone')}
-    echo "run: ${ACCENT('npx pranav-j')}" | mail manager@company.com
+
+    ${MUTED('# include latest medium + commits')}
+    npx pranav-j --live
+
+    ${MUTED('# expose as MCP server for Claude Desktop')}
+    claude mcp add pranav-j -- npx pranav-j --mcp
 
   ${BOLD('LIVE DEMO')}
     ${HL('pranavjagadish.com')} ${MUTED('· interactive shell with real-LLM MCP demo')}
@@ -181,21 +224,35 @@ function printHelp() {
 
 // ─── dispatch ───────────────────────────────────────────────────────
 
-if (args.includes('--help') || args.includes('-h')) {
-    printHelp();
-} else if (args.includes('--resume')) {
-    header(); experience(); skills(); footer();
-} else if (args.includes('--projects')) {
-    header(); projects(); footer();
-} else if (args.includes('--contact')) {
-    header(); contact(); footer();
-} else {
-    header();
-    about();
-    experience();
-    skills();
-    projects();
-    writing();
-    contact();
-    footer();
-}
+(async () => {
+    if (args.includes('--help') || args.includes('-h')) {
+        printHelp();
+    } else if (args.includes('--resume')) {
+        header(); experience(); skills(); footer();
+    } else if (args.includes('--projects')) {
+        header(); projects(); footer();
+    } else if (args.includes('--contact')) {
+        header(); contact(); footer();
+    } else if (args.includes('--live')) {
+        header();
+        about();
+        experience();
+        skills();
+        projects();
+        await liveExtras();
+        contact();
+        footer();
+    } else {
+        header();
+        about();
+        experience();
+        skills();
+        projects();
+        writing();
+        contact();
+        footer();
+    }
+})().catch((e) => {
+    process.stderr.write(`pranav-j: ${e?.message || e}\n`);
+    process.exit(1);
+});
