@@ -749,6 +749,31 @@ Phone: +91 8123310664
 
             print(`<span class="muted">&gt; querying mcp-server-graylog (live · NVIDIA NIM · mistral-nemotron) ...</span>`);
 
+            // Build a compact, human-readable summary of a tool call's args.
+            // ≤60 chars total, string values truncated to ~22 chars + "..."
+            const summarizeArgs = (args) => {
+                if (!args || typeof args !== 'object') return '';
+                const parts = [];
+                for (const [k, v] of Object.entries(args)) {
+                    let piece;
+                    if (typeof v === 'string') {
+                        const trimmed = v.length > 25 ? v.slice(0, 22) + '...' : v;
+                        piece = `${k}="${trimmed}"`;
+                    } else if (typeof v === 'number' || typeof v === 'boolean') {
+                        piece = `${k}=${v}`;
+                    } else if (v === null) {
+                        piece = `${k}=null`;
+                    } else {
+                        // object / array — collapse to placeholder
+                        piece = `${k}=<...>`;
+                    }
+                    parts.push(piece);
+                }
+                let joined = parts.join(', ');
+                if (joined.length > 60) joined = joined.slice(0, 57) + '...';
+                return joined;
+            };
+
             const renderAnswerLines = (text) => {
                 const lines = String(text || '').split('\n');
                 return (async () => {
@@ -790,10 +815,37 @@ Phone: +91 8123310664
                 }
 
                 const data = await res.json();
-                await renderAnswerLines(data.answer);
+
+                // Phase 2: stream tool calls "watch-the-agent-think" UX
+                const toolCalls = Array.isArray(data.tool_calls) ? data.tool_calls : [];
+                if (toolCalls.length > 0) {
+                    for (const tc of toolCalls) {
+                        const name = escapeHtml(String(tc?.name ?? 'unknown'));
+                        const argsSummary = escapeHtml(summarizeArgs(tc?.args));
+                        const summary = escapeHtml(String(tc?.result_summary ?? ''));
+                        print(`<span class="muted">▸ calling </span><span class="hl">${name}</span><span class="muted">(${argsSummary})</span>`);
+                        await sleep(80);
+                        print(`<span class="muted">   ↓ ${summary}</span>`);
+                        await sleep(80);
+                    }
+                    print('');
+                }
+
+                // Render final answer line-by-line (Phase 1 shape is `answer`,
+                // Phase 2 shape is `final_answer` — accept either for safety).
+                const answerText = data.final_answer ?? data.answer ?? '';
+                await renderAnswerLines(answerText);
+
                 const remaining = (data.remaining ?? '?');
-                const entries   = data?.dataset?.entries || '?';
-                print(`<span class="muted">[live · ${escapeHtml(data.model || '')} · ${entries} log entries · ${remaining} queries left this hour]</span>`);
+                const model = escapeHtml(String(data.model || ''));
+                if (toolCalls.length > 0) {
+                    const rounds = Number.isFinite(data.rounds) ? data.rounds : toolCalls.length;
+                    print(`<span class="muted">[live · ${model} · ${rounds} tool-call rounds · ${remaining} queries left this hour]</span>`);
+                } else {
+                    // No tool calls — fall back to Phase 1 style footer with dataset stats
+                    const entries = data?.dataset?.entries || '?';
+                    print(`<span class="muted">[live · ${model} · ${entries} log entries · ${remaining} queries left this hour]</span>`);
+                }
             } catch (e) {
                 await fallback(`network: ${e.message || 'fetch failed'}`);
             }
