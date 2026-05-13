@@ -1,0 +1,512 @@
+{
+  "aggregates": {
+    "total_entries": 150,
+    "time_range": "2026-05-06T13:32:00Z  to  2026-05-13T11:54:00Z",
+    "by_level": {
+      "INFO": 97,
+      "ERROR": 23,
+      "WARN": 30
+    },
+    "by_service": {
+      "payments-service": 31,
+      "ops-bot": 19,
+      "billing-service": 37,
+      "orders-service": 27,
+      "webhooks-service": 18,
+      "auth-service": 18
+    },
+    "errors_by_service": {
+      "ops-bot": 2,
+      "payments-service": 3,
+      "webhooks-service": 5,
+      "billing-service": 7,
+      "auth-service": 2,
+      "orders-service": 4
+    },
+    "top_error_patterns": [
+      {
+        "message": "Invoice generation failed \u00b7 NULL constraint on invoices.customer_id",
+        "count": 5
+      },
+      {
+        "message": "Stripe webhook signature mismatch",
+        "count": 3
+      },
+      {
+        "message": "DB connection pool timeout after 30s",
+        "count": 3
+      },
+      {
+        "message": "Insufficient funds \u00b7 order_id 8472",
+        "count": 2
+      },
+      {
+        "message": "JWT signature verification failed \u00b7 iss mismatch",
+        "count": 2
+      },
+      {
+        "message": "Inventory check timeout \u00b7 sku BX-441",
+        "count": 2
+      },
+      {
+        "message": "GitLab token expired \u00b7 CI/CD job paused",
+        "count": 1
+      },
+      {
+        "message": "Payment intent confirmation timeout \u00b7 stripe_pi_3OqRz4",
+        "count": 1
+      }
+    ]
+  },
+  "recent_entries": [
+    {
+      "ts": "2026-05-13T11:54:00Z",
+      "level": "INFO",
+      "service": "payments-service",
+      "message": "Payment processed \u00b7 order_id 57346 \u00b7 \u20b938109",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-13T07:49:00Z",
+      "level": "INFO",
+      "service": "ops-bot",
+      "message": "GitLab MR opened \u00b7 merge_request_iid 86823",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ]
+    },
+    {
+      "ts": "2026-05-13T06:21:00Z",
+      "level": "ERROR",
+      "service": "ops-bot",
+      "message": "GitLab token expired \u00b7 CI/CD job paused",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ]
+    },
+    {
+      "ts": "2026-05-13T03:20:00Z",
+      "level": "INFO",
+      "service": "billing-service",
+      "message": "Invoice #31495 generated for customer 518",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-13T02:12:00Z",
+      "level": "INFO",
+      "service": "orders-service",
+      "message": "Order placed \u00b7 order_id 83727 \u00b7 user 701 \u00b7 \u20b918933",
+      "tags": [
+        "db",
+        "queue"
+      ]
+    },
+    {
+      "ts": "2026-05-13T00:35:00Z",
+      "level": "INFO",
+      "service": "payments-service",
+      "message": "Payment processed \u00b7 order_id 47898 \u00b7 \u20b944799",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-13T00:05:00Z",
+      "level": "ERROR",
+      "service": "payments-service",
+      "message": "Payment intent confirmation timeout \u00b7 stripe_pi_3OqRz4",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T21:59:00Z",
+      "level": "WARN",
+      "service": "payments-service",
+      "message": "Payment intent latency \u00b7 1200ms \u00b7 stripe.com",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T21:13:00Z",
+      "level": "WARN",
+      "service": "webhooks-service",
+      "message": "Webhook payload approaching limit \u00b7 1.8MB",
+      "tags": [
+        "stripe",
+        "http",
+        "retry"
+      ],
+      "trace_id": "tr_765470"
+    },
+    {
+      "ts": "2026-05-12T20:00:00Z",
+      "level": "INFO",
+      "service": "billing-service",
+      "message": "Invoice #52173 generated for customer 272",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-12T18:28:00Z",
+      "level": "INFO",
+      "service": "auth-service",
+      "message": "JWT issued for user 478 \u00b7 exp 24h",
+      "tags": [
+        "session",
+        "jwt",
+        "oauth"
+      ],
+      "trace_id": "tr_7ad0c6"
+    },
+    {
+      "ts": "2026-05-12T17:56:00Z",
+      "level": "WARN",
+      "service": "payments-service",
+      "message": "Card verification slow \u00b7 1.8s",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T17:07:00Z",
+      "level": "WARN",
+      "service": "ops-bot",
+      "message": "Asana request retry 1/3",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ],
+      "trace_id": "tr_88ee5b"
+    },
+    {
+      "ts": "2026-05-12T17:03:00Z",
+      "level": "INFO",
+      "service": "ops-bot",
+      "message": "GitLab MR opened \u00b7 merge_request_iid 85080",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ]
+    },
+    {
+      "ts": "2026-05-12T16:31:00Z",
+      "level": "INFO",
+      "service": "billing-service",
+      "message": "Stripe webhook processed \u00b7 evt_78993 \u00b7 167ms",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-12T16:00:00Z",
+      "level": "INFO",
+      "service": "orders-service",
+      "message": "Order status updated \u00b7 order_id 35760 \u00b7 status delivered",
+      "tags": [
+        "db",
+        "queue"
+      ]
+    },
+    {
+      "ts": "2026-05-12T14:13:00Z",
+      "level": "INFO",
+      "service": "payments-service",
+      "message": "Stripe charge confirmed \u00b7 stripe_ch_37434 \u00b7 \u20b941760",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ],
+      "trace_id": "tr_6a3545"
+    },
+    {
+      "ts": "2026-05-12T14:08:00Z",
+      "level": "INFO",
+      "service": "billing-service",
+      "message": "Refund issued \u00b7 order_id 9907 \u00b7 \u20b915514",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ],
+      "trace_id": "tr_4e4a38"
+    },
+    {
+      "ts": "2026-05-12T14:05:00Z",
+      "level": "ERROR",
+      "service": "payments-service",
+      "message": "Insufficient funds \u00b7 order_id 8472",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T12:45:00Z",
+      "level": "INFO",
+      "service": "payments-service",
+      "message": "Payment method added \u00b7 user_id 621",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ],
+      "trace_id": "tr_950990"
+    }
+  ],
+  "recent_errors": [
+    {
+      "ts": "2026-05-13T06:21:00Z",
+      "level": "ERROR",
+      "service": "ops-bot",
+      "message": "GitLab token expired \u00b7 CI/CD job paused",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ]
+    },
+    {
+      "ts": "2026-05-13T00:05:00Z",
+      "level": "ERROR",
+      "service": "payments-service",
+      "message": "Payment intent confirmation timeout \u00b7 stripe_pi_3OqRz4",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T14:05:00Z",
+      "level": "ERROR",
+      "service": "payments-service",
+      "message": "Insufficient funds \u00b7 order_id 8472",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-12T08:11:00Z",
+      "level": "ERROR",
+      "service": "webhooks-service",
+      "message": "Stripe webhook signature mismatch",
+      "tags": [
+        "stripe",
+        "http",
+        "retry"
+      ]
+    },
+    {
+      "ts": "2026-05-12T08:01:00Z",
+      "level": "ERROR",
+      "service": "webhooks-service",
+      "message": "Webhook payload too large \u00b7 2.1MB",
+      "tags": [
+        "stripe",
+        "http",
+        "retry"
+      ],
+      "trace_id": "tr_7b4551"
+    },
+    {
+      "ts": "2026-05-12T05:36:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "Stripe webhook signature mismatch \u00b7 evt_3PqKx9",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ],
+      "trace_id": "tr_32fb01"
+    },
+    {
+      "ts": "2026-05-12T05:28:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "DB connection pool timeout after 30s",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-11T18:16:00Z",
+      "level": "ERROR",
+      "service": "auth-service",
+      "message": "JWT signature verification failed \u00b7 iss mismatch",
+      "tags": [
+        "session",
+        "jwt",
+        "oauth"
+      ]
+    },
+    {
+      "ts": "2026-05-11T00:15:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "Invoice generation failed \u00b7 NULL constraint on invoices.customer_id",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-10T08:17:00Z",
+      "level": "ERROR",
+      "service": "ops-bot",
+      "message": "Slack channel C04KG5FFPK6 not found",
+      "tags": [
+        "asana",
+        "gitlab",
+        "slack"
+      ]
+    },
+    {
+      "ts": "2026-05-10T04:19:00Z",
+      "level": "ERROR",
+      "service": "orders-service",
+      "message": "Inventory check timeout \u00b7 sku BX-441",
+      "tags": [
+        "db",
+        "queue"
+      ]
+    },
+    {
+      "ts": "2026-05-09T21:51:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "Invoice generation failed \u00b7 NULL constraint on invoices.customer_id",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ]
+    },
+    {
+      "ts": "2026-05-09T21:32:00Z",
+      "level": "ERROR",
+      "service": "webhooks-service",
+      "message": "Stripe webhook signature mismatch",
+      "tags": [
+        "stripe",
+        "http",
+        "retry"
+      ]
+    },
+    {
+      "ts": "2026-05-09T14:23:00Z",
+      "level": "ERROR",
+      "service": "payments-service",
+      "message": "Insufficient funds \u00b7 order_id 8472",
+      "tags": [
+        "stripe",
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "ts": "2026-05-09T05:31:00Z",
+      "level": "ERROR",
+      "service": "auth-service",
+      "message": "JWT signature verification failed \u00b7 iss mismatch",
+      "tags": [
+        "session",
+        "jwt",
+        "oauth"
+      ],
+      "trace_id": "tr_4d6da0"
+    },
+    {
+      "ts": "2026-05-08T19:35:00Z",
+      "level": "ERROR",
+      "service": "webhooks-service",
+      "message": "Webhook 502 from downstream \u00b7 retry 3/5",
+      "tags": [
+        "stripe",
+        "http",
+        "retry"
+      ],
+      "trace_id": "tr_2aee67"
+    },
+    {
+      "ts": "2026-05-08T03:35:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "Invoice generation failed \u00b7 NULL constraint on invoices.customer_id",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ],
+      "trace_id": "tr_68d940"
+    },
+    {
+      "ts": "2026-05-08T02:16:00Z",
+      "level": "ERROR",
+      "service": "orders-service",
+      "message": "DB connection pool timeout after 30s",
+      "tags": [
+        "db",
+        "queue"
+      ]
+    },
+    {
+      "ts": "2026-05-07T22:36:00Z",
+      "level": "ERROR",
+      "service": "orders-service",
+      "message": "DB connection pool timeout after 30s",
+      "tags": [
+        "db",
+        "queue"
+      ]
+    },
+    {
+      "ts": "2026-05-07T11:34:00Z",
+      "level": "ERROR",
+      "service": "billing-service",
+      "message": "Invoice generation failed \u00b7 NULL constraint on invoices.customer_id",
+      "tags": [
+        "db",
+        "stripe",
+        "invoices"
+      ],
+      "trace_id": "tr_29c6e5"
+    }
+  ]
+}

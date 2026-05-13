@@ -740,14 +740,63 @@ Phone: +91 8123310664
                 print('mcp: usage: mcp &lt;question&gt;  ·  try `mcp help`', 'muted');
                 return;
             }
-            print(`<span class="muted">&gt; querying mcp-server-graylog ...</span>`);
-            await sleep(550);
-            const lines = mcpResponse(q.toLowerCase(), q);
-            for (const line of lines) {
-                print(line);
-                await sleep(50);
+            // `mcp help` stays local (faster, doesn't burn rate limit)
+            if (q.toLowerCase() === 'help' || q === '?') {
+                const lines = mcpResponse('help', q);
+                for (const line of lines) { print(line); await sleep(35); }
+                return;
             }
-            print(`<span class="muted">[simulated demo · real server: github.com/Pranavj17/mcp-server-graylog]</span>`);
+
+            print(`<span class="muted">&gt; querying mcp-server-graylog (live · NVIDIA NIM · mistral-nemotron) ...</span>`);
+
+            const renderAnswerLines = (text) => {
+                const lines = String(text || '').split('\n');
+                return (async () => {
+                    for (const raw of lines) {
+                        let html = escapeHtml(raw);
+                        // colorize `▸` bullet prefix in accent green
+                        html = html.replace(/^(\s*)(▸)(\s*)/, '$1<span class="hl">$2</span>$3');
+                        // colorize "suggested:" lines in amber
+                        if (/^\s*(suggested|note|tip)\s*:/i.test(raw)) {
+                            html = `<span class="hl-amber">${html}</span>`;
+                        }
+                        print(html);
+                        await sleep(35);
+                    }
+                })();
+            };
+
+            const fallback = async (reason) => {
+                if (reason) print(`<span class="muted">${reason} · falling back to canned response</span>`);
+                await sleep(200);
+                const lines = mcpResponse(q.toLowerCase(), q);
+                for (const line of lines) { print(line); await sleep(35); }
+                print(`<span class="muted">[canned · real server: github.com/Pranavj17/mcp-server-graylog]</span>`);
+            };
+
+            try {
+                const res = await fetch('/api/mcp/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: q }),
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    const reason = res.status === 429
+                        ? `rate limit · ${data.error || 'max 10/hr per IP'}`
+                        : `error ${res.status} · ${data.error || 'upstream issue'}`;
+                    return await fallback(reason);
+                }
+
+                const data = await res.json();
+                await renderAnswerLines(data.answer);
+                const remaining = (data.remaining ?? '?');
+                const entries   = data?.dataset?.entries || '?';
+                print(`<span class="muted">[live · ${escapeHtml(data.model || '')} · ${entries} log entries · ${remaining} queries left this hour]</span>`);
+            } catch (e) {
+                await fallback(`network: ${e.message || 'fetch failed'}`);
+            }
         },
         async sign(...rest) {
             let msg = rest.join(' ').trim();

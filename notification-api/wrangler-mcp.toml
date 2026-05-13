@@ -1,0 +1,14 @@
+name = "pranavjagadish-mcp-demo"
+main = "mcp-worker.js"
+compatibility_date = "2026-05-01"
+
+# bundles ./mcp-dataset.json automatically via the import statement in mcp-worker.js
+# (wrangler v4 esbuild bundler handles JSON imports natively)
+
+kv_namespaces = [
+    { binding = "MCP_RATELIMIT", id = "4a8ba8eee8434401a5a8256cc4eaa9ca" }
+]
+
+routes = [
+    { pattern = "pranavjagadish.com/api/mcp/*", zone_name = "pranavjagadish.com" }
+]
