@@ -99,3 +99,19 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Firecrawl scratch
+.firecrawl/
+
+# Wrangler local secrets (NVIDIA_API_KEY, etc. for `wrangler dev`)
+# Production secrets are stored via `wrangler secret put`, not on disk.
+.dev.vars
+**/.dev.vars
+.wrangler/
+notification-api/.wrangler/
+
+# Generic env-var files in any subdirectory (defense in depth)
+**/.env
+**/.env.local
+**/.env.*.local
+

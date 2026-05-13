@@ -1,0 +1,58 @@
+name: Deploy MCP Worker to Cloudflare
+
+# Deploys notification-api/mcp-worker.js to Cloudflare Workers on every push
+# to main that touches Worker code. Runs in parallel with the GitHub Pages
+# deploy in deploy.yml — the Pages workflow ships the static frontend, this
+# one ships the Worker backend at pranavjagadish.com/api/mcp/*.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — Cloudflare dash → My Profile → API Tokens →
+#                           "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID — Cloudflare dash → Workers & Pages → right sidebar
+#
+# The NVIDIA_API_KEY used at runtime is already set as a `wrangler secret`
+# in production; this workflow does not need to know it.
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'notification-api/mcp-worker.js'
+      - 'notification-api/url-safety.js'
+      - 'notification-api/mcp-dataset.json'
+      - 'notification-api/wrangler-mcp.toml'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+# Cancel any in-flight Worker deploy if a new push arrives. Worker deploys
+# are fast (~20s) but back-to-back commits can otherwise queue up.
+concurrency:
+  group: "mcp-worker-deploy"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # url-safety.js unit tests gate the deploy. If they fail, the Worker
+      # has an SSRF regression and shouldn't ship.
+      - name: Run url-safety tests
+        working-directory: notification-api
+        run: node test-url-safety.mjs
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: notification-api
+          command: deploy --config wrangler-mcp.toml
