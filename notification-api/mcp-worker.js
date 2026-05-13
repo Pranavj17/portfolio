@@ -19,6 +19,11 @@
  *   NVIDIA_API_KEY  · set via `wrangler secret put NVIDIA_API_KEY`
  */
 import DATASET from './mcp-dataset.json';
+import {
+    assertSafePublicUrl,
+    isBlockedHostname,
+    dohResolve,
+} from './url-safety.js';
 
 const NIM_URL              = 'https://integrate.api.nvidia.com/v1/chat/completions';
 // Model fallback chain (same priority order as OpenClaw on Mac Mini).
@@ -37,6 +42,18 @@ const MAX_ROUNDS           = 5;
 const SEARCH_LIMIT_DEFAULT = 20;
 const SEARCH_LIMIT_MAX     = 50;
 const SURROUNDING_DEFAULT  = 5;
+
+// ─── internet tool limits ────────────────────────────────────────────
+// All five new tools (fetch_url, dns_lookup, http_headers, check_url_alive,
+// summarize_url) share these caps. The per-request `ctx` object enforces
+// the cumulative ones (outboundFetches, summarizeCalls); per-tool timeouts
+// are per-call.
+const MAX_RESPONSE_BYTES        = 50_000;   // fetch_url body cap
+const SUMMARY_MAX_INPUT_BYTES   = 20_000;   // tighter cap for summarize_url's fetch
+const FETCH_TIMEOUT_MS          = 5_000;
+const SUMMARY_TIMEOUT_MS        = 5_000;
+const MAX_SUMMARIZE_PER_REQUEST = 2;        // summarize_url cap per MCP query (costs an LLM call each)
+const MAX_OUTBOUND_FETCHES      = 10;       // hard cap on ALL outbound subrequests per request
 
 // "Now" anchor matches the dataset's upper time bound, so time_range filters
 // are deterministic & reproducible.
@@ -149,6 +166,96 @@ const TOOL_SCHEMAS = [
                     baselineSeconds: { type: 'number', minimum: 60, maximum: 86400, description: 'Trailing window in seconds for the error baseline lookup ending at the trace start. Default 3600 (1h).' },
                 },
                 required: ['traceId', 'from', 'to'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'aggregate_logs',
+            description: 'Count log entries grouped by a field · mirrors the same-named tool in the real mcp-server-graylog npm package (v2.2.0). Filters entries by query + time window, projects only the group-by field, returns top N values with counts + summed `other` + `missing` count for entries where the field was unset. Common usage: errors in last hour grouped by service — `{ query: "level:ERROR", field: "service", rangeSeconds: 3600 }`. Provide EITHER from+to OR rangeSeconds, not both.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query:        { type: 'string', description: 'Lucene-style query (same syntax as search_logs). Use "*" for all entries.' },
+                    field:        { type: 'string', description: 'Field to group counts by. Synthetic dataset has: service, level, trace_id, tags. (Real package also supports pod, lead_id, etc.)' },
+                    from:         { type: 'string', description: 'Start ISO 8601 timestamp (use either from+to OR rangeSeconds). Dataset spans 2026-05-06 to 2026-05-13.' },
+                    to:           { type: 'string', description: 'End ISO 8601 timestamp.' },
+                    rangeSeconds: { type: 'number', description: 'Relative window in seconds (alt to from+to). Anchored at the dataset\'s "now" = 2026-05-13T12:00Z.' },
+                    size:         { type: 'number', minimum: 1, maximum: 100, description: 'Top N groups to return (default 25). Remainder summed into `other`.' },
+                    fetchLimit:   { type: 'number', minimum: 1, maximum: 10000, description: 'Max entries to aggregate (default 5000). When matched total exceeds this, `truncated: true` is flagged.' },
+                },
+                required: ['query', 'field'],
+            },
+        },
+    },
+
+    // ─── internet tools · real-world web I/O (separate domain from graylog) ───
+    {
+        type: 'function',
+        function: {
+            name: 'fetch_url',
+            description: 'Fetch the body of a public HTTPS URL the user has referenced. Returns up to 50KB of decoded text plus status and Content-Type. Use ONLY when the user has explicitly named a URL; never invent URLs.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url: { type: 'string', description: 'Full https:// URL the user referenced.' },
+                },
+                required: ['url'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'dns_lookup',
+            description: "Resolve a hostname via DNS-over-HTTPS (Cloudflare 1.1.1.1). Returns up to 20 answers. Use when the user asks about a domain's IP, MX, TXT, or other DNS records. Pass a fully-qualified hostname, not a literal IP.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    hostname:    { type: 'string', description: 'Fully-qualified hostname.' },
+                    record_type: { type: 'string', enum: ['A', 'AAAA', 'CNAME', 'MX', 'TXT'], description: 'DNS record type. Default A.' },
+                },
+                required: ['hostname'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'http_headers',
+            description: 'Fetch only the HTTP response headers for a URL via HEAD. Use when the user asks about headers, content-type, response size, status, or redirects. Redirects are NOT auto-followed — they are reported via redirected_to so the caller can decide whether to chain another call.',
+            parameters: {
+                type: 'object',
+                properties: { url: { type: 'string' } },
+                required: ['url'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'check_url_alive',
+            description: 'Test whether a URL is reachable and measure response latency. Returns alive (true iff 2xx-3xx), status, and latency_ms. Use when the user asks "is X up" or wants a quick health check.',
+            parameters: {
+                type: 'object',
+                properties: { url: { type: 'string' } },
+                required: ['url'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'summarize_url',
+            description: 'Fetch a URL and produce a short LLM-generated summary in N words or fewer (default 80, max 150). Use when the user asks "what does X say" or wants a TL;DR. Capped at 2 calls per MCP query because each invocation costs an extra LLM round-trip.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url:       { type: 'string' },
+                    max_words: { type: 'integer', minimum: 20, maximum: 150, description: 'Word budget for the summary. Default 80.' },
+                },
+                required: ['url'],
             },
         },
     },
@@ -565,7 +672,324 @@ function tool_analyze_incident(args) {
     };
 }
 
+// Aggregation tool · mirrors mcp-server-graylog@2.2.0's aggregate_logs.
+// Same response shape as the real package; the only synthetic-mode differences
+// are: (a) some fields (pod, lead_id) will always be `missing` because the
+// dataset doesn't carry them; (b) the dataset is small enough that truncation
+// is unlikely but the flag still emits for schema parity.
+function tool_aggregate_logs(args) {
+    const query = String(args?.query ?? '');
+    if (!query) return { error: 'query required' };
+    const field = String(args?.field ?? '').trim();
+    if (!field) return { error: 'field required' };
+    if (!/^[a-zA-Z_][a-zA-Z0-9_.\-]*$/.test(field)) {
+        return { error: `field contains invalid characters: ${JSON.stringify(field)}` };
+    }
+
+    const size       = Math.min(100,   Math.max(1, parseInt(args?.size       ?? 25,   10) || 25));
+    const fetchLimit = Math.min(10000, Math.max(1, parseInt(args?.fetchLimit ?? 5000, 10) || 5000));
+
+    // Time-window selection · either from+to OR rangeSeconds (mirror package contract).
+    const fromStr = String(args?.from ?? '').trim();
+    const toStr   = String(args?.to   ?? '').trim();
+    const rangeSeconds = args?.rangeSeconds;
+    let timeRangeDesc, timeFilter;
+    if (rangeSeconds !== undefined && rangeSeconds !== null) {
+        if (fromStr || toStr) return { error: "Provide EITHER rangeSeconds OR from+to, not both" };
+        const rs = Math.min(86400, Math.max(1, parseInt(rangeSeconds, 10) || 0));
+        if (rs < 1) return { error: "'rangeSeconds' must be between 1 and 86400" };
+        const cutoffMs = NOW_ANCHOR_MS - rs * 1000;
+        timeFilter = e => {
+            const t = Date.parse(e.ts);
+            return Number.isFinite(t) && t >= cutoffMs && t <= NOW_ANCHOR_MS;
+        };
+        timeRangeDesc = `Last ${rs} seconds`;
+    } else if (fromStr && toStr) {
+        const fromMs = Date.parse(fromStr);
+        const toMs   = Date.parse(toStr);
+        if (!Number.isFinite(fromMs)) return { error: "'from' must be a valid ISO 8601 timestamp" };
+        if (!Number.isFinite(toMs))   return { error: "'to' must be a valid ISO 8601 timestamp" };
+        if (fromMs >= toMs)            return { error: "'from' must be before 'to'" };
+        timeFilter = e => {
+            const t = Date.parse(e.ts);
+            return Number.isFinite(t) && t >= fromMs && t <= toMs;
+        };
+        timeRangeDesc = { from: fromStr, to: toStr };
+    } else {
+        return { error: "Provide EITHER rangeSeconds OR both from+to" };
+    }
+
+    // Filter by query + time window
+    const parsed = parseQuery(query);
+    const pred = predicateFromQuery(parsed);
+    let pool = DATASET.entries.filter(timeFilter).filter(pred);
+    const totalMatched = pool.length;
+    // Truncate to fetchLimit (oldest-first sort to stay deterministic)
+    if (pool.length > fetchLimit) {
+        pool = pool.slice(0, fetchLimit);
+    }
+
+    // Aggregate
+    const counts = {};
+    let missing = 0;
+    for (const e of pool) {
+        const v = e[field];
+        if (v === undefined || v === null || v === '') { missing++; continue; }
+        const key = String(v);
+        counts[key] = (counts[key] || 0) + 1;
+    }
+    const sortedEntries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const topN = sortedEntries.slice(0, size);
+    const other = sortedEntries.slice(size).reduce((sum, [, c]) => sum + c, 0);
+
+    return {
+        field,
+        query,
+        time_range: timeRangeDesc,
+        total_matched: totalMatched,
+        messages_aggregated: pool.length,
+        truncated: totalMatched > fetchLimit,
+        unique_groups: sortedEntries.length,
+        top: Object.fromEntries(topN),
+        other,
+        missing,
+        api_calls: 1,
+    };
+}
+
+// ─── internet tool handlers ──────────────────────────────────────────
+//
+// Five tools that hit the real public internet from the Worker. All five
+// share the same SSRF guard (assertSafePublicUrl from url-safety.js) and
+// the per-request `ctx` object enforces cumulative caps:
+//
+//   ctx.apiKey          — NVIDIA_API_KEY, needed by summarize_url
+//   ctx.outboundFetches — running count (capped at MAX_OUTBOUND_FETCHES)
+//   ctx.summarizeCalls  — running count (capped at MAX_SUMMARIZE_PER_REQUEST)
+
+// Read response body with a hard byte cap. Used by fetch_url and summarize_url.
+async function readBodyWithCap(res, maxBytes) {
+    const reader = res.body?.getReader();
+    if (!reader) return { body: '', truncated: false };
+    const chunks = [];
+    let total = 0;
+    let truncated = false;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const remaining = maxBytes - total;
+        if (value.length > remaining) {
+            chunks.push(value.subarray(0, Math.max(0, remaining)));
+            total = maxBytes;
+            truncated = true;
+            try { await reader.cancel(); } catch (_) {}
+            break;
+        }
+        chunks.push(value);
+        total += value.length;
+        if (total >= maxBytes) {
+            truncated = true;
+            try { await reader.cancel(); } catch (_) {}
+            break;
+        }
+    }
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+    return { body: new TextDecoder('utf-8', { fatal: false }).decode(merged), truncated };
+}
+
+// Light HTML scrub for summarize_url. Drops <script>/<style>/comments,
+// strips remaining tags, decodes a handful of common entities, collapses
+// whitespace. Not a full HTML parser — adequate for "feed text to an LLM".
+function stripHtmlForSummary(html) {
+    return String(html || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi,  ' ')
+        .replace(/<!--[\s\S]*?-->/g,           ' ')
+        .replace(/<[^>]+>/g,                   ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g,  '&')
+        .replace(/&lt;/g,   '<')
+        .replace(/&gt;/g,   '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g,  "'")
+        .replace(/\s+/g,    ' ')
+        .trim();
+}
+
+async function tool_fetch_url(args, ctx) {
+    const url = String(args?.url ?? '');
+    if (!url) return { error: 'url required' };
+    if (++ctx.outboundFetches > MAX_OUTBOUND_FETCHES) {
+        return { error: `outbound fetch cap reached (max ${MAX_OUTBOUND_FETCHES}/request)` };
+    }
+    let safeUrl;
+    try        { safeUrl = await assertSafePublicUrl(url); }
+    catch (e)  { return { error: e?.message || 'SSRF_BLOCKED' }; }
+    try {
+        const res = await fetch(safeUrl.toString(), {
+            redirect: 'follow',
+            signal:   AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        const { body, truncated } = await readBodyWithCap(res, MAX_RESPONSE_BYTES);
+        return {
+            status:       res.status,
+            content_type: res.headers.get('content-type') || null,
+            body,
+            truncated,
+        };
+    } catch (e) {
+        if (e?.name === 'TimeoutError') return { error: `timed out after ${FETCH_TIMEOUT_MS}ms` };
+        return { error: `fetch failed: ${e?.message || String(e)}` };
+    }
+}
+
+async function tool_dns_lookup(args, ctx) {
+    const hostname = String(args?.hostname ?? '').trim();
+    if (!hostname) return { error: 'hostname required' };
+    // Reject literal IPs — the tool is for hostname → IP, not IP → IP.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':')) {
+        return { error: 'literal IPs not accepted · pass a hostname' };
+    }
+    const block = isBlockedHostname(hostname);
+    if (block) return { error: `hostname blocked: ${block}` };
+
+    const type = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'].includes(args?.record_type)
+        ? args.record_type
+        : 'A';
+
+    if (++ctx.outboundFetches > MAX_OUTBOUND_FETCHES) {
+        return { error: `outbound fetch cap reached (max ${MAX_OUTBOUND_FETCHES}/request)` };
+    }
+    try {
+        const answers = await dohResolve(hostname, type);
+        return {
+            hostname,
+            type,
+            answers: answers.slice(0, 20).map(a => ({ data: a.data ?? null, ttl: a.TTL ?? null })),
+        };
+    } catch (e) {
+        return { error: `DNS lookup failed: ${e?.message || String(e)}` };
+    }
+}
+
+async function tool_http_headers(args, ctx) {
+    const url = String(args?.url ?? '');
+    if (!url) return { error: 'url required' };
+    if (++ctx.outboundFetches > MAX_OUTBOUND_FETCHES) {
+        return { error: `outbound fetch cap reached (max ${MAX_OUTBOUND_FETCHES}/request)` };
+    }
+    let safeUrl;
+    try        { safeUrl = await assertSafePublicUrl(url); }
+    catch (e)  { return { error: e?.message || 'SSRF_BLOCKED' }; }
+    try {
+        const res = await fetch(safeUrl.toString(), {
+            method:   'HEAD',
+            redirect: 'manual',
+            signal:   AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        const headers = {};
+        for (const [k, v] of res.headers.entries()) headers[k.toLowerCase()] = v;
+        const out = { status: res.status, headers };
+        if (res.status >= 300 && res.status < 400 && headers.location) {
+            out.redirected_to = headers.location;
+        }
+        return out;
+    } catch (e) {
+        if (e?.name === 'TimeoutError') return { error: `timed out after ${FETCH_TIMEOUT_MS}ms` };
+        return { error: `fetch failed: ${e?.message || String(e)}` };
+    }
+}
+
+async function tool_check_url_alive(args, ctx) {
+    const url = String(args?.url ?? '');
+    if (!url) return { error: 'url required' };
+    if (++ctx.outboundFetches > MAX_OUTBOUND_FETCHES) {
+        return { error: `outbound fetch cap reached (max ${MAX_OUTBOUND_FETCHES}/request)` };
+    }
+    let safeUrl;
+    try        { safeUrl = await assertSafePublicUrl(url); }
+    catch (e)  { return { alive: false, status: null, latency_ms: 0, error: e?.message || 'SSRF_BLOCKED' }; }
+    const t0 = Date.now();
+    try {
+        const res = await fetch(safeUrl.toString(), {
+            method:   'HEAD',
+            redirect: 'follow',
+            signal:   AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        return {
+            alive:      res.status >= 200 && res.status < 400,
+            status:     res.status,
+            latency_ms: Date.now() - t0,
+        };
+    } catch (e) {
+        return {
+            alive:      false,
+            status:     null,
+            latency_ms: Date.now() - t0,
+            error:      e?.name === 'TimeoutError' ? `timed out after ${FETCH_TIMEOUT_MS}ms` : (e?.message || String(e)),
+        };
+    }
+}
+
+async function tool_summarize_url(args, ctx) {
+    const url = String(args?.url ?? '');
+    if (!url) return { error: 'url required' };
+    const maxWords = Math.min(150, Math.max(20, parseInt(args?.max_words ?? 80, 10) || 80));
+
+    if (++ctx.summarizeCalls > MAX_SUMMARIZE_PER_REQUEST) {
+        return { error: `summarize_url cap reached (max ${MAX_SUMMARIZE_PER_REQUEST}/request)` };
+    }
+    if (++ctx.outboundFetches > MAX_OUTBOUND_FETCHES) {
+        return { error: `outbound fetch cap reached (max ${MAX_OUTBOUND_FETCHES}/request)` };
+    }
+    if (!ctx.apiKey) return { error: 'summarize_url requires NVIDIA_API_KEY · server misconfigured' };
+
+    let safeUrl;
+    try        { safeUrl = await assertSafePublicUrl(url); }
+    catch (e)  { return { error: e?.message || 'SSRF_BLOCKED' }; }
+
+    let body, truncated, contentType;
+    try {
+        const res = await fetch(safeUrl.toString(), {
+            redirect: 'follow',
+            signal:   AbortSignal.timeout(SUMMARY_TIMEOUT_MS),
+        });
+        if (!res.ok) return { error: `fetch returned HTTP ${res.status}` };
+        contentType = res.headers.get('content-type') || '';
+        const r = await readBodyWithCap(res, SUMMARY_MAX_INPUT_BYTES);
+        body = r.body;
+        truncated = r.truncated;
+    } catch (e) {
+        if (e?.name === 'TimeoutError') return { error: `timed out after ${SUMMARY_TIMEOUT_MS}ms` };
+        return { error: `fetch failed: ${e?.message || String(e)}` };
+    }
+
+    const cleaned = /html|xml/i.test(contentType) ? stripHtmlForSummary(body) : body;
+    const input   = String(cleaned || '').slice(0, SUMMARY_MAX_INPUT_BYTES);
+    if (!input) return { error: 'no readable content extracted' };
+
+    // Call NIM with tool_choice:"none" so the summary call can't recurse
+    // back into the tool loop.
+    const summaryMessages = [
+        { role: 'system', content: `Summarize the following web page content in ${maxWords} words or fewer. Be factual. Do not invent. If the content is not natural-language prose (e.g. JSON, code, error page), say so plainly.` },
+        { role: 'user',   content: `URL: ${safeUrl.toString()}\n\n---\n${input}` },
+    ];
+    const llm = await callLLM(summaryMessages, ctx.apiKey, { toolChoice: 'none' });
+    if (!llm.ok) return { error: `summarizer LLM failed (${llm.error || 'upstream error'})` };
+
+    const summary = String(llm.data?.choices?.[0]?.message?.content || '').trim();
+    return {
+        summary,
+        source_chars:     input.length,
+        source_truncated: truncated,
+        model_used:       llm.model_used || null,
+    };
+}
+
 const TOOL_HANDLERS = {
+    // graylog · synthetic dataset
     search_logs:           tool_search_logs,
     count_messages:        tool_count_messages,
     get_streams:           tool_get_streams,
@@ -573,12 +997,22 @@ const TOOL_HANDLERS = {
     get_surrounding_logs:  tool_get_surrounding_logs,
     get_message:           tool_get_message,
     analyze_incident:      tool_analyze_incident,
+    aggregate_logs:        tool_aggregate_logs,
+    // internet · real-world web I/O
+    fetch_url:             tool_fetch_url,
+    dns_lookup:            tool_dns_lookup,
+    http_headers:          tool_http_headers,
+    check_url_alive:       tool_check_url_alive,
+    summarize_url:         tool_summarize_url,
 };
 
-function runTool(name, args) {
+async function runTool(name, args, ctx) {
     const fn = TOOL_HANDLERS[name];
     if (!fn) return { error: `unknown tool: ${name}` };
-    try        { return fn(args || {}); }
+    // Defensive default: if a caller (e.g. an offline test) didn't pass ctx,
+    // the graylog tools still work; only internet tools need it populated.
+    const safeCtx = ctx || { apiKey: null, outboundFetches: 0, summarizeCalls: 0 };
+    try        { return await fn(args || {}, safeCtx); }
     catch (e)  { return { error: `tool ${name} threw: ${e?.message || String(e)}` }; }
 }
 
@@ -607,10 +1041,37 @@ function summarizeResult(name, result) {
             return `${(result.entries || []).length} entries around ${result.centred_on || ''}`;
         case 'get_message':
             return result.ts ? `entry @ ${result.ts}` : 'not found';
+        case 'aggregate_logs': {
+            const top = Object.entries(result.top || {}).slice(0, 3)
+                .map(([k, v]) => `${k}=${v}`).join(', ');
+            const trunc = result.truncated ? ' · truncated' : '';
+            return `${result.total_matched} matched · ${top || 'no groups'}${trunc}`.slice(0, 80);
+        }
         case 'analyze_incident': {
             if (!result.found) return `no trace ${result.trace_id || ''}`;
             const s = result.summary;
             return `${s.hops} hops · ${s.services_involved.length} svcs · ${s.errors_in_trace} errors · baseline ${s.baseline_errors_in_service} in ${s.anchor_service}`.slice(0, 80);
+        }
+        case 'fetch_url': {
+            const ct = String(result.content_type || '').split(';')[0] || '?';
+            const sz = (result.body || '').length;
+            return `HTTP ${result.status} · ${ct} · ${sz}B${result.truncated ? ' (truncated)' : ''}`.slice(0, 80);
+        }
+        case 'dns_lookup': {
+            const n = (result.answers || []).length;
+            const sample = result.answers?.[0]?.data ? ` → ${result.answers[0].data}` : '';
+            return `${n} ${result.type} record${n === 1 ? '' : 's'}${sample}`.slice(0, 80);
+        }
+        case 'http_headers': {
+            const ct = result.headers?.['content-type'] || '?';
+            const redir = result.redirected_to ? ` → ${result.redirected_to.slice(0, 30)}` : '';
+            return `HTTP ${result.status} · ${ct}${redir}`.slice(0, 80);
+        }
+        case 'check_url_alive':
+            return `${result.alive ? 'alive' : 'down'} · HTTP ${result.status ?? '?'} · ${result.latency_ms}ms`;
+        case 'summarize_url': {
+            const w = String(result.summary || '').split(/\s+/).filter(Boolean).length;
+            return `${w} words · ${result.source_chars}B source${result.source_truncated ? ' (truncated)' : ''}`.slice(0, 80);
         }
         default:
             return 'ok';
@@ -627,6 +1088,15 @@ WORKFLOW:
 1. Read the user question carefully.
 2. Decide which tool(s) to call. Prefer count_messages for "how many" questions, search_logs for "find / show / what happened" questions, get_streams for "what services exist", trace_request when given just a trace_id to list, analyze_incident when asked to investigate / root-cause / analyze a SPECIFIC trace or incident (one call composes trace+surrounding+baseline — saves 2-3 rounds), get_surrounding_logs / get_message for context around a known timestamp.
 3. After the tools return, write a CONCISE answer grounded only in the tool outputs.
+
+INTERNET TOOLS (separate from graylog · these hit the REAL public web):
+You also have 5 tools that perform real-world web I/O:
+  · fetch_url        — GET a public HTTPS URL (50KB body cap)
+  · dns_lookup       — DoH lookup for A/AAAA/CNAME/MX/TXT
+  · http_headers     — HEAD only, reports redirects via redirected_to
+  · check_url_alive  — quick reachability + latency check
+  · summarize_url    — fetch + LLM-summary (capped at 2/request · costs tokens)
+Use these ONLY when the user explicitly references a URL or hostname. Never invent URLs. Prefer dns_lookup for IP/MX questions over fetch_url. These tools answer real-world questions; the graylog tools above answer questions about the synthetic 7-day log dataset only — never mix them.
 
 ANSWER STYLE:
 - Concise · terminal aesthetic · monospace-friendly
@@ -750,6 +1220,15 @@ async function handleQuery(request, env) {
     let rounds = 0;
     let modelUsed = NIM_MODEL;  // track which model actually answered (may differ on fallback)
 
+    // Per-request context for tool handlers · enforces cumulative caps
+    // (outbound fetches, summarize calls) and carries the NIM key needed
+    // by summarize_url. Graylog tools ignore it.
+    const ctx = {
+        apiKey:          env.NVIDIA_API_KEY,
+        outboundFetches: 0,
+        summarizeCalls:  0,
+    };
+
     for (let round = 1; round <= MAX_ROUNDS + 1; round++) {
         rounds = round;
         // On the (MAX_ROUNDS+1)th iteration, force a text-only answer
@@ -816,7 +1295,7 @@ async function handleQuery(request, env) {
             try { parsedArgs = JSON.parse(tc?.function?.arguments || '{}'); }
             catch (_) { parsedArgs = {}; }
 
-            const result = runTool(name, parsedArgs);
+            const result = await runTool(name, parsedArgs, ctx);
             const summary = summarizeResult(name, result);
             toolCallsLog.push({
                 name,
@@ -867,7 +1346,7 @@ async function handleQuery(request, env) {
 function handleStatus() {
     return jsonResp(200, {
         name: 'mcp-server-graylog · sandbox demo',
-        version: 'v2.2.1',
+        version: 'v2.3.0',
         phase: 2,
         model: NIM_MODEL,
         tools: TOOL_SCHEMAS.map(t => t.function.name),
@@ -932,4 +1411,14 @@ export const __test = {
     tool_get_message,
     summarizeResult,
     DATASET,
+    // Internet tools (require ctx and a working `fetch` global for real use):
+    tool_fetch_url,
+    tool_dns_lookup,
+    tool_http_headers,
+    tool_check_url_alive,
+    tool_summarize_url,
+    readBodyWithCap,
+    stripHtmlForSummary,
+    runTool,
+    TOOL_SCHEMAS,
 };
