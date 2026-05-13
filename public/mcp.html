@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <title>mcp demo — pranavjagadish:~$</title>
+    <meta name="title" content="MCP demo · pranavjagadish.com">
+    <meta name="description" content="Live demo of mcp-server-graylog — an official Anthropic Model Context Protocol server. Ask questions in natural language, watch the tool calls stream in real time.">
+    <meta name="keywords" content="MCP, Model Context Protocol, mcp-server-graylog, Anthropic, AI agents, demo">
+    <meta name="author" content="Pranav Jagadish">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0a0e0a">
+
+    <!-- OG / Twitter -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pranavjagadish.com/mcp">
+    <meta property="og:title" content="MCP demo — pranavjagadish.com">
+    <meta property="og:description" content="Live terminal demo of mcp-server-graylog. Type a question, watch tool calls stream.">
+    <meta property="og:image" content="https://pranavjagadish.com/favicon-512x512.png">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://pranavjagadish.com/mcp">
+    <meta property="twitter:title" content="MCP demo — pranavjagadish.com">
+    <meta property="twitter:description" content="Live terminal demo of mcp-server-graylog. Type a question, watch tool calls stream.">
+    <meta property="twitter:image" content="https://pranavjagadish.com/favicon-512x512.png">
+
+    <link rel="canonical" href="https://pranavjagadish.com/mcp">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
+
+    <link rel="stylesheet" href="/styles.css?v=20260513-5">
+
+    <style>
+        /* mcp deep-link page — keep console visible at all times, no
+           homepage chrome behind it. honours the existing theme tokens. */
+        body.mcp-only { background: var(--bg, #0a0e0a); }
+        .mcp-stage {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            padding: 32px 20px 0;
+            gap: 16px;
+            max-width: 980px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .mcp-stage .mcp-hero {
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            color: var(--fg, #c8d3c8);
+        }
+        .mcp-stage .mcp-hero h1 {
+            margin: 0 0 6px;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .mcp-stage .mcp-hero p {
+            margin: 0;
+            font-size: 13px;
+            opacity: 0.7;
+        }
+        .mcp-stage .mcp-hero a { color: inherit; text-decoration: underline; }
+        /* console is pinned drawer on the homepage; on this page we want it
+           inline + always-open so visitors land directly in the demo. */
+        body.mcp-only .console {
+            position: static;
+            transform: none;
+            opacity: 1;
+            pointer-events: auto;
+            margin: 0;
+            width: 100%;
+            max-width: 100%;
+            height: min(70vh, 640px);
+        }
+    </style>
+</head>
+<body data-theme="phosphor" class="mcp-only intro-done">
+    <main class="mcp-stage">
+        <div class="mcp-hero">
+            <h1>$ mcp-server-graylog · live demo</h1>
+            <p>type <kbd>mcp help</kbd> or try <kbd>mcp errors</kbd> · <a href="/">← back to full site</a></p>
+        </div>
+
+        <!-- same console widget as the homepage so script.js wires up cleanly -->
+        <aside class="console open" id="console" aria-label="interactive shell">
+            <div class="console-head">
+                <span class="console-tag">[*]</span>
+                <span class="console-title">live shell — type <kbd>help</kbd></span>
+                <button class="console-close" id="console-close" aria-label="back to site">×</button>
+            </div>
+            <div class="console-out" id="console-out" aria-live="polite"></div>
+            <form class="console-form" id="console-form" autocomplete="off">
+                <span class="console-prompt">pranavjagadish</span><span class="console-dollar">:</span><span class="console-path">~</span><span class="console-dollar">$</span>
+                <input class="console-input" id="console-input"
+                       autocomplete="off" autocapitalize="off"
+                       autocorrect="off" spellcheck="false"
+                       enterkeyhint="send"
+                       placeholder="type 'mcp <question>' or 'help'">
+            </form>
+        </aside>
+    </main>
+
+    <!-- script.js touches these unconditionally; provide stubs so it no-ops cleanly -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <canvas class="matrix-canvas" id="matrix" aria-hidden="true"></canvas>
+
+    <script src="/api.js?v=20260513-5" defer></script>
+    <script src="/script.js?v=20260513-6" defer></script>
+    <script>
+        // skip first-visit boot animation on this deep-link page so visitors
+        // land in the demo immediately rather than watching the BIOS POST.
+        try { sessionStorage.setItem('bootSeen', '1'); } catch (e) {}
+
+        // seed an example query + focus the input once script.js has finished
+        // attaching listeners. `defer` on the script tags guarantees they
+        // execute before DOMContentLoaded, so a one-shot listener is enough.
+        window.addEventListener('DOMContentLoaded', () => {
+            const inp = document.getElementById('console-input');
+            const closeBtn = document.getElementById('console-close');
+            if (inp) {
+                inp.value = 'mcp errors';
+                // give script.js's setTimeout(220) focus call room to run first
+                setTimeout(() => { inp.focus(); inp.select(); }, 260);
+            }
+            // on the homepage the close button hides the drawer; here that
+            // would strand the visitor on a blank page, so send them home.
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    window.location.href = '/';
+                }, true);
+            }
+        });
+    </script>
+</body>
+</html>
