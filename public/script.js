@@ -207,7 +207,117 @@
     const consoleGhostWrap = $('#console-ghost');
     const consoleGhostPad  = consoleGhostWrap?.querySelector('.g-pad');
     const consoleGhostText = consoleGhostWrap?.querySelector('.g-ghost');
+    const consoleSlashMenu = $('#console-slash-menu');
     let _commandNamesCache = null;
+
+    // Short one-line descriptions shown in the slash-command dropdown, à la
+    // Codex/Claude Code's slash menu. Missing entries render with an empty
+    // description column rather than blocking the menu. Keep these short —
+    // one line that fits at ~60 chars on desktop, hidden on mobile (≤560px).
+    const COMMAND_HELP = {
+        help:    'list every command',
+        ls:      'list sections (Home / Resume / …)',
+        cd:      'jump to a section',
+        cat:     'show a file (cat work / cat now / cat uses)',
+        uptime:  'time since this site went live',
+        now:     'what i\'m focused on right now',
+        uses:    'hardware + software i actually use',
+        finger:  'unix-style profile (finger pranav)',
+        audio:   'toggle keystroke sound',
+        mcp:     'ask the live mcp-server-graylog demo',
+        sign:    'sign the guestbook',
+        theme:   'switch terminal theme',
+        boot:    'replay the BIOS-POST animation',
+        hire:    'compose a hiring email',
+        demo:    'play the Echo demo video',
+        resume:  'open the printable resume',
+        history: 'show typed-command history',
+        matrix:  'matrix-rain animation',
+        cowsay:  'ascii cow says your message',
+        man:     'manual page for a command',
+        ':q':    'quit (vim alias)',
+    };
+
+    function escHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
+
+    // Slash-command menu state. `slashMenuItems` is the currently-filtered
+    // list of commands; `slashMenuIndex` is the highlighted row. Both reset
+    // whenever the menu closes. The menu is considered "open" iff
+    // slashMenuItems.length > 0.
+    let slashMenuItems = [];
+    let slashMenuIndex = 0;
+
+    function closeSlashMenu() {
+        if (slashMenuItems.length === 0) return false;
+        slashMenuItems = [];
+        slashMenuIndex = 0;
+        if (consoleSlashMenu) consoleSlashMenu.hidden = true;
+        return true;
+    }
+
+    function renderSlashMenu() {
+        if (!consoleSlashMenu) return;
+        if (slashMenuItems.length === 0) {
+            consoleSlashMenu.hidden = true;
+            return;
+        }
+        consoleSlashMenu.innerHTML = slashMenuItems.map((c, i) => {
+            const cls = i === slashMenuIndex ? ' class="active"' : '';
+            const desc = COMMAND_HELP[c] || '';
+            return `<li role="option" data-idx="${i}"${cls}><span class="slash-name">/${escHtml(c)}</span><span class="slash-desc">${escHtml(desc)}</span></li>`;
+        }).join('');
+        consoleSlashMenu.hidden = false;
+        // Keep the active row visible if the list overflows max-height.
+        const active = consoleSlashMenu.querySelector('li.active');
+        active?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function updateSlashMenu() {
+        const v = consoleInp?.value ?? '';
+        // Menu opens only when input starts with `/` and has no whitespace
+        // (we don't do arg-level completion past the command name).
+        if (!v.startsWith('/') || /\s/.test(v)) {
+            closeSlashMenu();
+            return;
+        }
+        if (_commandNamesCache === null && typeof COMMANDS !== 'undefined') {
+            _commandNamesCache = Object.keys(COMMANDS).sort();
+        }
+        if (!_commandNamesCache) return;
+        const pre = v.slice(1).toLowerCase();
+        const matches = pre === ''
+            ? _commandNamesCache.slice()
+            : _commandNamesCache.filter(c => c.startsWith(pre));
+        if (matches.length === 0) {
+            closeSlashMenu();
+            return;
+        }
+        slashMenuItems = matches;
+        if (slashMenuIndex >= matches.length) slashMenuIndex = 0;
+        renderSlashMenu();
+    }
+
+    function moveSlashMenu(delta) {
+        if (slashMenuItems.length === 0) return false;
+        slashMenuIndex = (slashMenuIndex + delta + slashMenuItems.length) % slashMenuItems.length;
+        renderSlashMenu();
+        updateGhost();  // ghost previews the newly-selected item
+        return true;
+    }
+
+    function acceptSlashMenu() {
+        if (slashMenuItems.length === 0) return false;
+        const cmd = slashMenuItems[slashMenuIndex];
+        consoleInp.value = '/' + cmd + ' ';
+        closeSlashMenu();
+        updateGhost();
+        return true;
+    }
+
     function updateGhost() {
         if (!consoleGhostPad || !consoleGhostText) return;
         const v = consoleInp?.value ?? '';
@@ -223,14 +333,19 @@
             _commandNamesCache = Object.keys(COMMANDS).sort();
         }
         if (!_commandNamesCache) return;
-        // Claude Code-style `/foo` prefix: treat `/foo` as a search for `foo`.
-        // A lone `/` suggests the alphabetically-first command, so the visitor
-        // gets a discoverable starting hint just by hitting `/`.
+        // If the slash menu is open, its highlighted row IS the ghost preview —
+        // keeps the two affordances in lockstep so arrow keys visibly move both.
         const hasSlash = v.startsWith('/');
+        let match;
+        if (slashMenuItems.length > 0 && hasSlash) {
+            match = slashMenuItems[slashMenuIndex];
+        } else {
+            const pre = (hasSlash ? v.slice(1) : v).toLowerCase();
+            match = pre === ''
+                ? (hasSlash ? _commandNamesCache[0] : null)
+                : _commandNamesCache.find(c => c.startsWith(pre) && c !== pre);
+        }
         const pre = (hasSlash ? v.slice(1) : v).toLowerCase();
-        const match = pre === ''
-            ? (hasSlash ? _commandNamesCache[0] : null)
-            : _commandNamesCache.find(c => c.startsWith(pre) && c !== pre);
         if (match) {
             consoleGhostPad.textContent  = v;
             consoleGhostText.textContent = match.slice(pre.length);
@@ -242,9 +357,21 @@
     function acceptGhost() {
         if (!consoleGhostText?.textContent) return false;
         consoleInp.value = consoleInp.value + consoleGhostText.textContent + ' ';
+        closeSlashMenu();
         updateGhost();
         return true;
     }
+
+    // Mouse interaction for the slash menu. Use mousedown (not click) so the
+    // input doesn't lose focus before we can act on the selection.
+    consoleSlashMenu?.addEventListener('mousedown', (e) => {
+        const li = e.target.closest('li[data-idx]');
+        if (!li) return;
+        e.preventDefault();
+        slashMenuIndex = parseInt(li.dataset.idx, 10) || 0;
+        acceptSlashMenu();
+        consoleInp?.focus();
+    });
 
     const history = [];
     let histIdx = -1;
@@ -1185,45 +1312,60 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         e.preventDefault();
         const raw = consoleInp.value;
         consoleInp.value = '';
+        closeSlashMenu();
         updateGhost();
         dispatch(raw);
     });
     consoleClose?.addEventListener('click', consoleClose_);
 
-    // Live ghost-text suggestion on every keystroke. The 'input' event fires
-    // after the value has been updated, including paste/cut/IME compositions.
-    consoleInp?.addEventListener('input', updateGhost);
+    // Live ghost-text + slash-menu update on every keystroke. The 'input'
+    // event fires after the value has been updated, including paste / cut /
+    // IME compositions. Order matters: updateSlashMenu first so updateGhost
+    // can pick up the menu's selected item when both are active.
+    consoleInp?.addEventListener('input', () => {
+        updateSlashMenu();
+        updateGhost();
+    });
 
     consoleInp?.addEventListener('keydown', e => {
         if (audioOn) playClick();
         if (e.key === 'ArrowUp') {
+            // With slash menu open: navigate the menu. Otherwise: history back.
+            if (moveSlashMenu(-1)) { e.preventDefault(); return; }
             if (histIdx === history.length) draft = consoleInp.value;
             histIdx = Math.max(0, histIdx - 1);
             if (history[histIdx] !== undefined) consoleInp.value = history[histIdx];
+            updateSlashMenu();
             updateGhost();
             e.preventDefault();
         } else if (e.key === 'ArrowDown') {
+            if (moveSlashMenu(1)) { e.preventDefault(); return; }
             histIdx = Math.min(history.length, histIdx + 1);
             consoleInp.value = histIdx === history.length ? draft : history[histIdx] || '';
+            updateSlashMenu();
             updateGhost();
             e.preventDefault();
+        } else if (e.key === 'Enter') {
+            // With slash menu open, Enter SELECTS the highlighted command
+            // rather than submitting the form. The form's submit event
+            // never fires because we preventDefault here. Without the menu,
+            // we let the keydown fall through to the form's submit handler.
+            if (acceptSlashMenu()) {
+                e.preventDefault();
+            }
         } else if (e.key === 'ArrowRight') {
             // Fish-style: → at end of input accepts the ghost suggestion.
-            // Anywhere else, let the arrow do its normal cursor-movement.
+            // (Also closes the slash menu via acceptGhost.)
             const atEnd = consoleInp.selectionStart === consoleInp.value.length
                        && consoleInp.selectionEnd === consoleInp.value.length;
             if (atEnd && acceptGhost()) {
                 e.preventDefault();
             }
         } else if (e.key === 'Tab') {
-            // Prefer accepting the ghost (covers the typical 1-match case
-            // cleanly). Falls through to the old multi-candidate printing
-            // only when there's no ghost — e.g. after a space, where ghost
-            // is suppressed, or for prefixes that match nothing.
-            if (acceptGhost()) {
-                e.preventDefault();
-                return;
-            }
+            // Priority order: slash menu (if open) > ghost text > legacy
+            // multi-candidate print fallback.
+            if (acceptSlashMenu()) { e.preventDefault(); return; }
+            if (acceptGhost())     { e.preventDefault(); return; }
             const cur = consoleInp.value;
             const m = cur.match(/^(\S*)$/);
             if (m) {
@@ -1239,8 +1381,15 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
             }
             e.preventDefault();
         } else if (e.key === 'Escape') {
-            // Clear ghost without intercepting the key — Escape may still
-            // close the console via other handlers in this file.
+            // Slash menu wins: close it but DON'T let Escape bubble up to the
+            // global handler (which would close the drawer entirely).
+            if (closeSlashMenu()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            // No menu: clear ghost without intercepting Escape — the global
+            // handler may still close the drawer below.
             if (consoleGhostPad)  consoleGhostPad.textContent  = '';
             if (consoleGhostText) consoleGhostText.textContent = '';
         }

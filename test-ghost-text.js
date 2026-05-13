@@ -276,6 +276,100 @@ async function reopenConsole(page) {
         else bad('`/hire` dispatched without "command not found"', `tail of output: "${lastLines.slice(-150)}"`);
     }
 
+    // ─── Codex-style slash menu dropdown ─────────────────────────────
+
+    async function readSlashMenu() {
+        return page.evaluate(() => {
+            const menu = document.querySelector('#console-slash-menu');
+            if (!menu) return { hidden: null, items: [], active: null };
+            const items = Array.from(menu.querySelectorAll('li')).map(li => ({
+                name: li.querySelector('.slash-name')?.textContent || null,
+                desc: li.querySelector('.slash-desc')?.textContent || null,
+                active: li.classList.contains('active'),
+            }));
+            return {
+                hidden: menu.hidden,
+                items,
+                active: items.findIndex(i => i.active),
+            };
+        });
+    }
+
+    console.log("\n[N] Type '/' → menu opens with rows showing name + description");
+    await reopenConsole(page);
+    await clearInput(page);
+    await page.focus('#console-input');
+    await page.keyboard.type('/', { delay: 30 });
+    await new Promise(r => setTimeout(r, 80));
+    {
+        const m = await readSlashMenu();
+        assertEq("menu visible after typing '/'", m.hidden, false);
+        if (m.items.length > 5) ok(`menu has ${m.items.length} items`);
+        else bad('menu has >5 items', `got ${m.items.length}`);
+        if (m.items[0]?.name && m.items[0].name.startsWith('/')) ok(`first row name is slash-prefixed · "${m.items[0].name}"`);
+        else bad('first row slash-prefixed', `got "${m.items[0]?.name}"`);
+        // At least one well-known command should have a description.
+        const helpItem = m.items.find(it => it.name === '/help');
+        if (helpItem && helpItem.desc && helpItem.desc.length > 0) ok(`/help has description · "${helpItem.desc}"`);
+        else bad('/help has description', helpItem ? `desc="${helpItem.desc}"` : 'item not in list');
+    }
+
+    await page.screenshot({ path: path.join(OUT, 'slash-menu-open.png'), fullPage: false });
+
+    console.log("\n[O] Type '/h' → menu filters to h-prefix commands; first row active");
+    await clearInput(page);
+    await page.focus('#console-input');
+    await page.keyboard.type('/h', { delay: 30 });
+    await new Promise(r => setTimeout(r, 80));
+    {
+        const m = await readSlashMenu();
+        assertEq("menu visible for '/h'", m.hidden, false);
+        // h-prefix commands: help, hire, history (sorted)
+        const names = m.items.map(i => i.name);
+        if (names.includes('/help') && names.includes('/hire') && names.includes('/history')) ok(`filtered list includes help/hire/history · ${names.join(', ')}`);
+        else bad('filtered list includes help/hire/history', `got ${names.join(', ')}`);
+        assertEq("first row is active by default", m.active, 0);
+        assertEq("active row name is '/help'", m.items[0]?.name, '/help');
+    }
+
+    console.log("\n[P] Press ArrowDown → highlight moves to next item; ghost updates to match");
+    await page.keyboard.press('ArrowDown');
+    await new Promise(r => setTimeout(r, 60));
+    {
+        const m = await readSlashMenu();
+        const g = await readGhost(page);
+        assertEq("active index = 1 after ↓",        m.active,           1);
+        assertEq("second-row item is '/hire'",      m.items[1]?.name,   '/hire');
+        // Ghost text should now preview 'hire' (remainder after '/h' is 'ire')
+        assertEq("ghost previews '/hire' as 'ire'", g.ghost,            'ire');
+    }
+
+    console.log("\n[Q] Press Enter → menu accepts highlighted '/hire ', menu closes");
+    await page.keyboard.press('Enter');
+    await new Promise(r => setTimeout(r, 60));
+    {
+        const m = await readSlashMenu();
+        const g = await readGhost(page);
+        assertEq("input becomes '/hire ' after Enter", g.input, '/hire ');
+        assertEq("menu hidden after Enter",            m.hidden, true);
+    }
+
+    console.log("\n[R] Type '/' then Escape → menu closes, drawer stays open");
+    await clearInput(page);
+    await page.focus('#console-input');
+    await page.keyboard.type('/', { delay: 30 });
+    await new Promise(r => setTimeout(r, 60));
+    await page.keyboard.press('Escape');
+    await new Promise(r => setTimeout(r, 60));
+    {
+        const m = await readSlashMenu();
+        const drawerOpen = await page.evaluate(() =>
+            document.querySelector('#console')?.classList.contains('open')
+        );
+        assertEq("menu hidden after Escape", m.hidden, true);
+        assertEq("drawer still open after Escape (menu ate the key)", drawerOpen, true);
+    }
+
     await page.screenshot({ path: path.join(OUT, 'ghost-text-final.png'), fullPage: false });
 
     await browser.close();

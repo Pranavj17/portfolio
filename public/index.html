@@ -41,7 +41,7 @@
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
 
-    <link rel="stylesheet" href="/styles.css?v=20260513-8">
+    <link rel="stylesheet" href="/styles.css?v=20260513-9">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -481,6 +481,8 @@
                        placeholder="type 'help' for commands">
                 <!-- ghost-text suggestion (fish-style) · filled by script.js on input -->
                 <span class="console-ghost" id="console-ghost" aria-hidden="true"><span class="g-pad"></span><span class="g-ghost"></span></span>
+                <!-- slash-command dropdown · shows when input starts with `/` · arrow-key navigable -->
+                <ul class="console-slash-menu" id="console-slash-menu" role="listbox" hidden></ul>
             </span>
         </form>
     </aside>
@@ -532,6 +534,6 @@
     </div>
 
     <script src="api.js?v=20260513-5" defer></script>
-    <script src="script.js?v=20260513-8" defer></script>
+    <script src="script.js?v=20260513-9" defer></script>
 </body>
 </html>
