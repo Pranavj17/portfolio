@@ -134,6 +134,24 @@ const TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'analyze_incident',
+            description: 'Composite incident analysis · mirrors the same-named tool in the real mcp-server-graylog npm package (v2.1.0). ONE call fans out to: (1) the full trace hop chain via trace_id, (2) service-scoped surrounding logs around the first ERROR/CRITICAL/FATAL hop within ±window seconds, and (3) a trailing-baseline error count for the anchor service. Returns one aggregated report — hops, services involved, anchor service, first-error context, baseline error rate. Saves 2-3 LLM orchestration rounds when investigating a specific trace.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    traceId:         { type: 'string', description: 'The trace identifier to investigate (e.g. "tr_13d3b6").' },
+                    from:            { type: 'string', description: 'Start timestamp in ISO 8601 (search window for the trace). Dataset spans 2026-05-06 to 2026-05-13.' },
+                    to:              { type: 'string', description: 'End timestamp in ISO 8601.' },
+                    window:          { type: 'number', minimum: 1, maximum: 300, description: 'Surrounding-logs window in seconds on each side of the anchor. Default 10.' },
+                    baselineSeconds: { type: 'number', minimum: 60, maximum: 86400, description: 'Trailing window in seconds for the error baseline lookup ending at the trace start. Default 3600 (1h).' },
+                },
+                required: ['traceId', 'from', 'to'],
+            },
+        },
+    },
 ];
 
 // ─── Mistral [TOOL_CALLS] leak recovery ──────────────────────────────
@@ -427,6 +445,122 @@ function tool_get_message(args) {
     return hit || { error: 'not found' };
 }
 
+// Composite tool · mirrors the same-named tool in the real
+// `mcp-server-graylog` npm package (v2.1.0). Synthetic-data backing here
+// since this is a CF Worker demo, but the schema + response shape match
+// the package exactly so visitors see the real tool's surface area.
+//
+// One LLM call fans out to three internal searches and returns a single
+// aggregated incident report — saves 2-3 LLM rounds versus orchestrating
+// trace_request + get_surrounding_logs + count_messages manually.
+//
+// Differences from the package's real-Graylog implementation:
+//  · Surrounding logs are SERVICE-scoped here (the synthetic dataset has
+//    no `pod` field). The package uses POD-scoped filtering to avoid
+//    multi-tenant noise on shared EC2 hosts.
+//  · `summary.anchor_pod`, `summary.first_error.pod`, `first_error.lead_id`,
+//    and `summary.request` are always null here — the synthetic data
+//    doesn't carry those Scripbox-specific fields. They're in the schema
+//    so the response shape is interchangeable with the real package's.
+const ERROR_LEVELS = new Set(['ERROR', 'CRITICAL', 'FATAL']);
+
+function tool_analyze_incident(args) {
+    const traceId = String(args?.traceId ?? '').trim();
+    if (!traceId) return { error: 'traceId required' };
+
+    const fromStr = String(args?.from ?? '').trim();
+    const toStr   = String(args?.to   ?? '').trim();
+    const fromMs  = Date.parse(fromStr);
+    const toMs    = Date.parse(toStr);
+    if (!Number.isFinite(fromMs)) return { error: "'from' must be a valid ISO 8601 timestamp" };
+    if (!Number.isFinite(toMs))   return { error: "'to' must be a valid ISO 8601 timestamp" };
+    if (fromMs >= toMs)            return { error: "'from' must be before 'to'" };
+
+    const window = Math.min(300, Math.max(1, parseInt(args?.window ?? 10, 10) || 10));
+    const baselineSeconds = Math.min(86400, Math.max(60, parseInt(args?.baselineSeconds ?? 3600, 10) || 3600));
+
+    // Step 1 · find all hops sharing this trace_id within [from, to]
+    const traceHops = DATASET.entries
+        .filter(e => e.trace_id === traceId)
+        .filter(e => {
+            const t = Date.parse(e.ts);
+            return Number.isFinite(t) && t >= fromMs && t <= toMs;
+        })
+        .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+
+    if (traceHops.length === 0) {
+        return {
+            trace_id: traceId,
+            found: false,
+            note: `no entries match trace_id "${traceId}" between ${fromStr} and ${toStr}`,
+            steps_executed: 1,
+        };
+    }
+
+    // Step 2 · pick anchor — first ERROR/CRITICAL/FATAL hop, else first hop
+    const firstError = traceHops.find(e =>
+        ERROR_LEVELS.has(String(e.level || '').toUpperCase())
+    );
+    const anchor = firstError || traceHops[0];
+    const anchorTs = anchor.ts;
+    const anchorMs = Date.parse(anchorTs);
+    const anchorService = anchor.service || 'unknown';
+
+    // Step 3 · surrounding logs · service-scoped within ±window seconds
+    const surroundingLogs = DATASET.entries
+        .filter(e => e.service === anchorService)
+        .filter(e => {
+            const t = Date.parse(e.ts);
+            return Number.isFinite(t) && t >= anchorMs - window * 1000 && t <= anchorMs + window * 1000;
+        })
+        .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))
+        .slice(0, 100);
+
+    // Step 4 · trailing-window error baseline for the anchor service
+    const baselineFromMs = fromMs - baselineSeconds * 1000;
+    const baselineErrors = DATASET.entries
+        .filter(e => e.service === anchorService)
+        .filter(e => String(e.level || '').toUpperCase() === 'ERROR')
+        .filter(e => {
+            const t = Date.parse(e.ts);
+            return Number.isFinite(t) && t >= baselineFromMs && t < fromMs;
+        }).length;
+
+    // Aggregate
+    const services_involved = [...new Set(traceHops.map(e => e.service).filter(Boolean))];
+    const errors_in_trace = traceHops.filter(e =>
+        ERROR_LEVELS.has(String(e.level || '').toUpperCase())
+    ).length;
+
+    return {
+        trace_id: traceId,
+        found: true,
+        steps_executed: 4,
+        summary: {
+            hops: traceHops.length,
+            services_involved,
+            errors_in_trace,
+            anchor_timestamp: anchorTs,
+            anchor_service: anchorService,
+            anchor_pod: null,            // synthetic data has no `pod` field
+            first_error: firstError ? {
+                timestamp:    firstError.ts,
+                service:      firstError.service || null,
+                pod:          null,      // synthetic
+                logger_level: firstError.level || null,
+                message:      firstError.message || null,
+                lead_id:      null,      // synthetic
+            } : null,
+            request: null,               // synthetic data has no http_* fields
+            baseline_errors_in_service: baselineErrors,
+            baseline_window_seconds: baselineSeconds,
+        },
+        time_range: { from: fromStr, to: toStr },
+        trace_hops: traceHops,
+        surrounding_logs: surroundingLogs,
+    };
+}
+
 const TOOL_HANDLERS = {
     search_logs:           tool_search_logs,
     count_messages:        tool_count_messages,
@@ -434,6 +568,7 @@ const TOOL_HANDLERS = {
     trace_request:         tool_trace_request,
     get_surrounding_logs:  tool_get_surrounding_logs,
     get_message:           tool_get_message,
+    analyze_incident:      tool_analyze_incident,
 };
 
 function runTool(name, args) {
@@ -468,6 +603,11 @@ function summarizeResult(name, result) {
             return `${(result.entries || []).length} entries around ${result.centred_on || ''}`;
         case 'get_message':
             return result.ts ? `entry @ ${result.ts}` : 'not found';
+        case 'analyze_incident': {
+            if (!result.found) return `no trace ${result.trace_id || ''}`;
+            const s = result.summary;
+            return `${s.hops} hops · ${s.services_involved.length} svcs · ${s.errors_in_trace} errors · baseline ${s.baseline_errors_in_service} in ${s.anchor_service}`.slice(0, 80);
+        }
         default:
             return 'ok';
     }
@@ -477,11 +617,11 @@ function summarizeResult(name, result) {
 
 function buildSystemPrompt() {
     const services = Object.keys(DATASET.aggregates.by_service).join(', ');
-    return `You are mcp-server-graylog — Pranav Jagadish's MCP server for Graylog log aggregation, running on a SANDBOX instance for a portfolio demo. You have 6 tools to introspect a 7-day window of logs across a 6-microservice fintech (services: ${services}). The dataset has ${DATASET.aggregates.total_entries} entries; "now" is 2026-05-13T12:00:00Z.
+    return `You are mcp-server-graylog — Pranav Jagadish's MCP server for Graylog log aggregation, running on a SANDBOX instance for a portfolio demo. You have 7 tools to introspect a 7-day window of logs across a 6-microservice fintech (services: ${services}). The dataset has ${DATASET.aggregates.total_entries} entries; "now" is 2026-05-13T12:00:00Z.
 
 WORKFLOW:
 1. Read the user question carefully.
-2. Decide which tool(s) to call. Prefer count_messages for "how many" questions, search_logs for "find / show / what happened" questions, get_streams for "what services exist", trace_request when given a trace_id, get_surrounding_logs / get_message for context around a known timestamp.
+2. Decide which tool(s) to call. Prefer count_messages for "how many" questions, search_logs for "find / show / what happened" questions, get_streams for "what services exist", trace_request when given just a trace_id to list, analyze_incident when asked to investigate / root-cause / analyze a SPECIFIC trace or incident (one call composes trace+surrounding+baseline — saves 2-3 rounds), get_surrounding_logs / get_message for context around a known timestamp.
 3. After the tools return, write a CONCISE answer grounded only in the tool outputs.
 
 ANSWER STYLE:
@@ -723,7 +863,7 @@ async function handleQuery(request, env) {
 function handleStatus() {
     return jsonResp(200, {
         name: 'mcp-server-graylog · sandbox demo',
-        version: 'v2.0.1',
+        version: 'v2.2.0',
         phase: 2,
         model: NIM_MODEL,
         tools: TOOL_SCHEMAS.map(t => t.function.name),
