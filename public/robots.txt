@@ -1,15 +1,4 @@
-# Allow all crawlers
 User-agent: *
 Allow: /
 
-# Sitemap location
 Sitemap: https://pranavjagadish.com/sitemap.xml
-
-# Allow crawling of all public assets
-Allow: /assets/
-Allow: /favicon.svg
-Allow: /favicon.ico
-Allow: /favicon-*.png
-Allow: /apple-touch-icon.png
-Allow: /resume.pdf
-Allow: /resume.html

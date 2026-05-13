@@ -207,7 +207,10 @@
     function consoleOpen() {
         if (!consoleEl) return;
         consoleEl.classList.add('open');
-        consoleEl.setAttribute('aria-hidden', 'false');
+        // `inert` removes the entire subtree from the a11y tree + focus
+        // order — preferred over aria-hidden which Lighthouse flags when
+        // the hidden subtree contains focusable elements (input, button)
+        consoleEl.removeAttribute('inert');
         if (!consoleOut.dataset.greeted) {
             print('shell ready · session @ ' + new Date().toISOString().slice(0,16).replace('T', ' ') + ' UTC', 'muted');
             print("type 'help' to see what i answer to · type 'exit' to close", 'muted');
@@ -217,7 +220,7 @@
     }
     function consoleClose_() {
         consoleEl?.classList.remove('open');
-        consoleEl?.setAttribute('aria-hidden', 'true');
+        consoleEl?.setAttribute('inert', '');
         consoleInp?.blur();
     }
     function consoleToggle() {

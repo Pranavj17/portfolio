@@ -34,12 +34,14 @@
     <link rel="shortcut icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
 
-    <!-- Fonts -->
+    <!-- Fonts · async-loaded via preload+onload swap so they don't block
+         first paint. system-mono fallback shows until Plex/VT323 arrive. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
 
-    <link rel="stylesheet" href="/styles.css?v=20260513-1">
+    <link rel="stylesheet" href="/styles.css?v=20260513-2">
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -99,7 +101,7 @@
         <section id="home" class="panel" aria-label="home">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">~/about</span>
+                <span class="panel-title" role="heading" aria-level="2">~/about</span>
                 <span class="panel-meta">read-only · last modified 2026-05-10</span>
             </header>
             <div class="panel-body shell">
@@ -130,7 +132,7 @@
         <section id="work" class="panel" aria-label="work history">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">/var/log/career.log</span>
+                <span class="panel-title" role="heading" aria-level="2">/var/log/career.log</span>
                 <span class="panel-meta">tail -f · 14 entries · oldest first</span>
             </header>
             <div class="panel-body">
@@ -222,7 +224,7 @@
         <section id="skills" class="panel" aria-label="skills">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">$ htop --user pranav</span>
+                <span class="panel-title" role="heading" aria-level="2">$ htop --user pranav</span>
                 <span class="panel-meta">7 processes · sorted by uptime</span>
             </header>
             <div class="panel-body">
@@ -290,7 +292,7 @@
         <section id="artifacts" class="panel" aria-label="key artifacts">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">~/artifacts</span>
+                <span class="panel-title" role="heading" aria-level="2">~/artifacts</span>
                 <span class="panel-meta">3 highlighted · ls -la</span>
             </header>
             <div class="panel-body">
@@ -380,7 +382,7 @@
         <section id="projects" class="panel" aria-label="projects">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">$ tree ~/projects</span>
+                <span class="panel-title" role="heading" aria-level="2">$ tree ~/projects</span>
                 <span class="panel-meta">5 dirs · selected entries</span>
             </header>
             <div class="panel-body">
@@ -420,7 +422,7 @@
         <section id="contact" class="panel" aria-label="contact">
             <header class="panel-head">
                 <span class="panel-tag">[*]</span>
-                <span class="panel-title">~/.ssh/contact</span>
+                <span class="panel-title" role="heading" aria-level="2">~/.ssh/contact</span>
                 <span class="panel-meta">authorized_keys</span>
             </header>
             <div class="panel-body shell">
@@ -462,7 +464,7 @@
     </main>
 
     <!-- LIVE CONSOLE ─ typeable shell drawer -->
-    <aside class="console" id="console" aria-label="interactive shell" aria-hidden="true">
+    <aside class="console" id="console" aria-label="interactive shell" inert>
         <div class="console-head">
             <span class="console-tag">[*]</span>
             <span class="console-title">live shell — type <kbd>help</kbd></span>
@@ -481,13 +483,13 @@
 
     <!-- BOTTOM KEYBINDING BAR · also tappable on touch devices -->
     <footer class="keybar" role="contentinfo">
-        <button type="button" class="kb kb-btn kb-primary" data-action="shell" aria-label="open shell"><kbd>/</kbd> shell</button>
-        <button type="button" class="kb kb-btn" data-action="theme" aria-label="cycle theme"><kbd>t</kbd> theme</button>
-        <button type="button" class="kb kb-btn" data-action="help" aria-label="open help"><kbd>?</kbd> help</button>
+        <button type="button" class="kb kb-btn kb-primary" data-action="shell"><kbd>/</kbd> shell</button>
+        <button type="button" class="kb kb-btn" data-action="theme"><kbd>t</kbd> theme</button>
+        <button type="button" class="kb kb-btn" data-action="help"><kbd>?</kbd> help</button>
         <span class="kb sep">·</span>
-        <button type="button" class="kb kb-btn" data-action="jump-work" aria-label="jump to resume"><kbd>r</kbd> resume</button>
-        <button type="button" class="kb kb-btn" data-action="jump-projects" aria-label="jump to projects"><kbd>p</kbd> projects</button>
-        <button type="button" class="kb kb-btn" data-action="jump-contact" aria-label="jump to contact"><kbd>c</kbd> contact</button>
+        <button type="button" class="kb kb-btn" data-action="jump-work"><kbd>r</kbd> resume</button>
+        <button type="button" class="kb kb-btn" data-action="jump-projects"><kbd>p</kbd> projects</button>
+        <button type="button" class="kb kb-btn" data-action="jump-contact"><kbd>c</kbd> contact</button>
         <span class="kb sep">·</span>
         <span class="kb"><kbd>g</kbd><kbd>g</kbd> top</span>
         <span class="kb"><kbd>G</kbd> bottom</span>
@@ -525,7 +527,7 @@
         </div>
     </div>
 
-    <script src="api.js?v=20260513-1" defer></script>
-    <script src="script.js?v=20260513-1" defer></script>
+    <script src="api.js?v=20260513-2" defer></script>
+    <script src="script.js?v=20260513-2" defer></script>
 </body>
 </html>

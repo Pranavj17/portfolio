@@ -979,7 +979,7 @@ kbd {
         gap: 8px; font-size: 12px;
         padding: 8px 2px;
     }
-    .log-sev { font-size: 10px; }
+    .log-sev { font-size: 12px; }
     .education .edu-row { gap: 8px; font-size: 12px; flex-direction: column; }
 
     /* htop */
