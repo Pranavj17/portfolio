@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "mkdir -p build && cp -r public/* build/ && cp package.json build/ && cp server.js build/ && cp -r routes build/",
+    "build": "mkdir -p build && cp -r public/* build/",
     "watch": "nodemon --watch routes --watch server.js --watch public/index.html --watch public/styles.css server.js",
     "postinstall": "npm run build",
     "generate-pdf": "node generate-pdf.js"
