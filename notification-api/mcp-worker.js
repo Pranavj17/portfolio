@@ -494,6 +494,7 @@ function tool_analyze_incident(args) {
             found: false,
             note: `no entries match trace_id "${traceId}" between ${fromStr} and ${toStr}`,
             steps_executed: 1,
+            api_calls: 1,   // mirrors package: only step 1 (trace lookup) executes when empty
         };
     }
 
@@ -535,7 +536,10 @@ function tool_analyze_incident(args) {
     return {
         trace_id: traceId,
         found: true,
-        steps_executed: 4,
+        steps_executed: 4,   // algorithm steps · 4 logical, 3 are fan-out operations
+        api_calls: 3,        // mirrors the real package · synthetic data here, but the
+                             // 3 fan-out queries are the semantic equivalent of the
+                             // 3 Graylog API calls the npm package would fire
         summary: {
             hops: traceHops.length,
             services_involved,
@@ -863,7 +867,7 @@ async function handleQuery(request, env) {
 function handleStatus() {
     return jsonResp(200, {
         name: 'mcp-server-graylog · sandbox demo',
-        version: 'v2.2.0',
+        version: 'v2.2.1',
         phase: 2,
         model: NIM_MODEL,
         tools: TOOL_SCHEMAS.map(t => t.function.name),
