@@ -157,6 +157,9 @@
         { id: 'amber',    label: 'amber CRT' },
         { id: 'ibm',      label: 'IBM 3270' },
         { id: 'paper',    label: 'paper · light' },
+        { id: 'monokai',  label: 'monokai · classic dev' },
+        { id: 'dracula',  label: 'dracula' },
+        { id: 'nord',     label: 'nord · cool blue' },
     ];
     function getTheme() {
         return localStorage.getItem('theme') ||
@@ -581,6 +584,7 @@
                 ['audio [on|off]',      'click sounds toggle'],
                 ['boot',                'replay boot sequence'],
                 ['demo',                'open Echo · AI agent platform demo'],
+                ['resume',              'download resume.pdf'],
                 ['hire',                'compose hiring email'],
                 ['echo &lt;text&gt;',   'print text'],
                 ['history',             'recent commands'],
@@ -804,6 +808,22 @@ Phone: +91 8123310664
             print('  → <a href="https://pranavj17.github.io/echo-demo-v2/" target="_blank" rel="noopener">https://pranavj17.github.io/echo-demo-v2/</a>', 'muted');
             print('  → <a href="/assets/videos/echo-demo.mp4" target="_blank" rel="noopener">2-minute video walkthrough</a>', 'muted');
             try { window.open('https://pranavj17.github.io/echo-demo-v2/', '_blank', 'noopener'); } catch (_) {}
+        },
+        resume() {
+            print('opening resume...', 'ok');
+            print('  → <a href="/resume.pdf" target="_blank" rel="noopener">resume.pdf</a>  <span class="muted">2 pages · 95KB · IBM Plex Mono</span>', 'muted');
+            print('  → <a href="/resume.html" target="_blank" rel="noopener">resume.html</a> <span class="muted">web-readable version</span>', 'muted');
+            // trigger download in a new tab
+            try {
+                const a = document.createElement('a');
+                a.href = '/resume.pdf';
+                a.target = '_blank';
+                a.rel = 'noopener';
+                a.download = 'Pranav_Jagadish_Resume.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (_) {}
         },
         echo(...args) { print(args.join(' ') || ''); },
         history() {
