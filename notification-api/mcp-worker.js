@@ -1006,14 +1006,56 @@ const TOOL_HANDLERS = {
     summarize_url:         tool_summarize_url,
 };
 
+// Mirrors mcp-server-graylog@2.2.1's redactArgs. Masks credential-looking
+// keys and truncates string values >200 chars so CF Logs stay compact + safe.
+const REDACT_KEY_RX = /token|password|secret|auth|cred|apikey/i;
+function redactArgs(args) {
+    if (!args || typeof args !== 'object') return args;
+    const out = {};
+    for (const [k, v] of Object.entries(args)) {
+        if (REDACT_KEY_RX.test(k)) out[k] = '[REDACTED]';
+        else if (typeof v === 'string' && v.length > 200) out[k] = v.slice(0, 197) + '...';
+        else out[k] = v;
+    }
+    return out;
+}
+
 async function runTool(name, args, ctx) {
     const fn = TOOL_HANDLERS[name];
-    if (!fn) return { error: `unknown tool: ${name}` };
+    const startMs = Date.now();
+    // Pre-call log · CF Workers route console.log → CF Logs (wrangler tail).
+    // Mirrors mcp-server-graylog@2.2.1's stderr trio.
+    console.log(`[mcp-worker] tool_call: ${name}`, redactArgs(args));
+    if (!fn) {
+        console.log(`[mcp-worker] tool_error: ${name} · 0ms`, { message: 'unknown tool' });
+        return { error: `unknown tool: ${name}` };
+    }
     // Defensive default: if a caller (e.g. an offline test) didn't pass ctx,
     // the graylog tools still work; only internet tools need it populated.
     const safeCtx = ctx || { apiKey: null, outboundFetches: 0, summarizeCalls: 0 };
-    try        { return await fn(args || {}, safeCtx); }
-    catch (e)  { return { error: `tool ${name} threw: ${e?.message || String(e)}` }; }
+    try {
+        const result = await fn(args || {}, safeCtx);
+        const dur = Date.now() - startMs;
+        // Soft errors are returned as { error: '...' } in this codebase's
+        // convention; surface those as tool_error too (not just thrown ones).
+        if (result && typeof result === 'object' && result.error) {
+            console.log(`[mcp-worker] tool_error: ${name} · ${dur}ms`, {
+                message: String(result.error).slice(0, 200),
+                args: redactArgs(args),
+            });
+        } else {
+            console.log(`[mcp-worker] tool_done: ${name} · ${dur}ms`);
+        }
+        return result;
+    } catch (e) {
+        const dur = Date.now() - startMs;
+        const msg = e?.message || String(e);
+        console.log(`[mcp-worker] tool_error: ${name} · ${dur}ms`, {
+            message: msg,
+            args: redactArgs(args),
+        });
+        return { error: `tool ${name} threw: ${msg}` };
+    }
 }
 
 function summarizeResult(name, result) {
@@ -1346,7 +1388,7 @@ async function handleQuery(request, env) {
 function handleStatus() {
     return jsonResp(200, {
         name: 'mcp-server-graylog · sandbox demo',
-        version: 'v2.3.0',
+        version: 'v2.3.1',
         phase: 2,
         model: NIM_MODEL,
         tools: TOOL_SCHEMAS.map(t => t.function.name),
