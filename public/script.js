@@ -223,11 +223,17 @@
             _commandNamesCache = Object.keys(COMMANDS).sort();
         }
         if (!_commandNamesCache) return;
-        const pre = v.toLowerCase();
-        const match = _commandNamesCache.find(c => c.startsWith(pre) && c !== pre);
+        // Claude Code-style `/foo` prefix: treat `/foo` as a search for `foo`.
+        // A lone `/` suggests the alphabetically-first command, so the visitor
+        // gets a discoverable starting hint just by hitting `/`.
+        const hasSlash = v.startsWith('/');
+        const pre = (hasSlash ? v.slice(1) : v).toLowerCase();
+        const match = pre === ''
+            ? (hasSlash ? _commandNamesCache[0] : null)
+            : _commandNamesCache.find(c => c.startsWith(pre) && c !== pre);
         if (match) {
             consoleGhostPad.textContent  = v;
-            consoleGhostText.textContent = match.slice(v.length);
+            consoleGhostText.textContent = match.slice(pre.length);
         } else {
             consoleGhostPad.textContent  = '';
             consoleGhostText.textContent = '';
@@ -1160,7 +1166,10 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         histIdx = history.length;
         printEcho(line);
         const tokens = line.split(/\s+/);
-        const cmd = tokens[0].toLowerCase();
+        // Accept Claude Code-style `/hire` alongside bare `hire` — strip
+        // a single leading slash from the first token. Anything else (//foo,
+        // hi/re) is left alone and falls through to the not-found path.
+        const cmd = tokens[0].toLowerCase().replace(/^\/(?!\/)/, '');
         const args = tokens.slice(1);
         const fn = COMMANDS[cmd];
         if (!fn) {
