@@ -33,12 +33,8 @@ jobs:
         run: |
           # Create a build directory
           mkdir -p build
-          # Copy all necessary files to build directory
+          # Copy only the static site to build directory
           cp -r public/* build/
-          cp package.json build/
-          cp server.js build/
-          cp -r routes build/
-          cp -r node_modules build/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

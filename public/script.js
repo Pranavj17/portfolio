@@ -414,6 +414,17 @@
         consoleOut.appendChild(div);
         consoleOut.scrollTop = consoleOut.scrollHeight;
     }
+    // XSS-safe variant of print(). Use this whenever the string contains
+    // ANY user-controlled or API-sourced data and you don't need formatting.
+    // For mixed cases (a static template with one dynamic field), wrap the
+    // dynamic part in escapeHtml() and keep using print().
+    function printText(text, cls = '') {
+        const div = document.createElement('div');
+        div.className = 'console-line' + (cls ? ' ' + cls : '');
+        div.textContent = String(text);
+        consoleOut.appendChild(div);
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+    }
     function printEcho(input) {
         const safe = input.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         print(`<span class="prompt">pranavjagadish</span>:<span class="path">~</span>$ <span class="cmd">${safe}</span>`, 'echo');
@@ -800,7 +811,7 @@
         cd(arg) {
             if (!arg) { print(currentSection() || '~', 'muted'); return; }
             const id = arg.replace(/^\/?~?\/?/, '').replace(/\/$/, '').toLowerCase();
-            if (!SECTIONS.includes(id)) { print(`cd: no such section: ${arg}`, 'error'); return; }
+            if (!SECTIONS.includes(id)) { printText(`cd: no such section: ${arg}`, 'error'); return; }
             $('#' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             print(`→ ${id}/`, 'ok');
         },
@@ -809,7 +820,7 @@
             const id = arg.toLowerCase().replace(/\.txt$/, '').replace(/\.md$/, '');
             if (id === 'guestbook') { await renderGuestbook(); return; }
             const blurb = SECTION_BLURB[id];
-            if (!blurb) { print(`cat: ${arg}: no such file or directory`, 'error'); return; }
+            if (!blurb) { printText(`cat: ${arg}: no such file or directory`, 'error'); return; }
             print(blurb);
         },
         whoami() { print('guest — visiting pranavjagadish via tty1', 'ok'); },
@@ -874,7 +885,7 @@ last updated 2026-05-10`;
         },
         finger(arg) {
             if (arg && arg.toLowerCase() !== 'pranav') {
-                print(`finger: ${arg}: no such user`, 'error');
+                printText(`finger: ${arg}: no such user`, 'error');
                 return;
             }
             const u = uptimeEl?.textContent?.replace('↑ ', '') || '6y';
@@ -1115,9 +1126,9 @@ Phone: +91 8123310664
             print(note, 'ok');
         },
         theme(arg) {
-            if (!arg) { print(`theme: ${getTheme()} · pass one of: ${THEMES.map(t=>t.id).join(', ')}`, 'muted'); return; }
+            if (!arg) { printText(`theme: ${getTheme()} · pass one of: ${THEMES.map(t=>t.id).join(', ')}`, 'muted'); return; }
             const id = arg.toLowerCase();
-            if (!THEMES.find(t => t.id === id)) { print(`theme: unknown · valid: ${THEMES.map(t=>t.id).join(', ')}`, 'error'); return; }
+            if (!THEMES.find(t => t.id === id)) { printText(`theme: unknown · valid: ${THEMES.map(t=>t.id).join(', ')}`, 'error'); return; }
             applyTheme(id, true);
             print(`theme → ${id}`, 'ok');
         },
@@ -1287,7 +1298,7 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
                 return;
             }
             const fn = COMMANDS[cmd.toLowerCase()];
-            if (!fn) { print(`no manual entry for ${cmd}`, 'error'); return; }
+            if (!fn) { printText(`no manual entry for ${cmd}`, 'error'); return; }
             print(`man ${cmd} — try just running it. this isn't that kind of unix.`, 'muted');
         },
     };
@@ -1311,11 +1322,11 @@ PRANAV(1)                       2026-05-10                       PRANAV(1)`;
         const args = tokens.slice(1);
         const fn = COMMANDS[cmd];
         if (!fn) {
-            print(`zsh: command not found: ${cmd}  ·  try 'help'`, 'error');
+            printText(`zsh: command not found: ${cmd}  ·  try 'help'`, 'error');
             return;
         }
         try { fn(...args); }
-        catch (e) { print(`error: ${e.message}`, 'error'); }
+        catch (e) { printText(`error: ${e.message}`, 'error'); }
     }
 
     /* console events */
