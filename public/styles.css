@@ -1376,10 +1376,26 @@ kbd {
     display: flex;
     align-items: baseline;
     gap: 16px;
-    padding: 3px 14px;
+    padding: 4px 14px 4px 24px;    /* left padding reserves space for the ▸ arrow */
     cursor: pointer;
     white-space: nowrap;
     line-height: 1.5;
+    position: relative;
+    border-left: 2px solid transparent;
+    transition: background 80ms ease-out, border-color 80ms ease-out;
+}
+/* Always-reserved arrow slot; only the active row fills it. Avoids the row
+   shifting horizontally when selection moves. */
+.console-slash-menu li::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 11px;
+    line-height: 1;
+    pointer-events: none;
 }
 .console-slash-menu .slash-name {
     min-width: 9ch;          /* longest command name + 1ch slack */
@@ -1392,11 +1408,34 @@ kbd {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.console-slash-menu li.active .slash-name,
-.console-slash-menu li.active .slash-desc {
+
+/* Active row · subtle accent-tinted background + accent left-border stripe +
+   ▸ prefix arrow. Two-tone text: bright accent for the command name, bright
+   fg for the description — gives visual hierarchy instead of one screaming
+   color on both. color-mix derives the tint from --accent so the highlight
+   adapts to every theme automatically; rgba fallback for browsers without
+   color-mix support. */
+.console-slash-menu li.active {
+    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-left-color: var(--accent);
+}
+.console-slash-menu li.active::before {
+    content: '▸';
+}
+.console-slash-menu li.active .slash-name {
     color: var(--accent);
     font-weight: 600;
     opacity: 1;
+}
+.console-slash-menu li.active .slash-desc {
+    color: var(--fg-bright, var(--fg));
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+.console-slash-menu li:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.025);
 }
 .console-slash-menu li:hover:not(.active) .slash-name {
     color: var(--fg);
