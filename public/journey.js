@@ -657,27 +657,31 @@
         ctx.textAlign = 'start';
     }
 
-    /** the player · big emoji that swaps based on vehicle. Bobs while walking */
+    /** the player · big emoji that swaps based on vehicle. Bobs while walking.
+     *  cy uses 'alphabetic' baseline so visible glyph bottom lands on groundY,
+     *  not the EM-box bottom (which has invisible descender padding). */
     function drawPlayer(W, groundY) {
         const cx = W * 0.32;
         const v = VEHICLES[state.vehicle];
         const bob = state.vehicle === 'walk'
             ? Math.abs(Math.sin(state.walkPhase)) * 4
             : Math.sin(state.bobT * 0.006) * 1.5;
-        const cy = groundY - 36 + bob;
+        const cy = groundY + 6 - bob;
 
-        // shadow under feet
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        // shadow under feet · shrinks slightly when player bobs up (sells lift)
+        const shadowScale = 1 - (bob / 24);
+        ctx.fillStyle = `rgba(0,0,0,${0.42 * shadowScale})`;
         ctx.beginPath();
-        ctx.ellipse(cx, groundY + 4, 30, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, groundY + 8, 30 * shadowScale, 5 * shadowScale, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // emoji
+        // emoji · 'alphabetic' baseline sits ~at glyph bottom for emoji fonts
         ctx.font = '72px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+        ctx.textBaseline = 'alphabetic';
         ctx.fillText(v.icon, cx, cy);
         ctx.textAlign = 'start';
+        ctx.textBaseline = 'alphabetic';
     }
 
     // hex → rgb component helpers · cheap, avoids string parsing per call
