@@ -55,7 +55,10 @@
         walk:  { speed:  60, icon: '🚶',  label: 'WALKING',     sub: 'childhood pace · ITICS',        achId: null,        achTitle: null,           achSub: null },
         run:   { speed: 110, icon: '🏃',  label: 'RUNNING',     sub: 'CMR · the rush of growing up',  achId: 'on-run',    achTitle: 'PICKED UP THE PACE', achSub: 'school sports · CMR years' },
         cycle: { speed: 150, icon: '🚴',  label: 'BICYCLE',     sub: 'D.S.C.E. campus bike',          achId: 'on-cycle',  achTitle: 'ON TWO WHEELS',      achSub: 'engineering · bicycle days' },
-        bike:  { speed: 200, icon: '🏍',  label: 'MOTORBIKE',   sub: 'commute to 104 FM',             achId: 'on-bike',   achTitle: 'TWO WHEELS, ENGINE', achSub: 'commute · radio days' },
+        // bike icon · U+1F3CD requires VS16 (U+FE0F) to render as a color
+        // emoji glyph in Chromium/macOS. Without it, the motorcycle falls
+        // back to text presentation (or a missing-glyph box) on many systems.
+        bike:  { speed: 200, icon: '🏍️', label: 'MOTORBIKE',   sub: 'commute to 104 FM',             achId: 'on-bike',   achTitle: 'TWO WHEELS, ENGINE', achSub: 'commute · radio days' },
         alto:  { speed: 260, icon: '🚗',  label: 'MARUTI ALTO', sub: 'first paycheck · SAKHA 2019',   achId: 'first-job', achTitle: 'FIRST JOB · ALTO',   achSub: 'maruti alto · jul 2019' },
         vw:    { speed: 340, icon: '🏎️', label: 'VW VIRTUS GT', sub: '1.5 TSI · turbo · nov 2025',  achId: 'got-the-gt', achTitle: 'GOT THE GT',         achSub: 'vw virtus gt · nov 16, 2025' },
     };
@@ -278,13 +281,37 @@
         }
     }
 
-    function showAchievement(ch) {
+    function showAchievement(ch, opts) {
         if (!$achStack) return;
-        // Only ONE achievement card visible at a time · clear any existing
-        // before adding the new one (was previously accumulating on rapid taps)
-        while ($achStack.firstChild) $achStack.removeChild($achStack.firstChild);
+        // Stacking policy by KIND, not by timing:
+        //   · 'peek'  (voluntary · Space / tap) → ALWAYS replace any other
+        //     peek currently on screen, and never add a 2nd peek. Peeks are
+        //     user-driven and should feel instant + single.
+        //   · 'event' (involuntary · vehicle-upgrade, chapter-collect) →
+        //     may stack up to 2 cards (so bike-upgrade + Fever104 chapter
+        //     can be visible together). Any existing peek is removed first
+        //     so an involuntary event always wins over voluntary noise.
+        const kind = (opts && opts.kind) || 'event';
+        // remove every existing peek card (regardless of incoming kind)
+        const existing = [...$achStack.children];
+        for (const node of existing) {
+            if (node.dataset && node.dataset.kind === 'peek') {
+                $achStack.removeChild(node);
+            }
+        }
+        if (kind === 'peek') {
+            // peek replaces ALL siblings (events included): only one card
+            // ever shows for voluntary input, no matter how fast/slow taps.
+            while ($achStack.firstChild) $achStack.removeChild($achStack.firstChild);
+        } else {
+            // event · cap at 2 simultaneous event cards (oldest bumped)
+            while ($achStack.children.length >= 2) {
+                $achStack.removeChild($achStack.firstChild);
+            }
+        }
         const el = document.createElement('div');
         el.className = 'achievement';
+        el.dataset.kind = kind;
         el.innerHTML = `
             <span class="a-icon">${ch.icon}</span>
             <div class="a-text">
@@ -315,7 +342,7 @@
     function triggerPeek() {
         const nextIdx = pickNextObjective();
         const ch = CHAPTERS[nextIdx];
-        if (ch) showAchievement(ch);
+        if (ch) showAchievement(ch, { kind: 'peek' });
         if (!tapHintSeen && $tapHint) {
             tapHintSeen = true;
             $tapHint.classList.add('faded');
@@ -328,6 +355,9 @@
         } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
             e.preventDefault(); state.keys.left = true;
         } else if (k === ' ' || k === 'Enter') {
+            // ignore OS-driven auto-repeat: holding Space must not fire
+            // triggerPeek() repeatedly. Only act on the initial press.
+            if (e.repeat) { e.preventDefault(); return; }
             e.preventDefault(); triggerPeek();
         }
     });
@@ -981,63 +1011,114 @@
 
     /** car · body silhouette + 2 wheels + window with driver hint · used for alto & vw.
      *  bodyColor distinguishes the two; vw also gets a spoiler+stripe. */
+    /** Car drawer · shape-aware. 'hatch' (Maruti Alto) = short, tall greenhouse,
+     *  near-vertical rear, no separate trunk. 'sedan' (VW Virtus GT) = longer
+     *  body, distinct 3-box silhouette with raked rear glass + separate trunk
+     *  lid, lower roof. */
     function drawCar(cx, footY, opts) {
-        const { bodyColor, accent, isGT } = opts;
-        const wheelR = 11;
-        const wheelY = footY - wheelR;
-        const wLx = cx - 22, wRx = cx + 22;
-        const carTop = wheelY - 22;
-        const roofTop = carTop - 12;
+        const { bodyColor, accent, isGT, shape } = opts;
 
-        // body — low, wide
+        if (shape === 'hatch') {
+            // ── HATCHBACK (Alto): short, tall, blocky rear ─────────
+            const wheelR  = 10;
+            const wheelY  = footY - wheelR;
+            const wLx     = cx - 16, wRx = cx + 16;   // shorter wheelbase
+            const carTop  = wheelY - 22;
+            const roofTop = carTop - 14;              // tall roof
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.moveTo(cx - 24, wheelY);              // rear bottom
+            ctx.lineTo(cx - 24, carTop + 3);          // rear face (near-vertical)
+            ctx.lineTo(cx - 22, roofTop + 2);         // up rear glass (steep)
+            ctx.quadraticCurveTo(cx - 20, roofTop,  cx - 14, roofTop);
+            ctx.lineTo(cx + 10, roofTop);
+            ctx.quadraticCurveTo(cx + 16, roofTop, cx + 20, carTop + 2);  // windshield rake
+            ctx.lineTo(cx + 24, carTop + 4);          // hood front
+            ctx.quadraticCurveTo(cx + 28, carTop + 6, cx + 28, wheelY);
+            ctx.closePath();
+            ctx.fill();
+            // windows · 2 distinct panes (rear hatch + front)
+            ctx.fillStyle = 'rgba(140,180,210,0.55)';
+            ctx.beginPath();
+            ctx.moveTo(cx - 19, carTop);  ctx.lineTo(cx - 17, roofTop + 3);
+            ctx.lineTo(cx - 3,  roofTop + 3); ctx.lineTo(cx - 3, carTop);
+            ctx.closePath(); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(cx + 1, carTop); ctx.lineTo(cx + 1, roofTop + 3);
+            ctx.lineTo(cx + 13, roofTop + 3); ctx.lineTo(cx + 18, carTop);
+            ctx.closePath(); ctx.fill();
+            // driver head
+            ctx.fillStyle = HAT;
+            ctx.beginPath(); ctx.arc(cx + 6, roofTop + 7, 3.5, 0, Math.PI * 2); ctx.fill();
+            // bumper stripe
+            ctx.strokeStyle = accent; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(cx - 22, wheelY - 3); ctx.lineTo(cx + 26, wheelY - 3); ctx.stroke();
+            // wheels
+            drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+            drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+            return;
+        }
+
+        // ── SEDAN (VW Virtus GT): long, low, 3-box w/ raked C-pillar ──
+        const wheelR  = 11;
+        const wheelY  = footY - wheelR;
+        const wLx     = cx - 26, wRx = cx + 26;   // longer wheelbase
+        const carTop  = wheelY - 19;
+        const roofTop = carTop - 11;              // lower roof
+        const rearEnd = cx - 40;
+        const frontEnd= cx + 42;
         ctx.fillStyle = bodyColor;
         ctx.beginPath();
-        ctx.moveTo(cx - 32, wheelY);
-        ctx.lineTo(cx - 32, carTop + 2);
-        ctx.quadraticCurveTo(cx - 28, carTop - 2, cx - 20, carTop - 2);
-        ctx.lineTo(cx - 8,  roofTop);
-        ctx.lineTo(cx + 12, roofTop);
-        ctx.lineTo(cx + 22, carTop - 2);
-        ctx.quadraticCurveTo(cx + 30, carTop, cx + 34, carTop + 4);
-        ctx.lineTo(cx + 34, wheelY);
+        ctx.moveTo(rearEnd, wheelY);
+        ctx.lineTo(rearEnd, carTop + 5);                  // rear bumper face
+        ctx.quadraticCurveTo(rearEnd + 3, carTop, rearEnd + 9, carTop - 1);   // trunk lid lift
+        ctx.lineTo(cx - 14, carTop - 1);                  // trunk top deck
+        ctx.lineTo(cx - 6,  roofTop);                      // rear glass (raked)
+        ctx.lineTo(cx + 14, roofTop);                      // roof
+        ctx.lineTo(cx + 24, carTop);                       // windshield rake
+        ctx.lineTo(cx + 34, carTop + 1);                   // hood
+        ctx.quadraticCurveTo(frontEnd, carTop + 4, frontEnd, wheelY);
         ctx.closePath();
         ctx.fill();
-        // window glass
+        // windows · 2 panes split at B-pillar
         ctx.fillStyle = 'rgba(140,180,210,0.55)';
         ctx.beginPath();
-        ctx.moveTo(cx - 18, carTop);
-        ctx.lineTo(cx - 6,  roofTop + 1);
-        ctx.lineTo(cx + 10, roofTop + 1);
-        ctx.lineTo(cx + 20, carTop);
-        ctx.closePath();
-        ctx.fill();
-        // driver silhouette through window
+        ctx.moveTo(cx - 12, carTop - 1); ctx.lineTo(cx - 5, roofTop + 1);
+        ctx.lineTo(cx + 4, roofTop + 1); ctx.lineTo(cx + 4, carTop - 1);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 8, carTop - 1); ctx.lineTo(cx + 8, roofTop + 1);
+        ctx.lineTo(cx + 14, roofTop + 1); ctx.lineTo(cx + 22, carTop - 1);
+        ctx.closePath(); ctx.fill();
+        // driver head
         ctx.fillStyle = HAT;
-        ctx.beginPath(); ctx.arc(cx + 2, roofTop + 6, 4, 0, Math.PI * 2); ctx.fill();
-        // bumper highlight / accent stripe
+        ctx.beginPath(); ctx.arc(cx + 12, roofTop + 6, 4, 0, Math.PI * 2); ctx.fill();
+        // bumper accent
         ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(cx - 30, wheelY - 4); ctx.lineTo(cx + 32, wheelY - 4); ctx.stroke();
-        // GT: rear spoiler + go-faster stripe
+        ctx.beginPath(); ctx.moveTo(rearEnd + 2, wheelY - 4); ctx.lineTo(frontEnd - 2, wheelY - 4); ctx.stroke();
+        // GT bits: rear spoiler + go-faster stripe + grille bar
         if (isGT) {
             ctx.fillStyle = '#1a0d08';
-            ctx.fillRect(cx - 32, carTop + 4, 4, 6);
-            ctx.fillRect(cx - 34, carTop + 2, 6, 3);
+            ctx.fillRect(rearEnd, carTop, 4, 7);                // spoiler stalk
+            ctx.fillRect(rearEnd - 2, carTop - 2, 7, 3);        // spoiler wing
             ctx.fillStyle = '#f0d590';
-            ctx.fillRect(cx - 28, wheelY - 10, 56, 1.5);
+            ctx.fillRect(rearEnd + 4, wheelY - 10, frontEnd - rearEnd - 10, 1.5); // stripe
+            ctx.strokeStyle = '#d4a653'; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(frontEnd - 4, carTop + 6); ctx.lineTo(frontEnd, carTop + 8); ctx.stroke();
         }
         // wheels
         drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
         drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
-        // headlight glow (only when dusk-ish — progress > 0.55)
+        // headlight glow (dusk only)
         const progress = Math.min(1, state.playerX / 6500);
         if (progress > 0.55) {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            const hg = ctx.createRadialGradient(cx + 34, wheelY - 6, 0, cx + 34, wheelY - 6, 40);
+            const hg = ctx.createRadialGradient(frontEnd, wheelY - 6, 0, frontEnd, wheelY - 6, 44);
             hg.addColorStop(0, 'rgba(255,220,150,0.8)');
             hg.addColorStop(1, 'rgba(255,220,150,0)');
             ctx.fillStyle = hg;
-            ctx.fillRect(cx, wheelY - 40, 90, 60);
+            ctx.fillRect(cx, wheelY - 44, 100, 60);
             ctx.restore();
         }
     }
@@ -1082,10 +1163,10 @@
                 drawBike(cx, groundY);
                 break;
             case 'alto':
-                drawCar(cx, groundY, { bodyColor: '#d8c4a0', accent: '#7a5b30', isGT: false });
+                drawCar(cx, groundY, { bodyColor: '#d8c4a0', accent: '#7a5b30', isGT: false, shape: 'hatch' });
                 break;
             case 'vw':
-                drawCar(cx, groundY, { bodyColor: '#1d3a5c', accent: '#d4a653', isGT: true });
+                drawCar(cx, groundY, { bodyColor: '#1d3a5c', accent: '#d4a653', isGT: true,  shape: 'sedan' });
                 break;
         }
     }
@@ -1165,7 +1246,7 @@
                 const v = VEHICLES[want];
                 if (v.achId && !state.achievements.has(v.achId)) {
                     state.achievements.add(v.achId);
-                    showAchievement({ icon: v.icon, achTitle: v.achTitle, achSub: v.achSub });
+                    showAchievement({ icon: v.icon, achTitle: v.achTitle, achSub: v.achSub }, { kind: 'event' });
                 }
             }
 
@@ -1176,7 +1257,7 @@
                 if (state.playerX >= ch.x - 80 && state.playerX <= ch.x + 80) {
                     state.collected.add(ch.id);
                     updateProgress(i);
-                    showAchievement(ch);
+                    showAchievement(ch, { kind: 'event' });
                     updateMission(i);
                     setTimeout(() => updateMission(pickNextObjective()), 1400);
                     triggerLetterbox(1100);

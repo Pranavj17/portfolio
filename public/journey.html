@@ -96,7 +96,7 @@
 
         /* film grain overlay · animated noise SVG · pure CSS · Sergio Leone */
         .grain {
-            position: absolute;
+            position: fixed;
             inset: 0;
             pointer-events: none;
             z-index: 5;
@@ -117,7 +117,7 @@
 
         /* vignette · subtle period-photograph darkening at corners */
         .vignette {
-            position: absolute;
+            position: fixed;
             inset: 0;
             pointer-events: none;
             z-index: 6;
@@ -126,7 +126,7 @@
 
         /* HUD overlay · floats above the WebGL canvas */
         .hud {
-            position: absolute;
+            position: fixed;
             inset: 0;
             pointer-events: none;
             z-index: 10;
@@ -205,13 +205,15 @@
            visible underneath. Comic-book impact: icon slams in, title plate
            settles below it. */
         .achievement-stack {
-            position: absolute;
+            position: fixed;
             top: 60px;
             left: 0;
             right: 0;
             display: flex;
-            align-items: flex-start;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
             pointer-events: none;
             z-index: 15;
         }
@@ -492,9 +494,10 @@
         /* LETTERBOX bars · brief cinematic black bars at chapter entry.
            Driven by .stage.letterbox class added/removed in journey.js. */
         .letterbox-bar {
-            position: absolute;
+            position: fixed;
             left: 0;
             right: 0;
+            width: 100vw;
             height: 0;
             background: rgba(0,0,0,0.92);
             z-index: 18;
@@ -580,6 +583,6 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260518-15" defer></script>
+    <script src="/journey.js?v=20260518-16" defer></script>
 </body>
 </html>
