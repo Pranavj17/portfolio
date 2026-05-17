@@ -44,9 +44,19 @@
     const WORLD_END_Z = 3100;     // game-over zone end (past the last station)
     const LANE_X = [-90, 0, 90];  // 3 lanes the player can occupy
 
+    // base speeds (walking). Vehicles multiply these.
     const WALK_VZ = 1.8;          // forward speed (world units per 16.67ms)
     const BACK_VZ = 1.0;          // back speed
     const STRAFE_VX = 2.4;        // strafe speed
+    // vehicle speed multipliers · upgrade as the story progresses
+    const VEHICLE_SPEED = {
+        walk: 1.00,               // college / fever 104 era · backpack only
+        alto: 1.60,               // sakha + scripbox era · maruti alto daily-driver
+        vw:   2.20,               // post-nov 2025 · vw virtus GT
+    };
+    // z-threshold for the Alto · arrives roughly with Sakha (z≈1200), set a
+    // bit before so the transition feels natural as the character "drives in"
+    const ALTO_START_Z = 950;
     const GRAVITY = 0.55;
     const JUMP_VY = -11.5;
 
@@ -73,14 +83,131 @@
 
     const GARBAGE = '@#$%&░▒▓█▀▄▌▐■□▲▼◆◇▣◊╳╋╇'.split('');
 
+    // ── per-chapter atmosphere · sky · ground texture · drift particle ──
+    // Each zone gets its own "place" so the player feels like they walked
+    // somewhere, not just past a different building. Sky is a 2-stop gradient
+    // from horizon-up. Drift particles float across the scene with a slight
+    // parallax. Ground texture is the decoration drawn on the floor row.
+    const ATMOSPHERE = {
+        college: {
+            skyTop:    '#0a0e0a',  // pre-dawn campus
+            skyHorizon:'#1a2418',
+            ambient:   '#6dffa6',
+            driftChars: ['✎', '∫', '∑', '∂', '·'],     // pencils + calculus
+            driftRate:  0.55,
+            ground:    ['┄', '·', ' ', ' '],            // dashed campus path
+        },
+        fever104: {
+            skyTop:    '#0e0808',  // city night
+            skyHorizon:'#2a0a18',
+            ambient:   '#ff3b8a',
+            driftChars: [')', '⌒', '~', '·'],          // sound waves
+            driftRate:  0.85,
+            ground:    ['═', ' ', '─', ' '],            // city street paint
+        },
+        sakha: {
+            skyTop:    '#08080e',  // commute morning
+            skyHorizon:'#181a28',
+            ambient:   '#b48cff',
+            driftChars: ['/', '*', '%', '{', '}', '·'], // code crumbs
+            driftRate:  0.65,
+            ground:    ['─', ' ', ' ', ' '],            // highway lane
+        },
+        scripbox: {
+            skyTop:    '#070b10',  // overcast tech office
+            skyHorizon:'#0e1828',
+            ambient:   '#5ad8ff',
+            driftChars: ['[', ']', '✦', '·', '∴'],     // mcp brackets
+            driftRate:  0.7,
+            ground:    ['┼', ' ', '·', ' '],            // enterprise grid mesh
+        },
+        vwgt: {
+            skyTop:    '#0d0707',  // headlit dusk
+            skyHorizon:'#3a0a0a',
+            ambient:   '#ff5e5e',
+            driftChars: ['•', '·', '⌁', '/'],          // exhaust / speed flecks
+            driftRate:  1.05,
+            ground:    ['═', '═', ' ', '═'],            // checkered race hint
+        },
+        now: {
+            skyTop:    '#0e0e08',  // morning light
+            skyHorizon:'#28200e',
+            ambient:   '#ffd47a',
+            driftChars: ['★', '·', '✦', '✧'],          // celebratory sparkle
+            driftRate:  0.55,
+            ground:    ['─', '·', '─', ' '],            // clean horizon road
+        },
+    };
+
+    // pre-generate a pool of drift particles · each holds (x, y, z, char, layer)
+    // and gets re-randomised when it falls off-screen so we get a continuous stream
+    const DRIFT_POOL_SIZE = 36;
+    const driftPool = [];
+    for (let i = 0; i < DRIFT_POOL_SIZE; i++) {
+        driftPool.push({
+            x: (Math.random() - 0.5) * 480,
+            y: 60 + Math.random() * 180,
+            z: Math.random() * 1200,
+            wob: Math.random() * Math.PI * 2,     // wobble seed
+            speed: 0.5 + Math.random() * 0.6,     // forward drift speed (z-direction)
+            char: '·',                            // assigned per-frame from current zone
+        });
+    }
+
     // ── sprites ───────────────────────────────────────────────────────
-    // player · back view · 3 lines. Walk/jump variants for animation
-    const P_STAND = [' o ', '/|\\', '/ \\'];
-    const P_WALK_A = [' o ', '/|\\', '/ |'];
-    const P_WALK_B = [' o ', '/|\\', '| \\'];
-    const P_JUMP   = [' o ', '\\|/', '/ \\'];
-    const P_LEFT   = ['<o ', '/|\\', '/ \\'];
-    const P_RIGHT  = [' o>', '/|\\', '/ \\'];
+    // player · back view · stick figure with a backpack on the right shoulder.
+    // The ▢ has carried since college days. Walk/jump variants drive the
+    // animation. Strafing peeks the head to the side.
+    const P_STAND  = [' o ', '/|\\▢', '/ \\'];
+    const P_WALK_A = [' o ', '/|\\▢', '/ |'];
+    const P_WALK_B = [' o ', '/|\\▢', '| \\'];
+    const P_JUMP   = [' o ', '\\|/▢', '/ \\'];
+    const P_LEFT   = ['<o ', '/|\\▢', '/ \\'];
+    const P_RIGHT  = [' o>', '/|\\▢', '/ \\'];
+
+    // Maruti Alto · third-person back view · the daily-driver from the Sakha
+    // years. Small hatchback silhouette. Driver head pokes out the top.
+    const V_ALTO_A = [
+        '  o',           // head
+        ' ╔═╧═╗',        // roof + neck
+        ' ║▓▓▓║',        // rear window
+        '╔╩═══╩╗',       // body shoulder
+        '║ ALTO║',
+        '╚○═══○╝',       // wheels (frame A · wheels visible)
+    ];
+    const V_ALTO_B = [
+        '  o',
+        ' ╔═╧═╗',
+        ' ║▓▓▓║',
+        '╔╩═══╩╗',
+        '║ ALTO║',
+        '╚●═══●╝',       // frame B · wheels filled (spin animation)
+    ];
+
+    // Volkswagen Virtus GT · third-person back view · the upgrade after nov 2025.
+    // Wider, lower, longer than the Alto. GT badge visible.
+    const V_VW_A = [
+        '   o',
+        '  ╔═╧═╗',
+        '  ║▓▓▓║',
+        ' ╔╩═══╩╗',
+        ' ║ VW ·║',
+        ' ║  GT ║',
+        '╔╩═════╩╗',
+        '║VIRTUS │',
+        '╚═○═══○═╝',
+    ];
+    const V_VW_B = [
+        '   o',
+        '  ╔═╧═╗',
+        '  ║▓▓▓║',
+        ' ╔╩═══╩╗',
+        ' ║ VW ·║',
+        ' ║  GT ║',
+        '╔╩═════╩╗',
+        '║VIRTUS │',
+        '╚═●═══●═╝',
+    ];
 
     // chapter buildings (taller buildings convey scale)
     const BLD_DSCE = [
@@ -269,6 +396,7 @@
             walkPhase: 0,
             facing: 0,                       // -1, 0, +1 for left/forward/right body lean
             forwardActive: false,            // true if any forward key held
+            vehicle: 'walk',                 // 'walk' | 'alto' | 'vw' · drives sprite + speed
         },
         camera: { x: 0, z: -120, eyeY: EYE_Y },
         loot:       0,
@@ -373,6 +501,7 @@
         const p = state.player;
         p.x = 0; p.y = 0; p.z = PLAYER_BASE_Z; p.vy = 0; p.lane = 1;
         p.onGround = true; p.walkPhase = 0; p.facing = 0;
+        p.vehicle = 'walk';
         state.camera.x = 0; state.camera.z = p.z - 120;
         state.loot = 0;
         state.collected.clear();
@@ -411,20 +540,35 @@
         const f = dt / 16.67;   // 60fps reference
 
         const p = state.player;
+        const speedMult = VEHICLE_SPEED[p.vehicle] || 1.0;
 
-        // forward / back
+        // forward / back · speed scales with current vehicle
         let vz = 0;
         if (state.keys['arrowup']   || state.keys['w']) { vz += WALK_VZ; p.forwardActive = true; }
         else                                            { p.forwardActive = false; }
         if (state.keys['arrowdown'] || state.keys['s']) vz -= BACK_VZ;
-        p.z += vz * f;
+        p.z += vz * f * speedMult;
         if (p.z < -40) p.z = -40;
         if (p.z > WORLD_END_Z) p.z = WORLD_END_Z;
 
-        // strafe (smooth · move toward target lane)
-        if (state.keys['arrowleft']  || state.keys['a']) p.x -= STRAFE_VX * f;
-        if (state.keys['arrowright'] || state.keys['d']) p.x += STRAFE_VX * f;
+        // strafe · cars also handle quicker than legs
+        if (state.keys['arrowleft']  || state.keys['a']) p.x -= STRAFE_VX * f * speedMult;
+        if (state.keys['arrowright'] || state.keys['d']) p.x += STRAFE_VX * f * speedMult;
         p.x = Math.max(LANE_X[0] - 30, Math.min(LANE_X[2] + 30, p.x));
+
+        // vehicle-state transition · drives sprite + speed.
+        //   - VW Virtus once you've collected the keys (chapter 5 loot)
+        //   - Alto from z=950 onward (entering Sakha era)
+        //   - Walking otherwise (college + fever 104)
+        const prevVehicle = p.vehicle;
+        if      (state.collected.has('vwgt'))  p.vehicle = 'vw';
+        else if (p.z >= ALTO_START_Z)          p.vehicle = 'alto';
+        else                                    p.vehicle = 'walk';
+        if (prevVehicle !== p.vehicle) {
+            // fire a small glitch + shimmer on vehicle change · feels like a level-up
+            triggerGlitch(220, p.vehicle === 'vw' ? PAL.red : (p.vehicle === 'alto' ? PAL.gold : PAL.green));
+            state.shimmerT = 320;
+        }
 
         // facing animation hint for the back-view sprite (eyes peek left/right)
         if      (state.keys['arrowleft']  || state.keys['a']) p.facing = -1;
@@ -562,22 +706,24 @@
 
     // ── render ────────────────────────────────────────────────────────
     function draw() {
-        // clear
-        ctx.fillStyle = PAL.bg;
-        ctx.fillRect(0, 0, W, H);
-
-        // sky tint based on current chapter color (subtle)
         const z = ZONES[state.zone];
-        ctx.save();
-        ctx.globalAlpha = 0.05;
+        const atm = ATMOSPHERE[z.id] || ATMOSPHERE.college;
+
+        // per-chapter sky atmosphere · two-stop gradient, top-down
         const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
-        skyGrad.addColorStop(0, z.color);
-        skyGrad.addColorStop(1, PAL.bg);
+        skyGrad.addColorStop(0, atm.skyTop);
+        skyGrad.addColorStop(1, atm.skyHorizon);
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, W, HORIZON);
-        ctx.restore();
+        // ground side fades back to base bg below horizon
+        const grdGrad = ctx.createLinearGradient(0, HORIZON, 0, H);
+        grdGrad.addColorStop(0, atm.skyHorizon);
+        grdGrad.addColorStop(0.45, PAL.bg);
+        grdGrad.addColorStop(1, PAL.bg);
+        ctx.fillStyle = grdGrad;
+        ctx.fillRect(0, HORIZON, W, H - HORIZON);
 
-        // stars (project from far away, twinkle)
+        // stars (still visible but dimmer at brighter chapters)
         for (let i = 0; i < state.stars.length; i++) {
             const s = state.stars[i];
             const p = project(s.x, s.y, s.z);
@@ -589,11 +735,17 @@
             ctx.fillText(s.char, p.sx, p.sy);
         }
 
+        // drift particles · context-appropriate symbols floating across scene
+        drawDriftParticles(atm);
+
         // perspective ground grid · horizontal lines + lane markers
         drawGroundGrid();
 
-        // horizon line
-        ctx.fillStyle = PAL.dim;
+        // per-chapter ground decoration (replaces the old generic tick marks)
+        drawGroundTexture(atm);
+
+        // horizon line — tinted to match current chapter ambient
+        ctx.fillStyle = atm.ambient + '44';   // ~26% alpha hex suffix
         ctx.font = `12px ${FONT}`;
         ctx.fillText('─'.repeat(120), 0, HORIZON);
 
@@ -638,8 +790,88 @@
         // chapter-entry shimmer
         if (state.shimmerT > 0) drawShimmer(z.color);
 
-        // full-screen glitch displacement
+        // in-canvas HUD chrome · corner brackets + vehicle pill + speed bar
+        drawCanvasChrome(z);
+
+        // full-screen glitch displacement (drawn last so it affects everything)
         if (state.glitchT > 0) drawGlitchOverlay();
+    }
+
+    /** decorative chrome inside the canvas · 4 corner brackets, a vehicle
+     *  pill at bottom-center showing the current ride, and a speed bar
+     *  whose fill animates with the player's actual forward motion. */
+    function drawCanvasChrome(z) {
+        // corner brackets · subtle, match current chapter accent
+        ctx.font = `16px ${FONT}`;
+        ctx.fillStyle = z.color + '88';   // ~53% alpha
+        ctx.fillText('╔══',  2, 16);
+        ctx.fillText('══╗',  W - 36, 16);
+        ctx.fillText('╚══',  2, H - 6);
+        ctx.fillText('══╝',  W - 36, H - 6);
+
+        // vehicle pill at bottom-center
+        const p = state.player;
+        const vehicleInfo = {
+            walk: { label: 'ON FOOT · BACKPACK',     color: PAL.green, badge: '▢' },
+            alto: { label: 'MARUTI ALTO · COMMUTE',  color: PAL.gold,  badge: '◖◗' },
+            vw:   { label: 'VW VIRTUS GT · TURBO',   color: PAL.red,   badge: '⬢' },
+        }[p.vehicle] || { label: 'ON FOOT', color: PAL.green, badge: '▢' };
+
+        const pillText = `[ ${vehicleInfo.badge}  ${vehicleInfo.label}  ${vehicleInfo.badge} ]`;
+        const pillW = pillText.length * 8;
+        const pillX = (W - pillW) / 2;
+        const pillY = H - 22;
+
+        ctx.font = `12px ${FONT}`;
+        // pill background
+        ctx.save();
+        ctx.fillStyle = 'rgba(10,14,10,0.65)';
+        ctx.fillRect(pillX - 6, pillY - 12, pillW + 12, 18);
+        ctx.strokeStyle = vehicleInfo.color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pillX - 5.5, pillY - 11.5, pillW + 11, 17);
+        ctx.restore();
+        // pill text
+        ctx.fillStyle = vehicleInfo.color;
+        ctx.fillText(pillText, pillX, pillY);
+
+        // speed bar to the right of the vehicle pill · fills with movement
+        const moving = (state.keys['arrowup'] || state.keys['w']) ? 1
+                     : (state.keys['arrowdown'] || state.keys['s']) ? 0.5 : 0;
+        const speedMult = VEHICLE_SPEED[p.vehicle] || 1;
+        const speedFill = moving * speedMult / 2.2;      // normalize to [0, 1]
+        const barCells  = 10;
+        const filledCells = Math.round(speedFill * barCells);
+        let bar = '';
+        for (let i = 0; i < barCells; i++) bar += (i < filledCells) ? '█' : '▒';
+        ctx.fillStyle = vehicleInfo.color + 'bb';
+        ctx.fillText(bar, pillX + pillW + 24, pillY);
+        ctx.fillStyle = 'rgba(200,211,191,0.45)';
+        ctx.fillText('speed', pillX + pillW + 24, pillY + 12);
+
+        // distance-to-next-station readout at top-left, below corner bracket
+        const zones = ZONES;
+        let nextZ = null;
+        for (let i = 0; i < zones.length; i++) {
+            if (zones[i].z > p.z) { nextZ = zones[i]; break; }
+        }
+        if (nextZ) {
+            const remaining = Math.max(0, Math.round(nextZ.z - p.z));
+            ctx.fillStyle = 'rgba(200,211,191,0.45)';
+            ctx.font = `11px ${FONT}`;
+            ctx.fillText(`→ next ${nextZ.id}  ${String(remaining).padStart(4)}m`, 42, 16);
+        }
+
+        // loot collection trail at top-right (small icons per collected zone)
+        let trail = '';
+        for (let i = 0; i < zones.length; i++) {
+            trail += state.collected.has(zones[i].id) ? '◆' : '◇';
+            if (i < zones.length - 1) trail += ' ';
+        }
+        ctx.fillStyle = 'rgba(200,211,191,0.55)';
+        ctx.font = `11px ${FONT}`;
+        const trailW = trail.length * 7;
+        ctx.fillText(trail, W - 42 - trailW, 16);
     }
 
     function drawGroundGrid() {
@@ -672,16 +904,64 @@
             ctx.lineTo(pFar.sx, pFar.sy);
             ctx.stroke();
         }
-        // moving ground tick marks (sense of speed)
-        const tickSpacing = 80;
+        // generic ground tick marks removed · per-chapter ground texture
+        // (drawGroundTexture) replaces them with context-appropriate glyphs.
+    }
+
+    /** per-chapter ground texture · chars from ATMOSPHERE[zone].ground
+     *  scroll toward the camera, giving the road its own character. */
+    function drawGroundTexture(atm) {
+        const tickSpacing = 90;
         const playerZi = state.player.z;
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 14; i++) {
             const wz = state.camera.z + 30 + i * tickSpacing - (playerZi % tickSpacing);
             const p = project(0, 0, wz);
             if (!p) continue;
-            const sz = Math.max(2, 12 * p.scale);
-            ctx.fillStyle = `rgba(109,255,166,${Math.min(0.6, p.scale * 0.9)})`;
-            ctx.fillRect(p.sx - sz / 2, p.sy - 2, sz, 2);
+            const ch = atm.ground[i % atm.ground.length];
+            if (ch === ' ') continue;
+            const fontPx = Math.max(6, Math.min(34, 22 * p.scale));
+            ctx.font = `${fontPx}px ${FONT}`;
+            const a = Math.min(0.65, p.scale * 0.9);
+            ctx.save();
+            ctx.globalAlpha = a;
+            ctx.fillStyle = atm.ambient;
+            // center the char on the road
+            const cw = fontPx * 0.6;
+            ctx.fillText(ch, p.sx - cw / 2, p.sy);
+            ctx.restore();
+        }
+    }
+
+    /** drift particles · float across the scene with light wobble.
+     *  When a particle gets too close to the camera, respawn it far ahead
+     *  so we always have a continuous stream of atmospheric debris. */
+    function drawDriftParticles(atm) {
+        for (let i = 0; i < driftPool.length; i++) {
+            const d = driftPool[i];
+            // respawn if too close to camera
+            if (d.z - state.camera.z < NEAR_Z + 5) {
+                d.z = state.camera.z + 1100 + Math.random() * 400;
+                d.x = (Math.random() - 0.5) * 480;
+                d.y = 60 + Math.random() * 180;
+                d.char = atm.driftChars[(Math.random() * atm.driftChars.length) | 0];
+                continue;
+            }
+            // first-time char assignment
+            if (!d.char || d.char === '·') {
+                d.char = atm.driftChars[(Math.random() * atm.driftChars.length) | 0];
+            }
+            // light wobble adds life
+            const wobX = Math.sin(state.t * 0.0011 + d.wob) * 9;
+            const wobY = Math.cos(state.t * 0.0007 + d.wob) * 4;
+            const p = project(d.x + wobX, d.y + wobY, d.z);
+            if (!p) continue;
+            const fontPx = Math.max(5, Math.min(20, 16 * p.scale));
+            ctx.font = `${fontPx}px ${FONT}`;
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.55, p.scale * 0.85);
+            ctx.fillStyle = atm.ambient;
+            ctx.fillText(d.char, p.sx, p.sy);
+            ctx.restore();
         }
     }
 
@@ -689,33 +969,56 @@
         const p = state.player;
         // player anchored near bottom-center of screen
         const groundSy = H - 70;
-        // slight bob when walking
         const bob = (Math.abs(p.walkPhase % 1 - 0.5) - 0.25) * 4;
-        // jump lifts the sprite up
-        const jumpLift = Math.max(0, (GROUND_Y - p.y));     // p.y is 0 on ground
+        const jumpLift = Math.max(0, (GROUND_Y - p.y));
         const baseY = groundSy + bob - jumpLift * 4;
-        // strafe shifts sprite horizontally a bit (responsive feel)
         const sx = W / 2 + p.x * 0.2;
 
-        let sprite;
-        if (!p.onGround) sprite = P_JUMP;
-        else if (p.facing < 0) sprite = P_LEFT;
-        else if (p.facing > 0) sprite = P_RIGHT;
-        else if (p.forwardActive || state.keys['arrowdown']) {
-            sprite = (Math.floor(p.walkPhase * 2) & 1) ? P_WALK_A : P_WALK_B;
+        // pick the right sprite based on vehicle + motion state
+        let sprite, fontPx, color, shadowW;
+        if (p.vehicle === 'vw') {
+            sprite = (Math.floor(state.t * 0.012) & 1) ? V_VW_A : V_VW_B;
+            fontPx = 26;
+            color  = PAL.red;       // gt red
+            shadowW = 64;
+        } else if (p.vehicle === 'alto') {
+            sprite = (Math.floor(state.t * 0.014) & 1) ? V_ALTO_A : V_ALTO_B;
+            fontPx = 24;
+            color  = PAL.gold;      // sundae yellow stand-in
+            shadowW = 52;
         } else {
-            sprite = P_STAND;
+            // walking · stick figure with backpack
+            if (!p.onGround) sprite = P_JUMP;
+            else if (p.facing < 0) sprite = P_LEFT;
+            else if (p.facing > 0) sprite = P_RIGHT;
+            else if (p.forwardActive || state.keys['arrowdown']) {
+                sprite = (Math.floor(p.walkPhase * 2) & 1) ? P_WALK_A : P_WALK_B;
+            } else {
+                sprite = P_STAND;
+            }
+            fontPx = 28;
+            color  = PAL.green;
+            shadowW = 44;
         }
 
-        const fontPx = 28;
-        // shadow underneath
+        // shadow underneath · scales with vehicle width
         ctx.save();
-        ctx.fillStyle = `rgba(0,0,0,${Math.max(0.18, 0.4 - jumpLift * 0.03)})`;
-        ctx.fillRect(sx - 22, groundSy + 6, 44, 4);
+        const shadowAlpha = (p.vehicle === 'walk')
+            ? Math.max(0.18, 0.4 - jumpLift * 0.03)
+            : 0.35;
+        ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+        ctx.fillRect(sx - shadowW / 2, groundSy + 6, shadowW, 4);
         ctx.restore();
-        // RGB-split player when moving fast or airborne
-        const drift = !p.onGround ? 2 : (p.forwardActive ? 1 : 0);
-        drawSprite(sprite, sx, baseY, fontPx, PAL.green, drift);
+
+        // chromatic-aberration drift when moving fast or airborne. Vehicles
+        // always show a little drift since they're "always moving fast".
+        let drift = 0;
+        if (!p.onGround)            drift = 2;
+        else if (p.vehicle === 'vw') drift = p.forwardActive ? 2 : 1;
+        else if (p.vehicle === 'alto') drift = p.forwardActive ? 1.5 : 0.5;
+        else if (p.forwardActive)   drift = 1;
+
+        drawSprite(sprite, sx, baseY, fontPx, color, drift);
     }
 
     function drawTopBanner(z) {

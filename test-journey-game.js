@@ -89,23 +89,32 @@ async function desktopFlow(browser, url) {
     await page.click('#btn-start');
     await sleep(300);
 
-    // teleport through every chapter via debug hook
+    // teleport through every chapter via debug hook. We also auto-collect
+    // all PREVIOUS chapters' loot to simulate a natural playthrough — so
+    // the vehicle progression (walk → alto → vw) shows correctly at the
+    // chapter the player has actually progressed to.
     for (let i = 0; i < 6; i++) {
         const arrived = await page.evaluate((idx) => {
             const j = window.__journey;
             const z = j.ZONES[idx];
-            // teleport player onto the station's z and centerlane
+            for (let k = 0; k < idx; k++) {
+                const past = j.ZONES[k];
+                if (!j.state.collected.has(past.id)) {
+                    j.state.collected.add(past.id);
+                    j.state.loot++;
+                }
+            }
             j.state.player.z = z.z;
             j.state.player.x = 0;
             j.state.zone = idx;
-            // pre-fill revealT so the billboard types out immediately
             j.state.revealT.set(z.id, 2000);
             j.state.revealed.add(z.id);
             return { id: z.id, label: z.label };
         }, i);
-        await sleep(900);  // let render catch up + billboard finish typing
+        await sleep(900);  // let update() resolve vehicle state + render
+        const settled = await page.evaluate(() => window.__journey.state.player.vehicle);
         await page.screenshot({ path: path.join(OUT_DIR, `02-ch${i + 1}-${arrived.id}.png`) });
-        console.log(`  ✓ 02-ch${i + 1}-${arrived.id}.png  (${arrived.label})`);
+        console.log(`  ✓ 02-ch${i + 1}-${arrived.id}.png  (${arrived.label} · vehicle=${settled})`);
     }
 
     // glitch screenshot · trigger Z + jump
