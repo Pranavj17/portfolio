@@ -242,151 +242,46 @@
         motionHead = (motionHead + 1) % MOTION_POOL_SIZE;
     }
 
-    // ── sprites ───────────────────────────────────────────────────────
-    // player · back view · stick figure with a backpack on the right shoulder.
-    // The ▢ has carried since college days. Walk/jump variants drive the
-    // animation. Strafing peeks the head to the side.
-    const P_STAND  = [' o ', '/|\\▢', '/ \\'];
-    const P_WALK_A = [' o ', '/|\\▢', '/ |'];
-    const P_WALK_B = [' o ', '/|\\▢', '| \\'];
-    const P_JUMP   = [' o ', '\\|/▢', '/ \\'];
-    const P_LEFT   = ['<o ', '/|\\▢', '/ \\'];
-    const P_RIGHT  = [' o>', '/|\\▢', '/ \\'];
+    // ── sprites · real emoji icons (browser-native color glyphs) ──────
+    // Browsers ship full-color emoji fonts natively (Apple Color Emoji /
+    // Noto Color Emoji / Segoe Fluent) so each emoji renders as a real
+    // color icon at any size — no asset bundling, no SVG. The 3D
+    // perspective math is unchanged: emojis scale with depth like any
+    // other glyph via ctx.fillText with a dynamic font size.
+    const P_STAND  = ['🚶'];
+    const P_WALK_A = ['🚶'];
+    const P_WALK_B = ['🚶'];
+    const P_JUMP   = ['🤸'];
+    const P_LEFT   = ['🚶'];
+    const P_RIGHT  = ['🚶'];
 
-    // Bicycle · third-person back view · the college / intern-era ride.
-    // Two-frame wheel animation (●═● / ○═○) sells motion.
-    const V_CYCLE_A = [
-        '  o',
-        ' /|\\▢',
-        '  ╧',
-        ' ●═●',
-    ];
-    const V_CYCLE_B = [
-        '  o',
-        ' /|\\▢',
-        '  ╧',
-        ' ○═○',
-    ];
+    // Vehicles · all single-emoji icons. Each renders as a real
+    // platform-native color glyph (Apple/Google/Microsoft emoji fonts).
+    // No two-frame wheel animation needed · the sprite "bobs" via the
+    // existing walkPhase math which works on any sprite.
+    const V_CYCLE_A = ['🚴'];
+    const V_CYCLE_B = ['🚴'];
+    const V_ALTO_A  = ['🚗'];
+    const V_ALTO_B  = ['🚗'];
+    const V_VW_A    = ['🏎️'];
+    const V_VW_B    = ['🏎️'];
 
-    // Maruti Alto · third-person back view · the daily-driver from the Sakha
-    // years. Small hatchback silhouette. Driver head pokes out the top.
-    const V_ALTO_A = [
-        '  o',           // head
-        ' ╔═╧═╗',        // roof + neck
-        ' ║▓▓▓║',        // rear window
-        '╔╩═══╩╗',       // body shoulder
-        '║ ALTO║',
-        '╚○═══○╝',       // wheels (frame A · wheels visible)
-    ];
-    const V_ALTO_B = [
-        '  o',
-        ' ╔═╧═╗',
-        ' ║▓▓▓║',
-        '╔╩═══╩╗',
-        '║ ALTO║',
-        '╚●═══●╝',       // frame B · wheels filled (spin animation)
-    ];
+    // Chapter landmarks · single-emoji icons replacing the multi-line
+    // ASCII building art. Each represents the era visually.
+    const BLD_DSCE     = ['🎓'];   // mortarboard · college / DSCE
+    const BLD_RADIO    = ['📻'];   // radio · Fever 104 FM
+    const BLD_SAKHA    = ['💼'];   // briefcase · first job / SAKHA
+    const BLD_SCRIPBOX = ['🤖'];   // robot · AI infra / Scripbox
+    const BLD_FLAG     = ['🏁'];   // checkered flag · NOW
+    const BLD_VWGT     = ['🏎️'];   // race car · the GT showroom
 
-    // Volkswagen Virtus GT · third-person back view · the upgrade after nov 2025.
-    // Wider, lower, longer than the Alto. GT badge visible.
-    const V_VW_A = [
-        '   o',
-        '  ╔═╧═╗',
-        '  ║▓▓▓║',
-        ' ╔╩═══╩╗',
-        ' ║ VW ·║',
-        ' ║  GT ║',
-        '╔╩═════╩╗',
-        '║VIRTUS │',
-        '╚═○═══○═╝',
-    ];
-    const V_VW_B = [
-        '   o',
-        '  ╔═╧═╗',
-        '  ║▓▓▓║',
-        ' ╔╩═══╩╗',
-        ' ║ VW ·║',
-        ' ║  GT ║',
-        '╔╩═════╩╗',
-        '║VIRTUS │',
-        '╚═●═══●═╝',
-    ];
-
-    // chapter buildings (taller buildings convey scale)
-    const BLD_DSCE = [
-        '┌─────────────────┐',
-        '│   D.S.C.E       │',
-        '│ ─────────────── │',
-        '│  ▢  ▢  ▢  ▢  ▢  │',
-        '│  ▢  ▢  ▢  ▢  ▢  │',
-        '│  ▢  ▢  ▢  ▢  ▢  │',
-        '│  ▢  ▢  ▢  ▢  ▢  │',
-        '└──┬───────────┬──┘',
-    ];
-    const BLD_RADIO = [
-        '       ▲',
-        '     █████',
-        '    ▐█████▌',
-        '     █████',
-        '       │',
-        '   ┌───┴───┐  ))))',
-        '   │ON  AIR│   )))',
-        '   │ 104   │    ))',
-        '   │ F M   │     )',
-        '   │ ▓▓▓▓▓ │',
-        '   └───┬───┘',
-    ];
-    const BLD_SAKHA = [
-        '┌──────────────────┐',
-        '│  SAKHA  GLOBAL   │',
-        '│ ──────────────── │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '└────────┬─────────┘',
-    ];
-    const BLD_SCRIPBOX = [
-        '┌──────────────────────┐',
-        '│    S C R I P B O X   │',
-        '│ ──────────────────── │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '│ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢  │',
-        '└──────────┬───────────┘',
-    ];
-    const BLD_FLAG = [
-        '╔═════════╗',
-        '║   NOW   ║',
-        '║  ─────  ║',
-        '║   ✓✓✓   ║',
-        '║   2026  ║',
-        '╚═════╤═══╝',
-        '      │',
-        '      │',
-    ];
-
-    // VW Virtus GT · parked on the path (chapter 5 · personal-life beat)
-    const BLD_VWGT = [
-        '       ┌─────────────────┐',
-        '      ╱  ░░░░░░░░░░░░░░  ╲',
-        '   ┌─╯ ░ ░  VW ▒ GT ░  ░ ╰─┐',
-        '   │ ░░░░  VIRTUS  ░░░░░  │',
-        '   │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │',
-        '   └─◯─────────────────◯─┘',
-        '     ◯                 ◯  ',
-    ];
-
-    const LOOT_DIPLOMA = '═╣◇╠═';
-    const LOOT_MIC     = '((|))';
-    const LOOT_ELIXIR  = '◈';
-    const LOOT_BADGE   = '[✦]';
-    const LOOT_KEYS    = '⊙─┑';     // car keys
-    const LOOT_TROPHY  = '▲';
+    // Loot pickups · all real-icon emojis
+    const LOOT_DIPLOMA = '📜';     // diploma scroll
+    const LOOT_MIC     = '🎙️';     // microphone
+    const LOOT_ELIXIR  = '💜';     // elixir-purple heart
+    const LOOT_BADGE   = '🏅';     // medal · Anthropic catalog
+    const LOOT_KEYS    = '🔑';     // car keys
+    const LOOT_TROPHY  = '🏆';     // trophy · journey complete
 
     // ── zone definitions ──────────────────────────────────────────────
     /** Each zone owns a building at (X, Z) and a loot floating in the
@@ -947,16 +842,41 @@
         ctx.restore();
     }
 
-    /** draw an ASCII sprite (multi-line string[]) anchored at screen (sx, sy)
-     *  with line height scaled. The sprite is rendered with its center at sx
-     *  and its BOTTOM at sy (so it "stands" on the ground). */
+    /** draw a sprite (array of strings) at screen (sx, sy) · sy = bottom edge.
+     *  For single-emoji sprites we render via emoji-capable font fallback chain
+     *  + a sizeBoost since a single emoji should be ~3× the line height of
+     *  ASCII art. RGB-split overdraw is now a soft drop-shadow glow instead
+     *  of additive composite (which inverts emoji colors). */
     function drawSprite(sprite, sx, sy, fontPx, color, rgbSplit = 0) {
-        const ch_w = fontPx * 0.6;   // approx monospace char width
+        // Single-character (emoji) sprite: render as a real icon, scaled up.
+        const isSingleGlyph = (sprite.length === 1 && [...sprite[0]].length <= 2);
+        if (isSingleGlyph) {
+            const iconPx = fontPx * 2.0;   // emojis read smaller than ASCII art · boost
+            const emojiFont = `${iconPx}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT}`;
+            ctx.font = emojiFont;
+            const text = sprite[0];
+            const w = ctx.measureText(text).width;
+            const x = sx - w / 2;
+            const y = sy;
+            // soft glow halo · emoji + colored drop-shadow read as bloom
+            if (rgbSplit > 0) {
+                ctx.save();
+                ctx.shadowColor = color;
+                ctx.shadowBlur  = 18 + rgbSplit * 6;
+                ctx.fillText(text, x, y);
+                ctx.restore();
+            }
+            ctx.fillText(text, x, y);
+            return;
+        }
+
+        // Fallback: multi-line ASCII sprite (kept for compatibility with any
+        // future non-emoji sprites · currently nothing uses this path).
+        const ch_w = fontPx * 0.6;
         const ln_h = fontPx * 1.05;
         ctx.font = `${fontPx}px ${FONT}`;
         const totalH = sprite.length * ln_h;
         const baseY = sy - totalH + ln_h;
-
         if (rgbSplit > 0) {
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
@@ -972,7 +892,6 @@
             }
             ctx.restore();
         }
-
         ctx.fillStyle = color;
         for (let i = 0; i < sprite.length; i++) {
             const lineW = sprite[i].length * ch_w;
