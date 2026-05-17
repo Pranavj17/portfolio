@@ -321,6 +321,19 @@
                 0 4px 14px rgba(109,255,166,0.18),
                 inset 0 2px 8px rgba(0,0,0,0.3);
         }
+        /* button hidden when game auto-starts · we keep it in DOM for JS hooks */
+        .coin-btn-hidden { display: none !important; }
+
+        /* overlay auto-fade · driven by a class added in journey.js when the
+           auto-start timer fires. Smooth 700ms ease-out before display:none. */
+        .overlay--start.is-dismissing {
+            animation: overlayFadeOut 700ms cubic-bezier(.4,.0,.2,1) forwards;
+            pointer-events: none;
+        }
+        @keyframes overlayFadeOut {
+            from { opacity: 1; transform: scale(1);    filter: blur(0); }
+            to   { opacity: 0; transform: scale(1.02); filter: blur(4px); }
+        }
         .coin-mark {
             color: var(--pink, #ff3b8a);
             font-size: 0.7em;
@@ -722,13 +735,16 @@ zero-input mode</pre>
                         <li><b>06</b><em>now</em><span>2026</span></li>
                     </ol>
 
-                    <button id="btn-start" class="coin-btn" autofocus>
-                        <span class="coin-mark">▢▣▢</span>
-                        <span class="coin-label">insert coin · press start</span>
+                    <!-- Hidden but kept for JS to addEventListener · the game
+                         auto-starts on a timer (see auto-start in journey.js),
+                         so the user never needs to click anything to begin. -->
+                    <button id="btn-start" class="coin-btn coin-btn-hidden" tabindex="-1" aria-hidden="true">
+                        <span class="coin-mark">▢</span>
+                        <span class="coin-label">starting</span>
                         <span class="coin-blink">▌</span>
                     </button>
 
-                    <p class="mobile-hint">on mobile · tap insert coin · watch the journey unfold</p>
+                    <p class="mobile-hint">auto-starting · watch your journey unfold</p>
                 </section>
 
                 <pre class="diag-rail rail-right" aria-hidden="true"><span class="rail-key">// 路</span>
@@ -802,6 +818,6 @@ zero-input mode</pre>
         </div>
     </main>
 
-    <script src="/journey.js?v=20260517-16" defer></script>
+    <script src="/journey.js?v=20260517-17" defer></script>
 </body>
 </html>

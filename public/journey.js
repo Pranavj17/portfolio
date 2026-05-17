@@ -652,7 +652,12 @@
         }
     }
     function startGame() {
-        overlayStart.hidden = true;
+        // smoothly dismiss the overlay rather than hiding instantly · gives
+        // the staggered reveal animations time to land + fades the splash out.
+        if (overlayStart && !overlayStart.hidden) {
+            overlayStart.classList.add('is-dismissing');
+            setTimeout(() => { if (overlayStart) overlayStart.hidden = true; }, 720);
+        }
         state.running = true;
         state.ended   = false;
         // on touch devices, skip the keyboard-hint overlay · the player will
@@ -663,6 +668,11 @@
             state.kbHintAlpha = 0;
         }
     }
+
+    // Auto-start timer · the splash overlay holds for ~3s so visitors can
+    // absorb the title + chapter roster, then dismisses on its own. No
+    // INSERT COIN button required.
+    setTimeout(startGame, 3000);
     function restart() {
         const p = state.player;
         p.x = 0; p.y = 0; p.z = PLAYER_BASE_Z; p.vy = 0; p.lane = 1;

@@ -81,13 +81,15 @@ async function desktopFlow(browser, url) {
     if (meta.zoneCount !== 6) throw new Error(`expected 6 zones, got ${meta.zoneCount}`);
     if (!meta.zoneIds.includes('vwgt')) throw new Error('vwgt zone missing');
 
-    // screenshot 1: start overlay
+    // screenshot 1: start overlay (auto-dismisses after 3s on its own)
     await page.screenshot({ path: path.join(OUT_DIR, '01-start.png') });
-    console.log('  ✓ 01-start.png');
+    console.log('  ✓ 01-start.png · auto-start splash');
 
-    // press start
-    await page.click('#btn-start');
-    await sleep(300);
+    // wait for auto-start timer to fire (3000ms + 720ms fade)
+    await sleep(3800);
+    const autoStarted = await page.evaluate(() => window.__journey.state.running);
+    if (!autoStarted) throw new Error('auto-start timer did not fire · game still not running');
+    console.log('  ✓ auto-start fired without user interaction');
 
     // teleport through every chapter via debug hook. We also auto-collect
     // all PREVIOUS chapters' loot to simulate a natural playthrough — so
@@ -243,9 +245,8 @@ async function mobileFlow(browser, url) {
     if (!ctrlsVisible.exists) throw new Error('touch-controls element missing');
     if (ctrlsVisible.opacity < 0.5) throw new Error(`touch-controls opacity too low: ${ctrlsVisible.opacity}`);
 
-    // press start · on mobile, auto-walk should kick in immediately
-    await page.tap('#btn-start');
-    await sleep(200);
+    // wait for auto-start timer · no tap needed
+    await sleep(3500);
 
     // verify auto-walk · player should be moving forward without any input
     const beforeZ = await page.evaluate(() => window.__journey.state.player.z);
