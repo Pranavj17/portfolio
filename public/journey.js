@@ -1,10 +1,16 @@
 /**
  * the journey · 2D side-scroller (canvas) · RDR-flavoured western chronicle
  * ─────────────────────────────────────────────────────────────────────────
- * Side-on 2D · player auto-walks right · world scrolls left · 8 chapters
+ * Side-on 2D · player walks right when input is HELD (ArrowRight/D on
+ * keyboard, touch-and-hold on mobile) · world scrolls left · 8 chapters
  * laid out along a sepia-toned horizon. Walking IS the feature: every
  * stride is visible, the character is the unmistakable subject of every
  * frame, and the parallax layers move at different speeds for depth.
+ *
+ * Locomotion progression (latched · one-way upgrade only):
+ *   walk → run → cycle → bike → alto → vw
+ * Each upgrade is gated by a world-x threshold or by collecting the
+ * vwgt loot · once upgraded, the vehicle never downgrades.
  *
  * No framework. No Three.js. Plain canvas 2D drawing primitives + emoji.
  * Total payload ~12KB.
@@ -203,6 +209,9 @@
     let tapHintSeen = false;
     let touchStartT = 0;
     let touchMoved = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const TAP_TRAVEL_PX = 8;          // dwell-tolerant tap · finger jitter still counts
     function triggerPeek() {
         const nextIdx = pickNextObjective();
         const ch = CHAPTERS[nextIdx];
@@ -232,6 +241,16 @@
         state.touchHold = true;
         touchStartT = performance.now();
         touchMoved = false;
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+    });
+    // pointermove · sets touchMoved=true once finger drags beyond TAP_TRAVEL_PX
+    // (was missing entirely · the !touchMoved check in pointerup was dead code).
+    canvas.addEventListener('pointermove', (e) => {
+        if (!state.touchHold || touchMoved) return;
+        const dx = e.clientX - touchStartX;
+        const dy = e.clientY - touchStartY;
+        if (dx * dx + dy * dy > TAP_TRAVEL_PX * TAP_TRAVEL_PX) touchMoved = true;
     });
     canvas.addEventListener('pointerup', (e) => {
         const heldMs = performance.now() - touchStartT;
@@ -684,7 +703,7 @@
 
             // INPUT-DRIVEN forward/back motion · NO auto-walk.
             // Walking/movement only fires while a key or touch is held.
-            // dir: +1 forward, -1 back, 0 stationary
+            // dir: +1 forward, -0.6 back, 0 stationary
             const movingForward = state.keys.right || state.touchHold;
             const movingBack    = state.keys.left;
             let dir = 0;
@@ -693,13 +712,22 @@
 
             const v = VEHICLES[state.vehicle];
             state.playerX += v.speed * (dt / 1000) * dir;
+            // CLAMP to non-negative · walking left from spawn previously let
+            // playerX go negative (HUD showed "-12 m", camera entered
+            // pre-world space). Now the start of the journey is a hard wall.
+            if (state.playerX < 0) state.playerX = 0;
 
             // walking leg-phase only advances when actually walking
             if (state.vehicle === 'walk' && dir !== 0) {
                 state.walkPhase += dt * 0.008 * Math.abs(dir);
             }
 
-            // vehicle progression · 5 thresholds + special vwgt collection
+            // vehicle progression · LATCHED to highest rank ever reached.
+            // Previously the if-chain re-evaluated every frame, so walking
+            // back below a threshold downgraded the vehicle AND re-fired
+            // the letterbox/glitch effects · letterbox spam on back-and-
+            // forth motion. Now: vehicle only upgrades; never downgrades.
+            const RANK = { walk: 0, run: 1, cycle: 2, bike: 3, alto: 4, vw: 5 };
             let want;
             if      (state.collected.has('vwgt'))             want = 'vw';
             else if (state.playerX >= VEH_THRESH.alto)         want = 'alto';
@@ -707,7 +735,7 @@
             else if (state.playerX >= VEH_THRESH.cycle)        want = 'cycle';
             else if (state.playerX >= VEH_THRESH.run)          want = 'run';
             else                                                want = 'walk';
-            if (want !== state.vehicle) {
+            if (RANK[want] > RANK[state.vehicle]) {
                 state.vehicle = want;
                 updateVehicleCard();
                 triggerLetterbox(800);
