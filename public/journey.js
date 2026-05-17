@@ -101,8 +101,11 @@
         achievements: new Set(),
         elapsedMs:    0,
         walkPhase:    0,
+        prevWalkPhase:0,            // for step-sound trigger detection
         wheelPhase:   0,            // wheel rotation · always spins (idle drift)
         bobT:         0,
+        shake:        { amp: 0, t: 0 },   // screen-shake (decays linearly)
+        particles:    [],                  // collect-burst particles
         // INPUT · key-driven walking · player only moves when an input is
         // held. No auto-walk.
         keys: { right: false, left: false },
@@ -111,6 +114,102 @@
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
     setTimeout(() => { state.running = true; }, 3400);
+
+    // ── AUDIO · synthesized WebAudio one-shots, no asset fetches ─────
+    //   Lazy AudioContext creation on first user input (modern browsers
+    //   require a user-gesture before audio can start). All SFX are
+    //   constructed at call-time from Oscillator + Gain · zero payload.
+    //   Aesthetic: low + warm + sparse — matches the RDR sepia world.
+    let audioCtx = null;
+    function initAudio() {
+        if (audioCtx) return audioCtx;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            audioCtx = new AC();
+        } catch (_) { return null; }
+        return audioCtx;
+    }
+    /** play a brief synthesized SFX. opts = {freq, type, dur, vol, sweep, q} */
+    function sfx(opts) {
+        const ac = initAudio(); if (!ac) return;
+        const now = ac.currentTime;
+        const osc  = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type   = opts.type || 'triangle';
+        osc.frequency.setValueAtTime(opts.freq, now);
+        if (opts.sweep) osc.frequency.exponentialRampToValueAtTime(opts.sweep, now + (opts.dur || 0.18));
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(opts.vol || 0.18, now + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (opts.dur || 0.18));
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.start(now); osc.stop(now + (opts.dur || 0.18) + 0.05);
+    }
+    function sfxStep()    { sfx({ freq: 90,  type: 'square',   dur: 0.06, vol: 0.10, sweep: 50 }); }
+    function sfxCollect() {
+        // 3-note ascending arpeggio · feels rewarding without being saccharine
+        sfx({ freq: 392, type: 'triangle', dur: 0.18, vol: 0.16 });           // G4
+        setTimeout(() => sfx({ freq: 494, type: 'triangle', dur: 0.20, vol: 0.16 }), 80);  // B4
+        setTimeout(() => sfx({ freq: 587, type: 'triangle', dur: 0.32, vol: 0.18 }), 180); // D5
+    }
+    function sfxUpgrade() {
+        // descending whoosh + low thump · "I just got something"
+        sfx({ freq: 740, type: 'sawtooth', dur: 0.32, vol: 0.14, sweep: 220 });
+        setTimeout(() => sfx({ freq: 110, type: 'triangle', dur: 0.22, vol: 0.20 }), 90);
+    }
+
+    // ── PARTICLES · color-matched bursts on chapter collection ───────
+    function burstParticles(x, y, color, n) {
+        for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const s = 80 + Math.random() * 140;
+            state.particles.push({
+                x, y,
+                vx: Math.cos(a) * s,
+                vy: Math.sin(a) * s - 60,   // bias upward — feels celebratory
+                life: 1.0,
+                color,
+                size: 1.5 + Math.random() * 2,
+            });
+        }
+    }
+    function updateParticles(dt) {
+        const dts = dt / 1000;
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+            const p = state.particles[i];
+            p.vy += 280 * dts;            // gravity
+            p.vx *= 0.97; p.vy *= 0.97;   // drag
+            p.x  += p.vx * dts;
+            p.y  += p.vy * dts;
+            p.life -= dts / 1.2;          // 1.2s lifetime
+            if (p.life <= 0) state.particles.splice(i, 1);
+        }
+    }
+    function drawParticles() {
+        for (const p of state.particles) {
+            ctx.fillStyle = p.color.replace(')', `,${Math.max(0, p.life).toFixed(2)})`)
+                                   .replace('rgb', 'rgba')
+                                   .replace('#', '');
+            // hex fallback: simple alpha overlay
+            if (p.color[0] === '#') {
+                const r = parseInt(p.color.slice(1, 3), 16);
+                const g = parseInt(p.color.slice(3, 5), 16);
+                const b = parseInt(p.color.slice(5, 7), 16);
+                ctx.fillStyle = `rgba(${r},${g},${b},${Math.max(0, p.life).toFixed(2)})`;
+            }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // ── SCREEN SHAKE · linear-decay impact accent ────────────────────
+    function shake(amp, ms) {
+        if (amp > state.shake.amp) {
+            state.shake.amp = amp;
+            state.shake.t   = ms;
+        }
+    }
 
     // ── HUD lookups (cached) ─────────────────────────────────────────
     const $vehicleIcon  = document.getElementById('vehicle-icon');
@@ -398,16 +497,23 @@
             if (px < -10 || px > W + 10) continue;
             ctx.fillRect(px, groundY + 6, 2, t.h);
         }
-        // a few horizontal ruts running across
+        // a few horizontal ruts running across · explicit 'butt' cap +
+        // integer endpoints to avoid inheriting 'round' cap from upstream
+        // walker draws (which produced a vertical hairline of stacked
+        // semicircle endcaps at x = W on prior builds).
+        ctx.save();
+        ctx.lineCap = 'butt';
         ctx.strokeStyle = 'rgba(20,12,6,0.35)';
         ctx.lineWidth = 2;
+        const xEnd = Math.floor(W);
         for (let i = 0; i < 8; i++) {
             const y = groundY + 12 + i * 14;
             ctx.beginPath();
             ctx.moveTo(0, y);
-            ctx.lineTo(W, y);
+            ctx.lineTo(xEnd, y);
             ctx.stroke();
         }
+        ctx.restore();
     }
 
     // ── per-chapter custom landmark drawers · each chapter gets its own
@@ -677,9 +783,20 @@
     const TIRE  = '#0e0805';       // tire black
 
     /** draw a stick figure standing/walking · feet anchored at (cx, footY).
-     *  phase: walking cycle radians (0..2π). amp: stride amplitude in radians.
-     *  lean: forward body lean radians (run > walk). bob: vertical body bob. */
+     *  phase: walking cycle radians. amp: stride amplitude in radians.
+     *  lean: forward body lean radians. bob: vertical body bob (centered on 0).
+     *
+     *  Naturalness rules applied:
+     *   - foot LIFTS only on its forward-swing half (Math.max(0, sin(phase))) ·
+     *     stance leg stays planted instead of floating pendulum-style.
+     *   - bob oscillates around 0 (negative dips at leg-crossings, positive at
+     *     mid-stance) · upstream callers pass -cos(2*phase)*1.5.
+     *   - leg has a KNEE midpoint that bends forward on the swing leg,
+     *     killing the canonical "stiff stick figure" silhouette.
+     *   - arms swing CONTRALATERALLY without the +lean bias that previously
+     *     pushed both arms permanently forward. */
     function drawWalker(cx, footY, phase, amp, lean, bob) {
+        ctx.save();
         const torsoH = 22;
         const legH   = 22;
         const armL   = 16;
@@ -692,50 +809,60 @@
         const headY    = torsoTop.y - headR - 1;
         const headX    = torsoTop.x + sinL * (headR + 1);
 
-        // legs · alternate phase (left leg = phase, right leg = phase + π)
+        // legs · L/R 180° out of phase
         const legAngL = Math.sin(phase) * amp;
         const legAngR = Math.sin(phase + Math.PI) * amp;
-        const footLX  = hipX + Math.sin(legAngL) * legH;
-        const footLY  = hipY + Math.cos(legAngL) * legH;
-        const footRX  = hipX + Math.sin(legAngR) * legH;
-        const footRY  = hipY + Math.cos(legAngR) * legH;
+        // foot lift is asymmetric: only happens on forward swing (positive sin)
+        const liftL = Math.max(0, Math.sin(phase))            * 5;
+        const liftR = Math.max(0, Math.sin(phase + Math.PI))  * 5;
+        const footLX = hipX + Math.sin(legAngL) * legH;
+        const footLY = hipY + Math.cos(legAngL) * legH - liftL;
+        const footRX = hipX + Math.sin(legAngR) * legH;
+        const footRY = hipY + Math.cos(legAngR) * legH - liftR;
+        // knee = midpoint with forward bend during swing only
+        const kneeLX = hipX + (footLX - hipX) * 0.5 + Math.max(0, Math.sin(phase))           * 4;
+        const kneeLY = hipY + (footLY - hipY) * 0.5;
+        const kneeRX = hipX + (footRX - hipX) * 0.5 + Math.max(0, Math.sin(phase + Math.PI)) * 4;
+        const kneeRY = hipY + (footRY - hipY) * 0.5;
 
-        // arms swing opposite to legs
-        const armAngL = Math.sin(phase + Math.PI) * amp * 0.8 + lean;
-        const armAngR = Math.sin(phase)            * amp * 0.8 + lean;
+        // arms swing opposite to legs · NO lean bias (shoulder already pivots
+        // with torso lean via sinL above)
+        const armAngL = Math.sin(phase + Math.PI) * amp * 0.7;
+        const armAngR = Math.sin(phase)            * amp * 0.7;
         const shoulder = { x: hipX + sinL * (torsoH - 4), y: hipY - cosL * (torsoH - 4) };
-        const handLX  = shoulder.x + Math.sin(armAngL) * armL;
-        const handLY  = shoulder.y + Math.cos(armAngL) * armL;
-        const handRX  = shoulder.x + Math.sin(armAngR) * armL;
-        const handRY  = shoulder.y + Math.cos(armAngR) * armL;
+        const handLX = shoulder.x + Math.sin(armAngL) * armL;
+        const handLY = shoulder.y + Math.cos(armAngL) * armL;
+        const handRX = shoulder.x + Math.sin(armAngR) * armL;
+        const handRY = shoulder.y + Math.cos(armAngR) * armL;
 
         ctx.lineCap = 'round';
-        // back leg first so front leg overlaps it
+        // back leg first (hip → knee → foot) so front leg overlaps
         ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(footRX, footRY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeRX, kneeRY); ctx.lineTo(footRX, footRY); ctx.stroke();
         // back arm
         ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
         ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handRX, handRY); ctx.stroke();
-        // torso (shirt under coat — coat painted as thick line over shirt)
+        // torso (shirt under coat)
         ctx.strokeStyle = SHIRT; ctx.lineWidth = 8;
         ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
         ctx.strokeStyle = COAT;  ctx.lineWidth = 5;
         ctx.beginPath(); ctx.moveTo(hipX, hipY - 2); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
-        // front leg
+        // front leg (with knee bend)
         ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(footLX, footLY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeLX, kneeLY); ctx.lineTo(footLX, footLY); ctx.stroke();
         // front arm
         ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
         ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handLX, handLY); ctx.stroke();
         // head
         ctx.fillStyle = SKIN;
         ctx.beginPath(); ctx.arc(headX, headY, headR, 0, Math.PI * 2); ctx.fill();
-        // cowboy hat (brim + crown) — sells the RDR vibe
+        // cowboy hat (brim + crown)
         ctx.fillStyle = HAT;
         ctx.beginPath();
         ctx.ellipse(headX + sinL * 2, headY - headR + 1, headR + 4, 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillRect(headX - 4 + sinL * 3, headY - headR - 5, 8, 4);
+        ctx.restore();
     }
 
     /** spinning wheel · centered at (x, y), radius r, rotation theta.
@@ -922,8 +1049,12 @@
         const cx = W * 0.32;
         // small body bob for organic feel · bigger when walking, tiny when riding
         const moving = state.keys.right || state.touchHold || state.keys.left;
+        // bob now oscillates around 0: -cos(2*phase)*1.5 dips negative at
+        // leg-crossings (mid-stride) and goes positive at full-extension
+        // mid-stance, which matches real walking gait. Vehicles use a tiny
+        // engine-idle bob from bobT instead.
         const bob = (state.vehicle === 'walk' || state.vehicle === 'run')
-            ? (moving ? Math.abs(Math.sin(state.walkPhase)) * 2 : 0)
+            ? (moving ? -Math.cos(state.walkPhase * 2) * 1.5 : 0)
             : Math.sin(state.bobT * 0.003) * 0.8;
 
         // shadow under feet · scales with vertical lift to sell motion
@@ -939,10 +1070,10 @@
         // dispatch to the per-vehicle drawer
         switch (state.vehicle) {
             case 'walk':
-                drawWalker(cx, groundY, state.walkPhase, moving ? 0.55 : 0.0, 0.08, bob);
+                drawWalker(cx, groundY, state.walkPhase, moving ? 0.6 : 0.0, 0.06, bob);
                 break;
             case 'run':
-                drawWalker(cx, groundY, state.walkPhase, moving ? 0.85 : 0.0, 0.22, bob);
+                drawWalker(cx, groundY, state.walkPhase, moving ? 0.7 : 0.0, 0.22, bob);
                 break;
             case 'cycle':
                 drawCycle(cx, groundY);
@@ -999,7 +1130,12 @@
             // walking leg-phase only advances when actually walking/running
             if ((state.vehicle === 'walk' || state.vehicle === 'run') && dir !== 0) {
                 const cycleRate = state.vehicle === 'run' ? 0.014 : 0.008;
+                state.prevWalkPhase = state.walkPhase;
                 state.walkPhase += dt * cycleRate * Math.abs(dir);
+                // step detection: phase crossed a multiple of π between frames
+                const prevK = Math.floor(state.prevWalkPhase / Math.PI);
+                const curK  = Math.floor(state.walkPhase     / Math.PI);
+                if (curK > prevK) sfxStep();
             }
             // wheel-phase ALWAYS advances · vehicles never look frozen.
             // Base idle drift = 0.0005 (sloth-slow), motion adds proportional spin.
@@ -1023,6 +1159,8 @@
                 state.vehicle = want;
                 updateVehicleCard();
                 triggerLetterbox(800);
+                sfxUpgrade();
+                shake(6, 260);
                 // fire the per-vehicle achievement (run/cycle/bike each have one)
                 const v = VEHICLES[want];
                 if (v.achId && !state.achievements.has(v.achId)) {
@@ -1042,6 +1180,10 @@
                     updateMission(i);
                     setTimeout(() => updateMission(pickNextObjective()), 1400);
                     triggerLetterbox(1100);
+                    sfxCollect();
+                    shake(10, 380);
+                    // 28 particles radiating from the landmark · color-matched
+                    burstParticles(W * 0.32 + 20, groundY - 36, ch.color, 28);
                 }
             }
 
@@ -1068,15 +1210,35 @@
         const worldEnd = CHAPTERS[CHAPTERS.length - 1].x + 150;
         const progress = Math.max(0, Math.min(1, state.playerX / worldEnd));
 
+        // particles update (gravity, drag, fade)
+        updateParticles(dt);
+
+        // screen-shake decay
+        if (state.shake.t > 0) {
+            state.shake.t -= dt;
+            if (state.shake.t < 0) { state.shake.t = 0; state.shake.amp = 0; }
+        }
+
         // ── RENDER ──
         ctx.fillStyle = '#1f1610';
         ctx.fillRect(0, 0, W, H);
+
+        // apply shake translate for the duration of world rendering only
+        // (HUD overlays are DOM and unaffected, which is correct — Pogo
+        // shakes the playfield, not the chrome).
+        ctx.save();
+        if (state.shake.amp > 0) {
+            const k = state.shake.amp * (state.shake.t / 380);  // linear decay
+            ctx.translate((Math.random() - 0.5) * k * 2, (Math.random() - 0.5) * k * 2);
+        }
         drawSky(W, H, horizonY, progress);
         drawDistHills(W, horizonY, cameraX);
         drawGround(W, H, horizonY, groundY, cameraX);
         drawMidProps(W, horizonY, groundY, cameraX);
         drawChapters(W, horizonY, groundY, cameraX);
+        drawParticles();
         drawPlayer(W, groundY);
+        ctx.restore();
     }
     requestAnimationFrame(frame);
 
