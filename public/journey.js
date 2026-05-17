@@ -96,9 +96,13 @@ const tmpCamTarget = new THREE.Vector3();
 const tmpLookAt    = new THREE.Vector3();
 
 // caches that gate per-frame work to actual change events
-let lastFogChapter = -1;     // skip fog recompute when chapter hasn't changed
 const RING_FLOOR_Y = 60;     // ring stops flying once past this y · prevents
                               // unbounded scale → denormalized-float GPU slow path
+
+// scratch color objects for proximity-blended fog (one per chapter)
+const chapterColors = CHAPTERS.map((ch) => new THREE.Color(ch.color));
+const fogBlend     = new THREE.Color();
+const fogContrib   = new THREE.Color();
 
 // ── initial HUD paint ───────────────────────────────────────────
 updateProgress(0, state.collected);
@@ -180,14 +184,26 @@ function animate(now) {
             }
         }
 
-        // fog + sky color lerp · only recompute target when chapter changes.
-        // Saves a hex parse + lerp every frame between chapter transitions.
-        if (state.chapter !== lastFogChapter) {
-            tmpFogTarget.setHex(CHAPTERS[state.chapter].color);
-            tmpFogTarget.lerp(tmpFogBase, 0.82);    // mostly base, 18% accent
-            lastFogChapter = state.chapter;
+        // fog + sky · PROXIMITY-WEIGHTED blend of all chapters' colors.
+        // Each chapter contributes weight proportional to 1/distance², so
+        // as the player approaches Fever 104 its pink contribution rises
+        // smoothly (no waiting for "collected" state to update). Old code
+        // only changed fog when state.chapter flipped, producing the
+        // visible discontinuity the user reported between college and FM.
+        let wSum = 0;
+        fogBlend.set(0, 0, 0);
+        for (let i = 0; i < CHAPTERS.length; i++) {
+            const dz = CHAPTERS[i].z - player.position.z;
+            // weight peaks at the chapter z · drops off with distance²
+            const w = 1 / (1 + (dz * dz) * 0.003);
+            wSum += w;
+            fogContrib.copy(chapterColors[i]).multiplyScalar(w);
+            fogBlend.add(fogContrib);
         }
-        scene.fog.color.lerp(tmpFogTarget, 0.05 * f);
+        if (wSum > 0) fogBlend.multiplyScalar(1 / wSum);
+        // mix in 18% of the weighted-chapter color with the deep-bg base
+        tmpFogTarget.copy(tmpFogBase).lerp(fogBlend, 0.18);
+        scene.fog.color.lerp(tmpFogTarget, 0.08 * f);
         scene.background.copy(scene.fog.color).multiplyScalar(0.7);
 
         // camera follow · tighter rig framing the player. Previous shot was

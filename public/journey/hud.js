@@ -70,10 +70,11 @@ export function showAchievement(achievementId, achievementsSet) {
 
     const el = document.createElement('div');
     el.className = 'achievement';
+    // No "▸ ACHIEVEMENT" tag · was reading as game-progress UI overlay.
+    // Now reads as a chapter title card: big icon + name + caption only.
     el.innerHTML = `
         <span class="a-icon">${a.icon}</span>
         <div class="a-text">
-            <span class="a-tag">▸ ACHIEVEMENT</span>
             <span class="a-title">${a.title}</span>
             <span class="a-sub">${a.sub}</span>
         </div>`;

@@ -40,14 +40,20 @@
             --purple:  #b48cff;
             --bg-deep: #0a0e1a;
         }
+        html, body { touch-action: none; overscroll-behavior: none; }
         body.journey-only {
             background: var(--bg-deep);
             margin: 0;
             min-height: 100vh;
             min-height: 100dvh;
             overflow: hidden;
+            position: fixed;             /* prevent iOS rubber-band scroll */
+            inset: 0;
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
             color: #e8f0dd;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
         .journey-stage {
             position: relative;
@@ -67,6 +73,7 @@
             height: 100%;
             background: var(--bg-deep);
             outline: none;
+            touch-action: none;          /* canvas never accepts scroll/zoom gestures */
         }
 
         /* HUD overlay · floats above the WebGL canvas */
@@ -150,14 +157,17 @@
             display: none;
         }
 
-        /* achievement · big centered "SMASH" impact (replaces small slide-in).
-           Comic-book style: icon slams in at 1.4× scale, settles to 1.0,
-           holds, fades out. Title + sub appear after the icon lands. */
+        /* milestone card · big "smash" impact at TOP of screen (not center),
+           so the 3D scene + player + the next chapter approaching all stay
+           visible underneath. Comic-book impact: icon slams in, title plate
+           settles below it. */
         .achievement-stack {
             position: absolute;
-            inset: 0;
+            top: 60px;
+            left: 0;
+            right: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             pointer-events: none;
             z-index: 15;
@@ -171,10 +181,10 @@
             animation: achievementSmash 2.8s cubic-bezier(.18,.85,.25,1) forwards;
         }
         .achievement .a-icon {
-            font-size: clamp(80px, 18vw, 140px);
+            font-size: clamp(56px, 12vw, 96px);
             line-height: 1;
             filter:
-                drop-shadow(0 0 24px rgba(255,212,122,0.65))
+                drop-shadow(0 0 20px rgba(255,212,122,0.65))
                 drop-shadow(0 8px 24px rgba(0,0,0,0.6));
             animation: iconSmash 2.8s cubic-bezier(.18,.85,.25,1) forwards;
         }
@@ -376,6 +386,6 @@
         </div>
     </main>
 
-    <script type="module" src="/journey.js?v=20260518-4"></script>
+    <script type="module" src="/journey.js?v=20260518-5"></script>
 </body>
 </html>
