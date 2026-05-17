@@ -117,6 +117,50 @@ async function desktopFlow(browser, url) {
         console.log(`  ✓ 02-ch${i + 1}-${arrived.id}.png  (${arrived.label} · vehicle=${settled})`);
     }
 
+    // REAL gameplay walk test — no teleport. Press ↑ from z=0 and verify
+    // vehicle transitions fire as the player crosses the threshold. Catches
+    // bugs where the teleport-based test would pass but real play wouldn't.
+    console.log('\n── real-gameplay walk-through ─────────────');
+    await page.evaluate(() => {
+        const j = window.__journey;
+        j.state.player.x = 0; j.state.player.z = 0;
+        j.state.player.vehicle = 'walk';
+        j.state.collected.clear(); j.state.loot = 0; j.state.zone = 0;
+        // make sure the game is actually playable · prior tests may have
+        // triggered end-state or paused.
+        j.state.running = true;
+        j.state.ended = false;
+    });
+    await sleep(100);
+    // focus the canvas before sending keys — puppeteer keydown events go to
+    // the focused element first, and a freshly-evaluated page may have nothing focused
+    await page.focus('#stage').catch(() => {});
+    const beforeWalk = await page.evaluate(() => ({ z: window.__journey.state.player.z, v: window.__journey.state.player.vehicle, running: window.__journey.state.running, ended: window.__journey.state.ended }));
+    console.log('  state before walk:', JSON.stringify(beforeWalk));
+    // hold ↑ for 10s to walk well past the Alto threshold (800)
+    await page.keyboard.down('ArrowUp');
+    await sleep(10000);
+    await page.keyboard.up('ArrowUp');
+    const afterWalk = await page.evaluate(() => ({ z: window.__journey.state.player.z, v: window.__journey.state.player.vehicle }));
+    console.log(`  before: z=${beforeWalk.z.toFixed(0)} vehicle=${beforeWalk.v}`);
+    console.log(`  after : z=${afterWalk.z.toFixed(0)} vehicle=${afterWalk.v}`);
+    if (afterWalk.z < 1000)        throw new Error(`player only reached z=${afterWalk.z.toFixed(0)} after 8s · walking too slow`);
+    if (afterWalk.v !== 'alto')    throw new Error(`expected vehicle=alto after walking to z≈${afterWalk.z.toFixed(0)} but got '${afterWalk.v}'`);
+    await page.screenshot({ path: path.join(OUT_DIR, '08-real-alto.png') });
+    console.log('  ✓ 08-real-alto.png · player auto-mounted Alto via gameplay');
+
+    // now collect the VW keys via the debug hook and verify VW kicks in immediately
+    await page.evaluate(() => {
+        const j = window.__journey;
+        j.state.collected.add('vwgt');
+        j.state.loot++;
+    });
+    await sleep(80);
+    const afterKeys = await page.evaluate(() => window.__journey.state.player.vehicle);
+    if (afterKeys !== 'vw') throw new Error(`expected vehicle=vw after collecting vwgt keys but got '${afterKeys}'`);
+    await page.screenshot({ path: path.join(OUT_DIR, '09-real-vw.png') });
+    console.log('  ✓ 09-real-vw.png · player upgraded to VW Virtus on key pickup');
+
     // glitch screenshot · trigger Z + jump
     await page.evaluate(() => window.__journey.state.zone = 1);
     await page.keyboard.press('z');

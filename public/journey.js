@@ -54,9 +54,10 @@
         alto: 1.60,               // sakha + scripbox era · maruti alto daily-driver
         vw:   2.20,               // post-nov 2025 · vw virtus GT
     };
-    // z-threshold for the Alto · arrives roughly with Sakha (z≈1200), set a
-    // bit before so the transition feels natural as the character "drives in"
-    const ALTO_START_Z = 950;
+    // z-threshold for the Alto · kicks in right after you walk past Fever 104
+    // (z≈700) so the vehicle change feels responsive — Sakha era's vehicle
+    // arrives as you head TOWARD Sakha, not at it.
+    const ALTO_START_Z = 800;
     const GRAVITY = 0.55;
     const JUMP_VY = -11.5;
 
