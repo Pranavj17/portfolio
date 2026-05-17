@@ -1088,7 +1088,7 @@
         // stay stable above a shaking world (system-UI convention)
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (state.achievementQueue.length > 0) drawAchievements();
-        drawHudClock();
+        // (session timer removed · "▶ 00:01" readout was terminal-debug aesthetic)
     }
 
     function drawAchievements() {
@@ -1210,13 +1210,8 @@
         ctx.font = `14px ${FONT}`;
         ctx.fillText('▼', playerX - 5, stripY - 4);
 
-        // strip caption
-        ctx.fillStyle = 'rgba(200,211,191,0.45)';
-        ctx.font = `10px ${FONT}`;
-        ctx.fillText('// route', stripPadX, stripY - 8);
-        const lootText = `loot  ${state.loot}/${zones.length}`;
-        const ltw = lootText.length * 6;
-        ctx.fillText(lootText, W - stripPadX - ltw, stripY - 8);
+        // (terminal-style "// route" + "loot N/6" captions removed · the
+        //  strip visually shows progress; text labels were debug aesthetic)
 
         // ── bottom: vehicle card (single focal element) ──────────────
         const vehicleInfo = {
@@ -1287,19 +1282,14 @@
         ctx.font = `9px ${FONT}`;
         ctx.fillText('SPEED', cardX + cardW - 50, barY + 3);
 
-        // chapter pill at top-left of card (chapter # · name)
-        const chapLabel = `CH.${state.zone + 1}  ·  ${z.id.toUpperCase()}`;
-        const pillW = chapLabel.length * 6.4 + 16;
-        const pillX = cardX;
+        // chapter pill: just the zone name in display type — no "CH.N · " prefix
+        // (terminal-breadcrumb style). Now reads as a place-name not a path.
+        const chapLabel = z.id.toUpperCase();
+        const pillX = cardX + 4;
         const pillY = cardY - 18;
-        ctx.fillStyle = 'rgba(10,14,10,0.85)';
-        ctx.fillRect(pillX, pillY, pillW, 14);
-        ctx.strokeStyle = z.color + '88';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(pillX + 0.5, pillY + 0.5, pillW - 1, 13);
         ctx.fillStyle = z.color;
-        ctx.font = `10px ${FONT}`;
-        ctx.fillText(chapLabel, pillX + 8, pillY + 10);
+        ctx.font = `14px 'VT323', ${FONT}`;
+        ctx.fillText(chapLabel, pillX, pillY + 12);
     }
 
     function drawGroundGrid() {
