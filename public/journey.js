@@ -94,9 +94,12 @@
         collected:    new Set(),
         achievements: new Set(),
         elapsedMs:    0,
-        walkPhase:    0,            // for leg-swing animation
-        pauseT:       0,            // tap-to-slow remainder
+        walkPhase:    0,
         bobT:         0,
+        // INPUT · key-driven walking · player only moves when an input is
+        // held. No auto-walk.
+        keys: { right: false, left: false },
+        touchHold: false,
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
@@ -191,10 +194,16 @@
         setTimeout(() => document.body.classList.remove('cinematic'), ms || 1100);
     }
 
-    // ── interaction · tap on touch + space/arrow on keyboard ──────────
+    // ── input · interactive · player walks only while a key/touch is held ──
+    // Desktop: ArrowRight/D = forward (held), ArrowLeft/A = back (held),
+    //          Space = peek next chapter card (one-shot).
+    // Mobile:  pointerdown on canvas = walking · pointerup = stop.
+    //          A quick tap (held < 180ms with minimal travel) registers as
+    //          a peek instead of walking.
     let tapHintSeen = false;
-    function triggerInteraction() {
-        state.pauseT = Math.max(state.pauseT, 700);
+    let touchStartT = 0;
+    let touchMoved = false;
+    function triggerPeek() {
         const nextIdx = pickNextObjective();
         const ch = CHAPTERS[nextIdx];
         if (ch) showAchievement(ch);
@@ -203,20 +212,34 @@
             $tapHint.classList.add('faded');
         }
     }
-    canvas.addEventListener('pointerdown', (e) => {
-        if (e.target !== canvas) return;
-        triggerInteraction();
-    });
-    // keyboard input for desktop · ONLY Space/Enter trigger the peek.
-    // Arrow keys deliberately ignored · user wanted them to not affect the
-    // character (auto-walk is the only locomotion model).
     window.addEventListener('keydown', (e) => {
         const k = e.key;
-        if (k === ' ' || k === 'Enter') {
-            e.preventDefault();
-            triggerInteraction();
+        if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+            e.preventDefault(); state.keys.right = true;
+        } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+            e.preventDefault(); state.keys.left = true;
+        } else if (k === ' ' || k === 'Enter') {
+            e.preventDefault(); triggerPeek();
         }
     });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key;
+        if (k === 'ArrowRight' || k === 'd' || k === 'D') state.keys.right = false;
+        if (k === 'ArrowLeft'  || k === 'a' || k === 'A') state.keys.left  = false;
+    });
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.target !== canvas) return;
+        state.touchHold = true;
+        touchStartT = performance.now();
+        touchMoved = false;
+    });
+    canvas.addEventListener('pointerup', (e) => {
+        const heldMs = performance.now() - touchStartT;
+        state.touchHold = false;
+        // quick tap with no movement-hold = peek the next chapter card
+        if (heldMs < 180 && !touchMoved) triggerPeek();
+    });
+    canvas.addEventListener('pointercancel', () => { state.touchHold = false; });
 
     // initial HUD paint
     updateProgress(0);
@@ -263,26 +286,30 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, horizonY);
 
-        // SUN · larger + lower at midday, smaller higher at dusk/twilight
-        // size mapping: peaks around midday (progress=0.5)
+        // SUN · drawn with composite='lighter' (additive) so the radial
+        // gradient's BOUNDING RECTANGLE produces no visible edge · only
+        // the bright glow blends on top of the sky. Previously source-over
+        // composite was painting subtle vertical seams at the rect edges.
         const sunSize = 70 + (1 - Math.abs(progress - 0.5) * 2) * 40;
-        const sunX = W * (0.78 - progress * 0.3);   // sun drifts left as the day progresses
-        const sunY = horizonY - 48 + progress * 28;  // sun sinks toward horizon late in life
+        const sunX = W * (0.78 - progress * 0.3);
+        const sunY = horizonY - 48 + progress * 28;
         const sg = ctx.createRadialGradient(sunX, sunY, 3, sunX, sunY, sunSize);
-        // sun color shifts from warm gold (dawn) → blood red (dusk) → cool violet (twilight)
         let sunCore, sunMid, sunEdge;
         if (progress < 0.5) {
-            sunCore = 'rgba(255, 230, 170, 0.95)'; sunMid = 'rgba(255, 190, 100, 0.6)'; sunEdge = 'rgba(255, 150, 60, 0)';
+            sunCore = 'rgba(220, 190, 130, 1)'; sunMid = 'rgba(150, 100, 60, 0.5)'; sunEdge = 'rgba(0, 0, 0, 0)';
         } else if (progress < 0.85) {
-            sunCore = 'rgba(255, 180, 100, 0.95)'; sunMid = 'rgba(255, 110, 50, 0.6)'; sunEdge = 'rgba(180, 50, 30, 0)';
+            sunCore = 'rgba(220, 140, 80, 1)';  sunMid = 'rgba(150, 70, 40, 0.5)';  sunEdge = 'rgba(0, 0, 0, 0)';
         } else {
-            sunCore = 'rgba(220, 140, 200, 0.9)';  sunMid = 'rgba(140, 60, 130, 0.5)'; sunEdge = 'rgba(60, 20, 80, 0)';
+            sunCore = 'rgba(180, 110, 160, 1)'; sunMid = 'rgba(90, 40, 100, 0.5)';  sunEdge = 'rgba(0, 0, 0, 0)';
         }
         sg.addColorStop(0,   sunCore);
         sg.addColorStop(0.4, sunMid);
         sg.addColorStop(1,   sunEdge);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = sg;
         ctx.fillRect(sunX - sunSize, sunY - sunSize, sunSize * 2, sunSize * 2);
+        ctx.restore();
     }
 
     /** distant hills · slow parallax silhouette */
@@ -654,19 +681,22 @@
         if (state.running && !state.ended) {
             state.elapsedMs += dt;
             state.bobT += dt;
-            let pauseScale = 1;
-            if (state.pauseT > 0) {
-                state.pauseT = Math.max(0, state.pauseT - dt);
-                pauseScale = 0.35;
-            }
 
-            // forward motion · pixels per second
+            // INPUT-DRIVEN forward/back motion · NO auto-walk.
+            // Walking/movement only fires while a key or touch is held.
+            // dir: +1 forward, -1 back, 0 stationary
+            const movingForward = state.keys.right || state.touchHold;
+            const movingBack    = state.keys.left;
+            let dir = 0;
+            if (movingForward) dir = +1;
+            else if (movingBack) dir = -0.6;        // back is slower (half-step)
+
             const v = VEHICLES[state.vehicle];
-            state.playerX += v.speed * (dt / 1000) * pauseScale;
+            state.playerX += v.speed * (dt / 1000) * dir;
 
-            // walking leg-phase advance
-            if (state.vehicle === 'walk') {
-                state.walkPhase += dt * 0.008 * pauseScale;
+            // walking leg-phase only advances when actually walking
+            if (state.vehicle === 'walk' && dir !== 0) {
+                state.walkPhase += dt * 0.008 * Math.abs(dir);
             }
 
             // vehicle progression · 5 thresholds + special vwgt collection

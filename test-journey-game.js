@@ -84,13 +84,38 @@ async function runViewport(browser, url, label, vw, vh) {
     if (!started) throw new Error(`${label}: auto-start didn't fire after 3.8s`);
     console.log('  ✓ auto-start fired');
 
-    // ── PLAYER ADVANCES (auto-walk) ──
-    const beforeX = await page.evaluate(() => window.__journey.state.playerX);
-    await sleep(1200);
-    const afterX = await page.evaluate(() => window.__journey.state.playerX);
-    console.log(`  player.x: ${beforeX.toFixed(0)} → ${afterX.toFixed(0)} (Δ ${(afterX - beforeX).toFixed(0)})`);
-    if (afterX - beforeX < 30) throw new Error(`${label}: player should advance ≥30px in 1.2s but only moved ${(afterX-beforeX).toFixed(0)}`);
-    console.log('  ✓ auto-walk advances playerX');
+    // ── PLAYER SHOULD NOT AUTO-WALK · zero motion without input ──
+    const idle0 = await page.evaluate(() => window.__journey.state.playerX);
+    await sleep(800);
+    const idle1 = await page.evaluate(() => window.__journey.state.playerX);
+    if (Math.abs(idle1 - idle0) > 1) throw new Error(`${label}: player drifted ${(idle1-idle0).toFixed(2)}px with no input · auto-walk should be OFF`);
+    console.log(`  ✓ no auto-walk (idle drift = ${(idle1-idle0).toFixed(2)}px in 800ms)`);
+
+    // ── HOLDING ArrowRight should advance the player ──
+    if (label === 'desktop') {
+        const beforeX = await page.evaluate(() => window.__journey.state.playerX);
+        await page.keyboard.down('ArrowRight');
+        await sleep(1200);
+        await page.keyboard.up('ArrowRight');
+        const afterX = await page.evaluate(() => window.__journey.state.playerX);
+        console.log(`  hold ArrowRight 1.2s · player.x: ${beforeX.toFixed(0)} → ${afterX.toFixed(0)} (Δ ${(afterX - beforeX).toFixed(0)})`);
+        if (afterX - beforeX < 30) throw new Error(`${label}: holding ArrowRight should advance ≥30px but only moved ${(afterX-beforeX).toFixed(0)}`);
+        console.log('  ✓ ArrowRight held = forward motion');
+    } else {
+        // mobile · touch-hold on canvas
+        const rect = await page.evaluate(() => {
+            const c = document.getElementById('stage'); const r = c.getBoundingClientRect();
+            return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+        });
+        const beforeX = await page.evaluate(() => window.__journey.state.playerX);
+        await page.touchscreen.touchStart(rect.cx, rect.cy);
+        await sleep(1200);
+        await page.touchscreen.touchEnd();
+        const afterX = await page.evaluate(() => window.__journey.state.playerX);
+        console.log(`  touch-hold 1.2s · player.x: ${beforeX.toFixed(0)} → ${afterX.toFixed(0)} (Δ ${(afterX - beforeX).toFixed(0)})`);
+        if (afterX - beforeX < 30) throw new Error(`${label}: touch-hold should advance ≥30px but only moved ${(afterX-beforeX).toFixed(0)}`);
+        console.log('  ✓ touch-hold = forward motion');
+    }
 
     // ── DESKTOP-ONLY: ARROW KEYS DO NOT TRIGGER INTERACTION ──
     if (label === 'desktop') {
