@@ -144,10 +144,29 @@ async function desktopFlow(browser, url) {
     const afterWalk = await page.evaluate(() => ({ z: window.__journey.state.player.z, v: window.__journey.state.player.vehicle }));
     console.log(`  before: z=${beforeWalk.z.toFixed(0)} vehicle=${beforeWalk.v}`);
     console.log(`  after : z=${afterWalk.z.toFixed(0)} vehicle=${afterWalk.v}`);
-    if (afterWalk.z < 1000)        throw new Error(`player only reached z=${afterWalk.z.toFixed(0)} after 8s · walking too slow`);
+    if (afterWalk.z < 1000)        throw new Error(`player only reached z=${afterWalk.z.toFixed(0)} after 10s · walking too slow`);
     if (afterWalk.v !== 'alto')    throw new Error(`expected vehicle=alto after walking to z≈${afterWalk.z.toFixed(0)} but got '${afterWalk.v}'`);
     await page.screenshot({ path: path.join(OUT_DIR, '08-real-alto.png') });
     console.log('  ✓ 08-real-alto.png · player auto-mounted Alto via gameplay');
+
+    // verify the bicycle stage by parking the player at college (z=300-700)
+    await page.evaluate(() => {
+        const j = window.__journey;
+        j.state.player.z = 350;
+        j.state.player.x = 0;
+        j.state.collected.clear(); j.state.loot = 0; j.state.zone = 0;
+        j.state.ended = false; j.state.running = true;
+        // explicitly hide any leftover overlays from previous tests
+        const oe = document.getElementById('overlay-end');
+        const os = document.getElementById('overlay-start');
+        if (oe) oe.hidden = true;
+        if (os) os.hidden = true;
+    });
+    await sleep(120);
+    const atCollege = await page.evaluate(() => window.__journey.state.player.vehicle);
+    if (atCollege !== 'cycle') throw new Error(`expected vehicle=cycle at z=350 but got '${atCollege}'`);
+    await page.screenshot({ path: path.join(OUT_DIR, '08b-bicycle-at-college.png') });
+    console.log('  ✓ 08b-bicycle-at-college.png · player on bicycle in college era');
 
     // now collect the VW keys via the debug hook and verify VW kicks in immediately
     await page.evaluate(() => {

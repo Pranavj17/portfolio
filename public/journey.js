@@ -50,14 +50,14 @@
     const STRAFE_VX = 2.4;        // strafe speed
     // vehicle speed multipliers · upgrade as the story progresses
     const VEHICLE_SPEED = {
-        walk: 1.00,               // college / fever 104 era · backpack only
-        alto: 1.60,               // sakha + scripbox era · maruti alto daily-driver
-        vw:   2.20,               // post-nov 2025 · vw virtus GT
+        walk:  1.00,              // initial · walking with backpack
+        cycle: 1.30,              // college + fever 104 era · bicycle
+        alto:  1.60,              // sakha + scripbox era · maruti alto
+        vw:    2.20,              // post-nov 2025 · vw virtus GT
     };
-    // z-threshold for the Alto · kicks in right after you walk past Fever 104
-    // (z≈700) so the vehicle change feels responsive — Sakha era's vehicle
-    // arrives as you head TOWARD Sakha, not at it.
-    const ALTO_START_Z = 800;
+    // z-thresholds for vehicle transitions
+    const CYCLE_START_Z = 180;    // hop on bicycle right after the start area
+    const ALTO_START_Z  = 800;    // mount Alto as you exit the Fever 104 zone
     const GRAVITY = 0.55;
     const JUMP_VY = -11.5;
 
@@ -165,6 +165,21 @@
     const P_JUMP   = [' o ', '\\|/▢', '/ \\'];
     const P_LEFT   = ['<o ', '/|\\▢', '/ \\'];
     const P_RIGHT  = [' o>', '/|\\▢', '/ \\'];
+
+    // Bicycle · third-person back view · the college / intern-era ride.
+    // Two-frame wheel animation (●═● / ○═○) sells motion.
+    const V_CYCLE_A = [
+        '  o',
+        ' /|\\▢',
+        '  ╧',
+        ' ●═●',
+    ];
+    const V_CYCLE_B = [
+        '  o',
+        ' /|\\▢',
+        '  ╧',
+        ' ○═○',
+    ];
 
     // Maruti Alto · third-person back view · the daily-driver from the Sakha
     // years. Small hatchback silhouette. Driver head pokes out the top.
@@ -559,15 +574,24 @@
 
         // vehicle-state transition · drives sprite + speed.
         //   - VW Virtus once you've collected the keys (chapter 5 loot)
-        //   - Alto from z=950 onward (entering Sakha era)
-        //   - Walking otherwise (college + fever 104)
+        //   - Alto from z=800 onward (entering Sakha era)
+        //   - Bicycle from z=180 onward (college + fever 104 era · the
+        //     intermediate engineering-student ride)
+        //   - Walking only in the start area before the bicycle kicks in
         const prevVehicle = p.vehicle;
         if      (state.collected.has('vwgt'))  p.vehicle = 'vw';
         else if (p.z >= ALTO_START_Z)          p.vehicle = 'alto';
+        else if (p.z >= CYCLE_START_Z)         p.vehicle = 'cycle';
         else                                    p.vehicle = 'walk';
         if (prevVehicle !== p.vehicle) {
             // fire a small glitch + shimmer on vehicle change · feels like a level-up
-            triggerGlitch(220, p.vehicle === 'vw' ? PAL.red : (p.vehicle === 'alto' ? PAL.gold : PAL.green));
+            const upgradeColor = {
+                vw:    PAL.red,
+                alto:  PAL.gold,
+                cycle: PAL.cyan,
+                walk:  PAL.green,
+            }[p.vehicle];
+            triggerGlitch(220, upgradeColor);
             state.shimmerT = 320;
         }
 
@@ -813,9 +837,10 @@
         // vehicle pill at bottom-center
         const p = state.player;
         const vehicleInfo = {
-            walk: { label: 'ON FOOT · BACKPACK',     color: PAL.green, badge: '▢' },
-            alto: { label: 'MARUTI ALTO · COMMUTE',  color: PAL.gold,  badge: '◖◗' },
-            vw:   { label: 'VW VIRTUS GT · TURBO',   color: PAL.red,   badge: '⬢' },
+            walk:  { label: 'ON FOOT · BACKPACK',     color: PAL.green, badge: '▢' },
+            cycle: { label: 'BICYCLE · COLLEGE DAYS', color: PAL.cyan,  badge: '◯' },
+            alto:  { label: 'MARUTI ALTO · COMMUTE',  color: PAL.gold,  badge: '◖◗' },
+            vw:    { label: 'VW VIRTUS GT · TURBO',   color: PAL.red,   badge: '⬢' },
         }[p.vehicle] || { label: 'ON FOOT', color: PAL.green, badge: '▢' };
 
         const pillText = `[ ${vehicleInfo.badge}  ${vehicleInfo.label}  ${vehicleInfo.badge} ]`;
@@ -987,6 +1012,11 @@
             fontPx = 24;
             color  = PAL.gold;      // sundae yellow stand-in
             shadowW = 52;
+        } else if (p.vehicle === 'cycle') {
+            sprite = (Math.floor(state.t * 0.018) & 1) ? V_CYCLE_A : V_CYCLE_B;
+            fontPx = 26;
+            color  = PAL.cyan;      // chrome blue · the college-bicycle stand-in
+            shadowW = 38;
         } else {
             // walking · stick figure with backpack
             if (!p.onGround) sprite = P_JUMP;
@@ -1014,10 +1044,11 @@
         // chromatic-aberration drift when moving fast or airborne. Vehicles
         // always show a little drift since they're "always moving fast".
         let drift = 0;
-        if (!p.onGround)            drift = 2;
-        else if (p.vehicle === 'vw') drift = p.forwardActive ? 2 : 1;
+        if (!p.onGround)               drift = 2;
+        else if (p.vehicle === 'vw')   drift = p.forwardActive ? 2 : 1;
         else if (p.vehicle === 'alto') drift = p.forwardActive ? 1.5 : 0.5;
-        else if (p.forwardActive)   drift = 1;
+        else if (p.vehicle === 'cycle')drift = p.forwardActive ? 1.2 : 0.3;
+        else if (p.forwardActive)      drift = 1;
 
         drawSprite(sprite, sx, baseY, fontPx, color, drift);
     }

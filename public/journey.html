@@ -48,29 +48,29 @@
             background: var(--bg, #0a0e0a);
             margin: 0;
             min-height: 100vh;
+            min-height: 100dvh;   /* avoid iOS Safari address-bar gap */
             overflow: hidden;
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
             color: var(--fg, #c8d3bf);
         }
         .journey-stage {
             position: relative;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            display: block;
             padding: 0;
+            margin: 0;
             box-sizing: border-box;
-            background:
-                radial-gradient(ellipse 90% 70% at 50% 50%, transparent 0%, rgba(0,0,0,0.55) 100%);
         }
+        /* canvas wrap fills the ENTIRE viewport — no letterbox, no aspect
+           ratio constraint. The 960×540 internal buffer stretches to fit;
+           ASCII glyph distortion is acceptable for the immersion gain. */
         .journey-canvas-wrap {
             position: relative;
             width: 100%;
-            max-width: 1280px;
-            aspect-ratio: 16 / 9;
-            box-shadow: 0 0 80px var(--accent-soft, #6dffa61f), inset 0 0 60px rgba(0,0,0,0.6);
-            border: 1px solid rgba(109,255,166,0.18);
+            height: 100%;
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.55);
             overflow: hidden;
         }
         .journey-canvas {
@@ -526,58 +526,58 @@
         .journey-back:hover { opacity: 1; color: var(--accent, #6dffa6); }
 
         /* ── touch / mobile controls ──────────────────────────────────
-           Lives as a sibling of .journey-canvas-wrap inside .journey-stage,
-           so on mobile it sits BELOW the canvas (no overlay). Hidden on
-           desktops (mouse+keyboard is the right input there). */
+           Overlays the canvas (canvas now fills viewport) so controls live
+           IN the playfield, not below it. Hidden on desktop · keyboard +
+           mouse is the right input there. Semi-transparent so the game
+           still shows through behind. */
         .touch-controls {
             display: none;
-            width: 100%;
-            max-width: 1280px;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 12px;
-            padding: 14px 10px 6px;
-            box-sizing: border-box;
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 14;
             user-select: none;
             -webkit-user-select: none;
         }
-        /* show on coarse-pointer / no-hover devices · phones + tablets */
         @media (hover: none) and (pointer: coarse) {
-            .touch-controls { display: flex; }
-            /* mobile portrait · keep the canvas the full viewport width with
-               the standard 16:9 aspect so the game has all the room it can.
-               The touch controls then take the remaining vertical space. */
-            .journey-stage { justify-content: flex-start; padding: 8px 0 0; gap: 8px; }
+            .touch-controls { display: block; }
         }
         .touch-controls .pad {
+            position: absolute;
             display: grid;
             gap: 6px;
+            pointer-events: auto;
         }
         .touch-controls .pad-left {
-            grid-template-columns: repeat(3, 56px);
-            grid-template-rows:    repeat(2, 52px);
+            left: 12px;
+            bottom: 16px;
+            grid-template-columns: repeat(3, 52px);
+            grid-template-rows:    repeat(2, 48px);
         }
         .touch-controls .pad-left .tbtn.tbtn-up   { grid-column: 2; grid-row: 1; }
         .touch-controls .pad-left .tbtn[data-key="arrowleft"]  { grid-column: 1; grid-row: 2; }
         .touch-controls .pad-left .tbtn[data-key="arrowdown"]  { grid-column: 2; grid-row: 2; }
         .touch-controls .pad-left .tbtn[data-key="arrowright"] { grid-column: 3; grid-row: 2; }
         .touch-controls .pad-right {
-            grid-template-columns: 1fr 60px;
-            grid-template-rows:    52px;
-            min-width: 160px;
+            right: 12px;
+            bottom: 16px;
+            grid-template-columns: 88px 54px;
+            grid-template-rows:    48px;
+            min-width: 152px;
         }
         .touch-controls .tbtn {
-            background: rgba(10,14,10,0.85);
-            border: 1px solid var(--accent, #6dffa6);
+            background: rgba(10,14,10,0.55);
+            border: 1px solid rgba(109,255,166,0.65);
             color: var(--accent, #6dffa6);
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
             font-size: 22px;
             font-weight: 700;
             cursor: pointer;
-            border-radius: 5px;
+            border-radius: 6px;
             transition: background 80ms ease, transform 80ms ease;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            backdrop-filter: blur(2px);
         }
         .touch-controls .tbtn:active,
         .touch-controls .tbtn.is-pressed {
@@ -586,12 +586,12 @@
             transform: scale(0.92);
         }
         .touch-controls .tbtn-jump   { font-size: 14px; letter-spacing: 0.12em; }
-        .touch-controls .tbtn-glitch { font-size: 16px; color: var(--pink, #ff3b8a); border-color: #ff3b8a; }
+        .touch-controls .tbtn-glitch { font-size: 16px; color: var(--pink, #ff3b8a); border-color: rgba(255,59,138,0.65); }
 
         /* extra-narrow phones · scale d-pad a notch down */
-        @media (max-width: 360px) {
-            .touch-controls .pad-left  { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 46px); }
-            .touch-controls .pad-right { grid-template-columns: 1fr 50px; grid-template-rows: 46px; min-width: 138px; }
+        @media (max-width: 380px) {
+            .touch-controls .pad-left  { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 42px); }
+            .touch-controls .pad-right { grid-template-columns: 76px 46px; grid-template-rows: 42px; min-width: 130px; }
             .touch-controls .tbtn { font-size: 19px; }
         }
     </style>
@@ -694,6 +694,22 @@ R   restart</pre>
                 <pre class="overlay-footer" aria-hidden="true">┌── transmission 002 ───────────────────────── press start ──┐</pre>
             </div>
 
+            <!-- touch controls · OVERLAY the canvas (back inside the wrap)
+                 since the canvas now fills the viewport. Visible only on
+                 coarse-pointer + no-hover devices. -->
+            <div class="touch-controls" id="touch-controls" aria-hidden="true">
+                <div class="pad pad-left">
+                    <button class="tbtn tbtn-up" data-key="arrowup"  aria-label="forward">▲</button>
+                    <button class="tbtn" data-key="arrowleft"  aria-label="strafe left">◀</button>
+                    <button class="tbtn" data-key="arrowdown"  aria-label="back">▼</button>
+                    <button class="tbtn" data-key="arrowright" aria-label="strafe right">▶</button>
+                </div>
+                <div class="pad pad-right">
+                    <button class="tbtn tbtn-jump"   data-key=" " aria-label="jump">JUMP</button>
+                    <button class="tbtn tbtn-glitch" data-key="z" aria-label="glitch">Z</button>
+                </div>
+            </div>
+
             <!-- END · transmission-ends frame. Stats dump + replay. -->
             <div class="overlay overlay--end" id="overlay-end" hidden>
                 <pre class="end-frame end-frame-top" aria-hidden="true">┌─── transmission ends ──────────────────────── connection closed ───┐</pre>
@@ -729,24 +745,8 @@ R   restart</pre>
                 <pre class="end-frame end-frame-bot" aria-hidden="true">└──── pranavjagadish.com ─────────── open to senior eng / staff roles ──┘</pre>
             </div>
         </div>
-
-        <!-- touch controls · sibling of canvas-wrap so they don't overlay the
-             game on mobile. Hidden entirely on desktop (keyboard is enough);
-             shown only when the device reports coarse pointer / no hover. -->
-        <div class="touch-controls" id="touch-controls" aria-hidden="true">
-            <div class="pad pad-left">
-                <button class="tbtn tbtn-up" data-key="arrowup"  aria-label="forward">▲</button>
-                <button class="tbtn" data-key="arrowleft"  aria-label="strafe left">◀</button>
-                <button class="tbtn" data-key="arrowdown"  aria-label="back">▼</button>
-                <button class="tbtn" data-key="arrowright" aria-label="strafe right">▶</button>
-            </div>
-            <div class="pad pad-right">
-                <button class="tbtn tbtn-jump"   data-key=" " aria-label="jump">JUMP</button>
-                <button class="tbtn tbtn-glitch" data-key="z" aria-label="glitch">Z</button>
-            </div>
-        </div>
     </main>
 
-    <script src="/journey.js?v=20260517-9" defer></script>
+    <script src="/journey.js?v=20260517-11" defer></script>
 </body>
 </html>
