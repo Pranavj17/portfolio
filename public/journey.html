@@ -22,23 +22,28 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=VT323&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=VT323&display=swap"></noscript>
+    <!-- RDR-style display + body fonts: Cinzel (engraved roman caps, period-correct
+         display) + IM Fell English (period-correct old-print serif). Plus IBM Plex
+         Mono as fallback for any remaining mono UI. -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
 
     <link rel="stylesheet" href="/styles.css?v=20260514-2">
 
     <style>
         /* Three.js renders into <canvas id="stage"> which fills the entire
-           viewport. HTML overlay (HUD + start/end cards + Z button) sits
-           on top via z-index. No letterboxing — true full-screen 3D. */
+           viewport. HTML overlay (HUD + parchment cards + letterbox) sits
+           on top via z-index. RDR aesthetic: earth tones, sepia, no neon. */
         :root {
-            --accent:  #6dffa6;
-            --pink:    #ff3b8a;
-            --cyan:    #5ad8ff;
-            --gold:    #ffd47a;
-            --red:     #ff5e5e;
-            --purple:  #b48cff;
-            --bg-deep: #0a0e1a;
+            --accent:    #d4a653;       /* aged gold */
+            --gold:      #e6c285;       /* parchment cream */
+            --rust:      #c47540;       /* dusty rust */
+            --mahogany:  #5a2e1a;       /* dark frame brown */
+            --ink:       #2a1c10;       /* near-black ink for text on parchment */
+            --paper:     #e9d8b0;       /* warm cream parchment */
+            --paper-dim: #c9b58c;       /* aged parchment */
+            --bg-deep:   #1f1610;       /* mahogany-black sky base */
+            --bg-warm:   #3d2818;       /* sepia horizon */
         }
         html, body { touch-action: none; overscroll-behavior: none; }
         body.journey-only {
@@ -85,7 +90,7 @@
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
         }
 
-        /* progress strip · sole permanent HUD at the top (chapter banner removed) */
+        /* progress strip · brass beads on an aged-gold rail (RDR HUD vibe) */
         .progress-strip {
             position: absolute;
             top: 22px;
@@ -93,7 +98,7 @@
             transform: translateX(-50%);
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 9px;
             font-size: 14px;
             color: var(--accent);
         }
@@ -101,29 +106,27 @@
             width: 9px;
             height: 9px;
             border-radius: 50%;
-            background: rgba(200,211,191,0.18);
-            border: 1px solid rgba(200,211,191,0.3);
+            background: rgba(60,42,24,0.6);
+            border: 1px solid var(--paper-dim);
             transition: all 220ms cubic-bezier(.2,.7,.3,1);
         }
         .progress-strip .dot.done {
             background: var(--accent);
-            border-color: var(--accent);
-            box-shadow: 0 0 12px var(--accent);
+            border-color: var(--gold);
+            box-shadow: 0 0 8px rgba(212,166,83,0.6);
         }
         .progress-strip .dot.current {
-            background: rgba(232,240,221,0.5);
-            border-color: rgba(232,240,221,0.8);
-            animation: dotPulse 1.4s ease-in-out infinite;
+            background: var(--paper);
+            border-color: var(--gold);
+            animation: dotPulse 1.6s ease-in-out infinite;
         }
         @keyframes dotPulse {
-            0%, 100% { transform: scale(1);    box-shadow: 0 0 8px rgba(232,240,221,0.5); }
-            50%      { transform: scale(1.25); box-shadow: 0 0 16px rgba(232,240,221,0.9); }
+            0%, 100% { transform: scale(1);    box-shadow: 0 0 6px rgba(233,216,176,0.45); }
+            50%      { transform: scale(1.3);  box-shadow: 0 0 14px rgba(233,216,176,0.85); }
         }
 
-        /* vehicle/state card · TOP-RIGHT corner, compact pill. Was previously
-           a big card at the bottom-center which was blocking the player
-           sprite (the camera framed the player low). Now it's a small status
-           indicator that doesn't compete with the 3D scene. */
+        /* vehicle pill · TOP-RIGHT brass plaque (RDR HUD ornament).
+           Brass-on-mahogany look with engraved Cinzel label. */
         .vehicle-card {
             position: absolute;
             top: 14px;
@@ -131,31 +134,28 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 12px;
-            background: rgba(8,12,16,0.78);
+            padding: 7px 14px;
+            background: linear-gradient(180deg, rgba(50,32,18,0.92) 0%, rgba(30,18,10,0.95) 100%);
             border: 1px solid var(--accent);
-            border-radius: 18px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.55), inset 0 0 8px rgba(212,166,83,0.15);
             transition: border-color 320ms ease;
         }
         .vehicle-card .icon {
             font-size: 20px;
             line-height: 1;
-            filter: drop-shadow(0 0 6px rgba(109,255,166,0.35));
+            filter: drop-shadow(0 0 6px rgba(212,166,83,0.35));
         }
         .vehicle-card .label {
-            font-family: 'VT323', monospace;
-            font-size: 14px;
-            letter-spacing: 0.04em;
-            color: #e8f0dd;
+            font-family: 'Cinzel', 'IM Fell English', serif;
+            font-weight: 600;
+            font-size: 12.5px;
+            letter-spacing: 0.16em;
+            color: var(--paper);
             line-height: 1.1;
+            text-transform: uppercase;
         }
-        .vehicle-card .sub {
-            /* sublabel hidden in the compact pill · only the icon + label survive */
-            display: none;
-        }
+        .vehicle-card .sub { display: none; }
 
         /* milestone card · big "smash" impact at TOP of screen (not center),
            so the 3D scene + player + the next chapter approaching all stay
@@ -176,7 +176,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             text-align: center;
             animation: achievementSmash 2.8s cubic-bezier(.18,.85,.25,1) forwards;
         }
@@ -184,36 +184,53 @@
             font-size: clamp(56px, 12vw, 96px);
             line-height: 1;
             filter:
-                drop-shadow(0 0 20px rgba(255,212,122,0.65))
-                drop-shadow(0 8px 24px rgba(0,0,0,0.6));
+                drop-shadow(0 0 22px rgba(212,166,83,0.7))
+                drop-shadow(0 8px 22px rgba(0,0,0,0.7));
             animation: iconSmash 2.8s cubic-bezier(.18,.85,.25,1) forwards;
         }
+        /* PARCHMENT title-plate · RDR cinematic chapter card */
         .achievement .a-text {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            padding: 8px 22px;
-            background: linear-gradient(180deg, rgba(36,28,12,0.94) 0%, rgba(16,12,4,0.96) 100%);
-            border: 1.5px solid var(--gold);
-            border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 36px rgba(255,212,122,0.25);
+            gap: 6px;
+            padding: 14px 32px 18px;
+            background:
+                radial-gradient(ellipse 90% 70% at 50% 50%, rgba(233,216,176,0.04) 0%, rgba(0,0,0,0.25) 100%),
+                linear-gradient(180deg, var(--paper) 0%, var(--paper-dim) 100%);
+            border: 1.5px solid var(--mahogany);
+            border-radius: 3px;
+            box-shadow:
+                0 12px 40px rgba(0,0,0,0.7),
+                0 0 36px rgba(212,166,83,0.18),
+                inset 0 0 24px rgba(90,46,26,0.25);
+            position: relative;
             animation: textSettle 2.8s 0.35s cubic-bezier(.18,.85,.25,1) backwards;
         }
-        .achievement .a-tag   {
-            font-size: 10px;
-            letter-spacing: 0.22em;
-            color: var(--gold);
-            opacity: 0.92;
+        /* corner ornaments · the period-flourish brass bracket effect */
+        .achievement .a-text::before,
+        .achievement .a-text::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid var(--mahogany);
         }
+        .achievement .a-text::before { top: 4px;    left: 4px;    border-right: none; border-bottom: none; }
+        .achievement .a-text::after  { bottom: 4px; right: 4px;   border-left:  none; border-top:    none; }
+        .achievement .a-tag { display: none; }    /* "ACHIEVEMENT" label removed earlier */
         .achievement .a-title {
-            font-family: 'VT323', monospace;
-            font-size: clamp(24px, 3.6vw, 36px);
-            color: #e8f0dd;
-            text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan), 0 0 18px rgba(255,212,122,0.5);
+            font-family: 'Cinzel', 'IM Fell English', serif;
+            font-weight: 700;
+            font-size: clamp(20px, 3.2vw, 30px);
+            color: var(--ink);
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
         }
-        .achievement .a-sub   {
-            font-size: 11px;
-            opacity: 0.75;
+        .achievement .a-sub {
+            font-family: 'IM Fell English', serif;
+            font-style: italic;
+            font-size: clamp(11px, 1.4vw, 13px);
+            color: var(--mahogany);
             letter-spacing: 0.04em;
         }
         @keyframes iconSmash {
@@ -240,9 +257,7 @@
            Bloom already pulses organically on chapter entry / loot collect,
            so a manual "trigger more bloom" button had nothing to add.) */
 
-        /* splash overlay · holds for ~3s then auto-fades. Animation duration
-           updated to match the JS auto-start timer (3400ms total). Allows
-           taps through immediately so the Z glitch button isn't blocked. */
+        /* SPLASH · RDR-style engraved title card on sepia parchment */
         .splash {
             position: absolute;
             inset: 0;
@@ -250,36 +265,43 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 50% 50%, rgba(20,30,40,0.4) 0%, rgba(10,14,26,0.92) 100%);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background:
+                radial-gradient(circle at 50% 50%, rgba(70,42,22,0.42) 0%, rgba(20,12,6,0.94) 100%);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             z-index: 20;
             padding: 24px;
             text-align: center;
-            pointer-events: none;             /* never blocks Z button taps */
+            pointer-events: none;
             animation: splashFadeOut 700ms 2700ms cubic-bezier(.4,.0,.2,1) forwards;
         }
         .splash h1 {
             margin: 0 0 12px;
-            font-family: 'VT323', monospace;
-            font-size: clamp(56px, 10vw, 116px);
-            letter-spacing: 0.05em;
+            font-family: 'Cinzel', 'IM Fell English', serif;
+            font-weight: 700;
+            font-size: clamp(46px, 9vw, 96px);
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            color: #e8f0dd;
-            text-shadow: -4px 0 var(--pink), 4px 0 var(--cyan), 0 0 28px rgba(109,255,166,0.45);
+            color: var(--paper);
+            text-shadow:
+                0 1px 0 var(--mahogany),
+                0 2px 8px rgba(0,0,0,0.6),
+                0 0 32px rgba(212,166,83,0.45);
         }
         .splash .tag {
             margin: 0;
-            font-size: 13px;
-            letter-spacing: 0.12em;
-            opacity: 0.7;
+            font-family: 'IM Fell English', serif;
+            font-style: italic;
+            font-size: clamp(14px, 1.8vw, 18px);
             color: var(--accent);
+            letter-spacing: 0.06em;
         }
         .splash .arc {
-            margin: 14px 0 0;
-            font-size: 11px;
-            opacity: 0.55;
-            letter-spacing: 0.18em;
+            margin: 18px 0 0;
+            font-family: 'Cinzel', serif;
+            font-size: clamp(10px, 1.2vw, 12px);
+            color: var(--paper-dim);
+            letter-spacing: 0.32em;
             text-transform: uppercase;
         }
         @keyframes splashFadeOut {
@@ -287,7 +309,7 @@
             to   { opacity: 0; transform: scale(1.04); filter: blur(8px); pointer-events: none; }
         }
 
-        /* end overlay · slides up when journey complete */
+        /* END · "CHAPTER COMPLETE" parchment finale (RDR mission-end style) */
         .end {
             position: absolute;
             inset: 0;
@@ -295,40 +317,64 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 50% 50%, rgba(30,20,8,0.4) 0%, rgba(10,8,4,0.95) 100%);
+            background: radial-gradient(circle at 50% 50%, rgba(70,42,22,0.46) 0%, rgba(14,8,4,0.96) 100%);
             backdrop-filter: blur(8px);
             z-index: 22;
             padding: 24px;
             text-align: center;
-            animation: endIn 700ms cubic-bezier(.2,.7,.3,1) forwards;
+            animation: endIn 900ms cubic-bezier(.2,.7,.3,1) forwards;
         }
         .end[hidden] { display: none; }
         .end h1 {
-            margin: 0 0 12px;
-            font-family: 'VT323', monospace;
-            font-size: clamp(48px, 9vw, 96px);
-            text-shadow: -3px 0 var(--pink), 3px 0 var(--cyan), 0 0 28px rgba(255,212,122,0.45);
+            margin: 0 0 14px;
+            font-family: 'Cinzel', 'IM Fell English', serif;
+            font-weight: 700;
+            font-size: clamp(40px, 8vw, 78px);
+            color: var(--paper);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            text-shadow: 0 1px 0 var(--mahogany), 0 2px 12px rgba(0,0,0,0.55), 0 0 32px rgba(212,166,83,0.4);
         }
-        .end p { margin: 4px 0; opacity: 0.85; font-size: 13px; }
+        .end p { margin: 4px 0; opacity: 0.85; font-size: 13px; font-family: 'IM Fell English', serif; font-style: italic; }
         .end .stats {
             display: grid;
-            grid-template-columns: repeat(3, minmax(90px, 120px));
+            grid-template-columns: repeat(3, minmax(90px, 130px));
             gap: 10px;
             margin: 18px 0;
         }
         .end .stats > div {
-            background: rgba(109,255,166,0.04);
-            border: 1px solid rgba(109,255,166,0.3);
-            padding: 8px 6px;
-            border-radius: 4px;
+            background: linear-gradient(180deg, rgba(233,216,176,0.92) 0%, rgba(201,181,140,0.92) 100%);
+            border: 1.5px solid var(--mahogany);
+            padding: 10px 6px 8px;
+            border-radius: 2px;
+            color: var(--ink);
         }
-        .end .stats dt { font-size: 9px; letter-spacing: 0.18em; opacity: 0.6; }
-        .end .stats dd { margin: 4px 0 0; font-family: 'VT323', monospace; font-size: 24px; color: var(--accent); }
-        .end .contact { font-size: 11px; opacity: 0.7; line-height: 1.7; }
+        .end .stats dt { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.22em; color: var(--mahogany); }
+        .end .stats dd { margin: 4px 0 0; font-family: 'Cinzel', serif; font-size: 24px; font-weight: 700; color: var(--ink); }
+        .end .contact { font-size: 11px; opacity: 0.85; line-height: 1.7; color: var(--paper-dim); }
         .end .contact a { color: var(--accent); text-decoration: none; }
         @keyframes endIn {
-            from { opacity: 0; transform: scale(0.95); }
+            from { opacity: 0; transform: scale(0.96); }
             to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* LETTERBOX bars · brief cinematic black bars at chapter entry.
+           Driven by .stage.letterbox class added/removed in journey.js. */
+        .letterbox-bar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 18;
+            pointer-events: none;
+            transition: height 320ms cubic-bezier(.2,.7,.3,1);
+        }
+        .letterbox-bar.top    { top: 0; }
+        .letterbox-bar.bottom { bottom: 0; }
+        body.cinematic .letterbox-bar { height: 9vh; }
+        @media (max-width: 600px) {
+            body.cinematic .letterbox-bar { height: 7vh; }
         }
     </style>
 
@@ -362,19 +408,23 @@
         <!-- big centred achievement · slams onto screen instead of small slide-in -->
         <div class="achievement-stack" id="achievement-stack"></div>
 
+        <!-- letterbox bars · briefly retract from top/bottom on chapter entry -->
+        <div class="letterbox-bar top"></div>
+        <div class="letterbox-bar bottom"></div>
+
         <div class="splash" id="splash">
-            <h1>THE JOURNEY</h1>
-            <p class="tag">a 3D walk through 11 years</p>
-            <p class="arc">2015 → college → fever 104 → sakha → scripbox → the GT → now</p>
+            <h1>The Journey</h1>
+            <p class="tag">a chronicle of 13 years</p>
+            <p class="arc">ITICS · CMR · DSCE · FEVER 104 · SAKHA · SCRIPBOX · THE GT · NOW</p>
         </div>
 
         <div class="end" id="end" hidden>
-            <h1>GAME COMPLETE</h1>
-            <p>you walked through 11 years · 6 chapters · all 6 loot collected</p>
+            <h1>End of the Trail</h1>
+            <p>13 years · 8 chapters · the journey complete</p>
             <div class="stats">
-                <div><dt>CHAPTERS</dt><dd>06 / 06</dd></div>
-                <div><dt>YEARS</dt><dd>11</dd></div>
-                <div><dt>ROUTE</dt><dd>BLR ↻</dd></div>
+                <div><dt>CHAPTERS</dt><dd>08 / 08</dd></div>
+                <div><dt>YEARS</dt><dd>13</dd></div>
+                <div><dt>HOME</dt><dd>BLR</dd></div>
             </div>
             <p class="contact">
                 <a href="https://pranavjagadish.com">pranavjagadish.com</a> ·
@@ -386,6 +436,6 @@
         </div>
     </main>
 
-    <script type="module" src="/journey.js?v=20260518-5"></script>
+    <script type="module" src="/journey.js?v=20260518-6"></script>
 </body>
 </html>

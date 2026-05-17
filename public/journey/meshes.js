@@ -33,9 +33,10 @@ const VW_WHEEL    = new THREE.CylinderGeometry(0.42, 0.42, 0.32, 16);
  *  Exposes _legL / _legR for the animation loop to swing during walk. */
 export function buildWalkerMesh() {
     const g = new THREE.Group();
-    const skin  = new THREE.MeshStandardMaterial({ color: 0xf3c19f, roughness: 0.7 });
-    const cloth = new THREE.MeshStandardMaterial({ color: 0x5ad8ff, roughness: 0.5 });
-    const bag   = new THREE.MeshStandardMaterial({ color: 0xff5e5e, roughness: 0.4, emissive: 0x440000, emissiveIntensity: 0.2 });
+    // RDR-palette materials: tan skin · earthy-brown cloth · leather backpack
+    const skin  = new THREE.MeshStandardMaterial({ color: 0xd9b48a, roughness: 0.75 });
+    const cloth = new THREE.MeshStandardMaterial({ color: 0x6a4a2e, roughness: 0.7 });
+    const bag   = new THREE.MeshStandardMaterial({ color: 0x8b4a1f, roughness: 0.6, emissive: 0x2a0e04, emissiveIntensity: 0.15 });
 
     const head = new THREE.Mesh(HEAD_GEOM, skin);
     head.position.y = 1.85; head.castShadow = true;
@@ -60,8 +61,9 @@ export function buildWalkerMesh() {
 /** bicycle · 2 torus wheels + cylinder frame · rider mounted from buildWalkerMesh */
 export function buildBicycleMesh() {
     const g = new THREE.Group();
-    const frame = new THREE.MeshStandardMaterial({ color: 0x5ad8ff, roughness: 0.4, metalness: 0.6, emissive: 0x002233, emissiveIntensity: 0.3 });
-    const tire  = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    // RDR palette · brass/copper bicycle frame instead of neon cyan
+    const frame = new THREE.MeshStandardMaterial({ color: 0xc47540, roughness: 0.35, metalness: 0.75, emissive: 0x3a1a08, emissiveIntensity: 0.25 });
+    const tire  = new THREE.MeshStandardMaterial({ color: 0x141008, roughness: 0.9 });
 
     const wL = new THREE.Mesh(BIKE_WHEEL, tire);
     wL.position.set(0, 0.55, -0.7); wL.rotation.y = Math.PI / 2; wL.castShadow = true;

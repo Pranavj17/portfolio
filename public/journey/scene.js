@@ -33,8 +33,9 @@ export function buildRenderer(canvas) {
 
 export function buildScene() {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0e1a);
-    scene.fog = new THREE.FogExp2(0x0a0e1a, 0.012);
+    // RDR sepia · dark mahogany base · proximity fog adds the warm dust feel
+    scene.background = new THREE.Color(0x1f1610);
+    scene.fog = new THREE.FogExp2(0x3d2818, 0.011);
     return scene;
 }
 
@@ -73,36 +74,44 @@ export function addLights(scene) {
     return { sun, ambient };
 }
 
-/** synthwave grid texture · constructed once via offscreen 2D canvas */
-function makeGridTexture() {
+/** dirt-trail texture · RDR western road feel. Warm sand base with
+ *  occasional darker ruts running lengthwise, no grid lines. */
+function makeTrailTexture() {
     const c = document.createElement('canvas');
-    c.width = c.height = 256;
+    c.width = 256; c.height = 1024;            // long + thin · matches a road
     const g = c.getContext('2d');
-    g.fillStyle = '#080c14';
-    g.fillRect(0, 0, 256, 256);
-    g.strokeStyle = 'rgba(109,255,166,0.5)';
-    g.lineWidth = 1;
-    for (let i = 0; i <= 8; i++) {
-        const p = (i / 8) * 256;
-        g.beginPath(); g.moveTo(p, 0); g.lineTo(p, 256); g.stroke();
-        g.beginPath(); g.moveTo(0, p); g.lineTo(256, p); g.stroke();
+    // base dirt color
+    g.fillStyle = '#3a2a1a';
+    g.fillRect(0, 0, c.width, c.height);
+    // subtle warmer noise via random dots
+    for (let i = 0; i < 1800; i++) {
+        const x = Math.random() * c.width;
+        const y = Math.random() * c.height;
+        const a = 0.04 + Math.random() * 0.08;
+        g.fillStyle = `rgba(200,160,100,${a})`;
+        g.fillRect(x, y, 1.5, 1.5);
     }
+    // two darker wheel ruts running lengthwise
+    g.strokeStyle = 'rgba(20,12,6,0.35)';
+    g.lineWidth = 6;
+    g.beginPath(); g.moveTo(96,  0); g.lineTo(96,  c.height); g.stroke();
+    g.beginPath(); g.moveTo(160, 0); g.lineTo(160, c.height); g.stroke();
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(40, 200);
+    tex.repeat.set(8, 80);
     return tex;
 }
 
 export function addGround(scene) {
     const groundMat = new THREE.MeshStandardMaterial({
-        map: makeGridTexture(),
+        map: makeTrailTexture(),
         color: 0xffffff,
-        roughness: 0.6,
-        metalness: 0.2,
+        roughness: 0.95,
+        metalness: 0.0,
     });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 1000), groundMat);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 1200), groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.z = 200;
+    ground.position.z = 250;
     ground.receiveShadow = true;
     scene.add(ground);
     return ground;

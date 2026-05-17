@@ -89,9 +89,21 @@ setTimeout(() => { state.running = true; }, 3400);
 // so the bloom pulse remains as an organic milestone-celebration effect.
 function triggerGlitch(ms) { state.glitchT = Math.max(state.glitchT, ms); }
 
+/** trigger cinematic letterbox bars · briefly close + retract during
+ *  chapter entry. Adds the RDR-style "title card" cinematic feel. */
+let letterboxTimer = null;
+function triggerLetterbox(holdMs) {
+    if (letterboxTimer) clearTimeout(letterboxTimer);
+    document.body.classList.add('cinematic');
+    letterboxTimer = setTimeout(() => {
+        document.body.classList.remove('cinematic');
+        letterboxTimer = null;
+    }, holdMs || 1200);
+}
+
 // ── pre-allocated scratch objects · reused inside animate() ──────
 const tmpFogTarget = new THREE.Color();
-const tmpFogBase   = new THREE.Color(0x0a0e1a);
+const tmpFogBase   = new THREE.Color(0x3d2818);   // sepia base (RDR fog)
 const tmpCamTarget = new THREE.Vector3();
 const tmpLookAt    = new THREE.Vector3();
 
@@ -157,6 +169,7 @@ function animate(now) {
                 if (aId) showAchievement(aId, state.achievements);
                 cp.ring.userData.collected = true;
                 triggerGlitch(160);
+                triggerLetterbox(1100);     // RDR cinematic chapter-card moment
             }
             // ring animation · the only on-canvas chapter signal now (pillars
             // are gone). Stronger emission means the ring carries more
