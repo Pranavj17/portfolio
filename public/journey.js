@@ -155,6 +155,93 @@
         });
     }
 
+    // ── Web Audio sound effects · all synth, no asset loading ────────────
+    // AudioContext is lazy-init'd on first user gesture (browsers block
+    // unrequested audio). Each sfx is a few oscillators + gain envelopes;
+    // total audio code ≈ 60 LOC, zero deps.
+    let audioCtx = null;
+    let audioMuted = false;
+    function ensureAudio() {
+        if (audioCtx) return audioCtx;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AC();
+        } catch (e) { audioCtx = null; }
+        return audioCtx;
+    }
+    /** single oscillator blip with decay envelope */
+    function blip(freq, dur, type, gain) {
+        if (audioMuted) return;
+        const ac = ensureAudio();
+        if (!ac) return;
+        const t0 = ac.currentTime;
+        const osc = ac.createOscillator();
+        const env = ac.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, t0);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq * 0.6), t0 + dur);
+        env.gain.setValueAtTime(0.0001, t0);
+        env.gain.exponentialRampToValueAtTime(gain || 0.12, t0 + 0.005);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(env);
+        env.connect(ac.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.05);
+    }
+    /** multi-freq chord (parallel oscillators) for collect / vehicle change */
+    function chord(freqs, dur, type, gain) {
+        if (!Array.isArray(freqs)) return;
+        for (const f of freqs) blip(f, dur, type || 'sine', gain || 0.06);
+    }
+    /** noise burst (random samples → buffer) for glitch / impact */
+    function noise(dur, gain) {
+        if (audioMuted) return;
+        const ac = ensureAudio();
+        if (!ac) return;
+        const t0 = ac.currentTime;
+        const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+        const src = ac.createBufferSource();
+        const env = ac.createGain();
+        src.buffer = buf;
+        env.gain.setValueAtTime(gain || 0.08, t0);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        src.connect(env);
+        env.connect(ac.destination);
+        src.start(t0);
+    }
+    /** named sound effects · called at game events */
+    function sfx(name) {
+        switch (name) {
+            case 'footstep': blip(220, 0.04, 'sine',     0.04); break;
+            case 'jump':     blip(330, 0.10, 'triangle', 0.12); blip(660, 0.08, 'triangle', 0.06); break;
+            case 'land':     blip(160, 0.06, 'sine',     0.07); break;
+            case 'collect':  chord([523.25, 659.25, 783.99, 1046.5], 0.32, 'sine', 0.06); break;
+            case 'vehicle':  chord([261.63, 329.63, 392, 523.25], 0.55, 'triangle', 0.05); break;
+            case 'chapter':  chord([392, 493.88, 587.33], 0.28, 'sine', 0.05); break;
+            case 'glitch':   noise(0.18, 0.08); blip(80, 0.16, 'sawtooth', 0.06); break;
+            case 'achieve':  chord([523.25, 659.25, 783.99, 1046.5, 1318.5], 0.6, 'sine', 0.04); break;
+        }
+    }
+
+    // ── motion-particle ring buffer · dust/exhaust spawned behind the player ──
+    // sx/sy are SCREEN coords (relative to canvas). The pool is a circular buffer:
+    // when full, new particles overwrite the oldest. Each holds an `age` and a
+    // `life`; age >= life ⇒ slot is free.
+    const MOTION_POOL_SIZE = 28;
+    const motionPool = [];
+    for (let i = 0; i < MOTION_POOL_SIZE; i++) {
+        motionPool.push({ sx: 0, sy: 0, vx: 0, vy: 0, age: 9999, life: 1, char: '·', color: '#fff' });
+    }
+    let motionHead = 0;
+    function emitMotionParticle(sx, sy, vx, vy, life, char, color) {
+        const p = motionPool[motionHead];
+        p.sx = sx; p.sy = sy; p.vx = vx; p.vy = vy;
+        p.age = 0; p.life = life; p.char = char; p.color = color;
+        motionHead = (motionHead + 1) % MOTION_POOL_SIZE;
+    }
+
     // ── sprites ───────────────────────────────────────────────────────
     // player · back view · stick figure with a backpack on the right shoulder.
     // The ▢ has carried since college days. Walk/jump variants drive the
@@ -412,7 +499,7 @@
             walkPhase: 0,
             facing: 0,                       // -1, 0, +1 for left/forward/right body lean
             forwardActive: false,            // true if any forward key held
-            vehicle: 'walk',                 // 'walk' | 'alto' | 'vw' · drives sprite + speed
+            vehicle: 'walk',                 // 'walk' | 'cycle' | 'alto' | 'vw'
         },
         camera: { x: 0, z: -120, eyeY: EYE_Y },
         loot:       0,
@@ -427,7 +514,57 @@
         keys:       Object.create(null),
         fpsAccum:   0, fpsFrames: 0, fps: 0,
         stars:      [],
+        kbHintAlpha: 1,
+        kbHintSeen:  false,
+        lastEmitT:   0,
+        // screen shake · mag drops to 0 over shakeT ms, then resets
+        shakeMag:    0,
+        shakeT:      0,
+        // achievement popup queue · each {title, sub, age, life}
+        achievements: new Set(),
+        achievementQueue: [],
+        // session timer (for the HUD time readout · feels like a real game)
+        elapsedMs:   0,
     };
+
+    /** trigger a brief camera shake · used on impacts. magnitude in px,
+     *  duration in ms. Stronger requests override weaker ones. */
+    function triggerShake(mag, ms) {
+        if (mag > state.shakeMag) state.shakeMag = mag;
+        if (ms  > state.shakeT)   state.shakeT   = ms;
+    }
+
+    /** spawn a radial burst of motion particles · used on loot pickup */
+    function collectBurst(sx, sy, color) {
+        const N = 14;
+        for (let i = 0; i < N; i++) {
+            const a = (Math.PI * 2) * (i / N);
+            const s = 1.4 + Math.random() * 1.6;
+            emitMotionParticle(sx, sy, Math.cos(a) * s, Math.sin(a) * s, 620, '✦', color + 'dd');
+        }
+    }
+
+    // ── achievements · triggered on state changes, queued for popup ──
+    const ACHIEVEMENTS = [
+        { id: 'first-steps',  test: (s) => s.player.z > 50,                                    title: 'FIRST STEPS',        sub: 'walking with that backpack' },
+        { id: 'on-cycle',     test: (s) => s.player.vehicle === 'cycle',                        title: 'ON TWO WHEELS',      sub: 'college bicycle unlocked' },
+        { id: 'fever-104',    test: (s) => s.collected.has('fever104'),                         title: 'ON AIR · 104 FM',    sub: '3-month producer stint' },
+        { id: 'first-job',    test: (s) => s.player.vehicle === 'alto',                         title: 'FIRST JOB · ALTO',   sub: 'maruti alto · jul 2019' },
+        { id: 'mcp-catalog',  test: (s) => s.collected.has('scripbox'),                         title: 'ANTHROPIC CATALOG',  sub: 'mcp-server-graylog · PR #2913' },
+        { id: 'got-the-gt',   test: (s) => s.player.vehicle === 'vw',                           title: 'GOT THE GT',         sub: 'vw virtus gt · nov 16, 2025' },
+        { id: 'journey-end',  test: (s) => s.loot >= 6 && s.zone === 5,                          title: 'JOURNEY COMPLETE',   sub: '6 chapters · 11 years' },
+    ];
+    function checkAchievements() {
+        for (const a of ACHIEVEMENTS) {
+            if (state.achievements.has(a.id)) continue;
+            if (a.test(state)) {
+                state.achievements.add(a.id);
+                state.achievementQueue.push({ title: a.title, sub: a.sub, age: 0, life: 3200 });
+                sfx('achieve');
+                triggerShake(2, 200);
+            }
+        }
+    }
 
     // sky stars · world-space, parallax-cheap (very far Z)
     for (let i = 0; i < 80; i++) {
@@ -460,6 +597,10 @@
         if (k === ' ' || k === 'w') tryJump();
         if (k === 'z') triggerGlitch(280, PAL.pink);
         if (k === 'r') restart();
+        // first time the user touches a direction key · hide the hint
+        if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' '].includes(k)) {
+            state.kbHintSeen = true;
+        }
     });
     window.addEventListener('keyup', (e) => {
         state.keys[e.key.toLowerCase()] = false;
@@ -480,6 +621,7 @@
             b.classList.add('is-pressed');
             // start the game on first touch if the start overlay is still up
             if (!state.running && !overlayStart.hidden) startGame();
+            state.kbHintSeen = true;
             if (k === ' ')        { tryJump();                 return; }
             if (k === 'z')        { triggerGlitch(280, PAL.pink); return; }
             state.keys[k] = true;
@@ -506,6 +648,7 @@
             state.player.vy = JUMP_VY;
             state.player.onGround = false;
             triggerGlitch(70, PAL.green);
+            sfx('jump');
         }
     }
     function startGame() {
@@ -534,6 +677,13 @@
         state.glitchT = Math.max(state.glitchT, ms);
         state.glitchCol = color || PAL.green;
     }
+
+    // Z key (or its touch button) plays the glitch sound too · wrap the
+    // existing keydown handler's glitch trigger to also fire sfx.
+    const _origTriggerGlitch = triggerGlitch;
+    window.addEventListener('keydown', (e) => {
+        if (e.key && e.key.toLowerCase() === 'z') sfx('glitch');
+    });
 
     // ── projection ────────────────────────────────────────────────────
     /** project (wx, wy, wz) to (sx, sy, scale) · returns null if behind cam */
@@ -593,6 +743,8 @@
             }[p.vehicle];
             triggerGlitch(220, upgradeColor);
             state.shimmerT = 320;
+            sfx('vehicle');
+            triggerShake(3.5, 260);
         }
 
         // facing animation hint for the back-view sprite (eyes peek left/right)
@@ -600,11 +752,13 @@
         else if (state.keys['arrowright'] || state.keys['d']) p.facing = +1;
         else                                                   p.facing = 0;
 
-        // jump
+        // jump · detect airborne → grounded transition for landing sfx + shake
+        const wasAirborne = !p.onGround;
         p.vy += GRAVITY * f;
         p.y  -= p.vy * f;     // y is "world up", subtract because vy>0 means falling
         if (p.y <= GROUND_Y) {
             p.y = GROUND_Y; p.vy = 0; p.onGround = true;
+            if (wasAirborne) { sfx('land'); triggerShake(1.6, 120); }
         }
 
         // walk animation phase
@@ -632,6 +786,12 @@
                     state.collected.add(z.id);
                     state.loot++;
                     triggerGlitch(220, z.color);
+                    sfx('collect');
+                    triggerShake(4, 260);
+                    // radial particle burst at player's screen position
+                    const playerSx = W / 2 + p.x * 0.2;
+                    const playerSy = H - 70 - 40;   // upper-body height
+                    collectBurst(playerSx, playerSy, z.color);
                 }
             }
 
@@ -647,10 +807,80 @@
             state.zone = nearestI;
             state.shimmerT = 380;
             triggerGlitch(160, ZONES[nearestI].color);
+            sfx('chapter');
+            triggerShake(2.5, 220);
         }
 
         state.glitchT  = Math.max(0, state.glitchT  - dt);
         state.shimmerT = Math.max(0, state.shimmerT - dt);
+        state.elapsedMs += dt;
+
+        // shake decay · linear taper over remaining duration
+        if (state.shakeT > 0) {
+            state.shakeT = Math.max(0, state.shakeT - dt);
+            if (state.shakeT === 0) state.shakeMag = 0;
+        }
+
+        // age achievement popups; drop expired ones
+        for (let i = 0; i < state.achievementQueue.length; i++) state.achievementQueue[i].age += dt;
+        state.achievementQueue = state.achievementQueue.filter((a) => a.age < a.life);
+
+        // check for new achievements based on current state
+        checkAchievements();
+
+        // footstep tick · on every walk-phase half-cycle change (when walking)
+        if (p.vehicle === 'walk' && p.onGround && p.forwardActive) {
+            const phase = Math.floor(p.walkPhase * 2);
+            if (phase !== (p._lastFoot | 0)) {
+                p._lastFoot = phase;
+                sfx('footstep');
+            }
+        }
+
+        // fade the keyboard hint after first input
+        if (state.kbHintSeen) state.kbHintAlpha = Math.max(0, state.kbHintAlpha - dt * 0.0025);
+
+        // emit motion particles · dust if walking/cycling, exhaust if driving
+        // throttle to ~30Hz so we don't blow the pool
+        const movingForward = state.keys['arrowup'] || state.keys['w'];
+        const movingBack    = state.keys['arrowdown'] || state.keys['s'];
+        const movingSide    = state.keys['arrowleft'] || state.keys['a'] || state.keys['arrowright'] || state.keys['d'];
+        const moving = movingForward || movingBack || movingSide;
+        if (moving && state.t - state.lastEmitT > 34) {
+            state.lastEmitT = state.t;
+            // screen position of the player (matches drawPlayer)
+            const groundSy = H - 70;
+            const playerSx = W / 2 + p.x * 0.2;
+            // exhaust direction: BEHIND the player. Forward motion = puffs go down-screen.
+            const dirY = movingForward ? 1 : (movingBack ? -1 : 0);
+            const dirX = movingSide ? (state.keys['arrowleft'] || state.keys['a'] ? 1 : -1) : 0;
+            // type/colour by vehicle
+            const isCar = (p.vehicle === 'alto' || p.vehicle === 'vw');
+            const isBike = p.vehicle === 'cycle';
+            if (isCar) {
+                // exhaust · two puffs from "tailpipes" (left and right of car)
+                const ex = (p.vehicle === 'vw') ? '◌' : '·';
+                const ec = (p.vehicle === 'vw') ? PAL.red : PAL.gold;
+                emitMotionParticle(playerSx - 16, groundSy + 8, dirX * 1.2 - 0.3, dirY * 2.2 + Math.random() * 0.6, 420, ex, ec + 'cc');
+                emitMotionParticle(playerSx + 16, groundSy + 8, dirX * 1.2 + 0.3, dirY * 2.2 + Math.random() * 0.6, 420, ex, ec + 'cc');
+            } else if (isBike) {
+                // bicycle · light dust under wheels
+                emitMotionParticle(playerSx + (Math.random()-0.5)*16, groundSy + 14, dirX * 0.8, dirY * 1.4 + Math.random() * 0.5, 300, '·', PAL.cyan + 'aa');
+            } else {
+                // walking · footstep puffs
+                const side = (Math.floor(p.walkPhase * 2) & 1) ? -8 : 8;
+                emitMotionParticle(playerSx + side, groundSy + 16, dirX * 0.5, dirY * 1.0 + Math.random() * 0.4, 360, '.', PAL.fg + 'aa');
+            }
+        }
+
+        // update all live motion particles
+        for (let i = 0; i < motionPool.length; i++) {
+            const mp = motionPool[i];
+            if (mp.age >= mp.life) continue;
+            mp.age += dt;
+            mp.sx += mp.vx * f;
+            mp.sy += mp.vy * f;
+        }
 
         // end-state: collected everything AND reached zone 5
         if (state.loot >= ZONES.length && state.zone === ZONES.length - 1 && !state.ended) {
@@ -734,6 +964,12 @@
         const z = ZONES[state.zone];
         const atm = ATMOSPHERE[z.id] || ATMOSPHERE.college;
 
+        // begin a screen-shake-transformed frame · random jitter per axis
+        const shakeAmp = state.shakeMag * (state.shakeT > 0 ? state.shakeT / 280 : 0);
+        const shakeX = shakeAmp ? (Math.random() - 0.5) * 2 * shakeAmp : 0;
+        const shakeY = shakeAmp ? (Math.random() - 0.5) * 2 * shakeAmp : 0;
+        ctx.setTransform(1, 0, 0, 1, shakeX, shakeY);
+
         // per-chapter sky atmosphere · two-stop gradient, top-down
         const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
         skyGrad.addColorStop(0, atm.skyTop);
@@ -803,8 +1039,14 @@
             }
         }
 
+        // motion particles · drawn BEHIND the player so they look like a wake
+        drawMotionParticles();
+
         // player (fixed screen position, back view)
         drawPlayer();
+
+        // first-play keyboard hint near the player · fades after first input
+        if (state.kbHintAlpha > 0.02) drawKbHint();
 
         // chapter title banner (always on top, big, glitched)
         drawTopBanner(z);
@@ -820,6 +1062,71 @@
 
         // full-screen glitch displacement (drawn last so it affects everything)
         if (state.glitchT > 0) drawGlitchOverlay();
+
+        // achievement popups · drawn OUTSIDE the shake transform so they
+        // stay stable above a shaking world (system-UI convention)
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (state.achievementQueue.length > 0) drawAchievements();
+        drawHudClock();
+    }
+
+    function drawAchievements() {
+        const cardW = 256;
+        const cardH = 52;
+        const stackX = W - cardW - 16;
+        let stackY = 88;
+        for (let i = 0; i < state.achievementQueue.length; i++) {
+            const a = state.achievementQueue[i];
+            const t = a.age / a.life;
+            // animate: 0–0.08 slide-in from right, 0.08–0.88 hold, 0.88–1.0 slide-out
+            let dx = 0, alpha = 1;
+            if (t < 0.08)       { dx = (1 - t / 0.08) * (cardW + 30); alpha = t / 0.08; }
+            else if (t > 0.88)  { dx = ((t - 0.88) / 0.12) * (cardW + 30); alpha = 1 - (t - 0.88) / 0.12; }
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            // card bg with vehicle-gold accent for achievement
+            const grad = ctx.createLinearGradient(stackX, stackY, stackX, stackY + cardH);
+            grad.addColorStop(0, 'rgba(20,16,8,0.94)');
+            grad.addColorStop(1, 'rgba(10,8,4,0.96)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(stackX + dx, stackY, cardW, cardH);
+            ctx.strokeStyle = PAL.gold;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(stackX + dx + 0.5, stackY + 0.5, cardW - 1, cardH - 1);
+            // corner brackets
+            ctx.fillStyle = PAL.gold;
+            ctx.font = `11px ${FONT}`;
+            ctx.fillText('┌', stackX + dx + 2,         stackY + 12);
+            ctx.fillText('┐', stackX + dx + cardW - 9, stackY + 12);
+            ctx.fillText('└', stackX + dx + 2,         stackY + cardH - 2);
+            ctx.fillText('┘', stackX + dx + cardW - 9, stackY + cardH - 2);
+            // ✦ sparkle icon
+            ctx.fillStyle = PAL.gold;
+            ctx.font = `28px ${FONT}`;
+            ctx.fillText('✦', stackX + dx + 14, stackY + 34);
+            // tag + title + sub
+            ctx.fillStyle = PAL.gold;
+            ctx.font = `9px ${FONT}`;
+            ctx.fillText('▸ ACHIEVEMENT UNLOCKED', stackX + dx + 56, stackY + 14);
+            ctx.fillStyle = PAL.fgBright;
+            ctx.font = `16px 'VT323', ${FONT}`;
+            ctx.fillText(a.title, stackX + dx + 56, stackY + 30);
+            ctx.fillStyle = 'rgba(200,211,191,0.7)';
+            ctx.font = `10px ${FONT}`;
+            ctx.fillText(a.sub, stackX + dx + 56, stackY + 44);
+            ctx.restore();
+            stackY += cardH + 8;
+        }
+    }
+
+    function drawHudClock() {
+        // session timer top-right · feels like a real game's run timer
+        const mm = Math.floor(state.elapsedMs / 60000);
+        const ss = Math.floor((state.elapsedMs % 60000) / 1000);
+        const txt = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+        ctx.font = `11px 'VT323', ${FONT}`;
+        ctx.fillStyle = 'rgba(200,211,191,0.55)';
+        ctx.fillText('▶ ' + txt, W - 64, 18);
     }
 
     /** Consolidated HUD chrome · ONE top progress bar (with chapter ticks
@@ -1063,6 +1370,47 @@
             ctx.fillText(d.char, p.sx, p.sy);
             ctx.restore();
         }
+    }
+
+    /** render the live motion particles · fade out by age/life ratio */
+    function drawMotionParticles() {
+        ctx.font = `15px ${FONT}`;
+        for (let i = 0; i < motionPool.length; i++) {
+            const mp = motionPool[i];
+            if (mp.age >= mp.life) continue;
+            const t = mp.age / mp.life;     // 0..1 lifetime
+            const alpha = (1 - t) * 0.85;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = mp.color;
+            ctx.fillText(mp.char, mp.sx, mp.sy);
+            ctx.restore();
+        }
+    }
+
+    /** transient keyboard-controls hint that fades after first input · helps
+     *  desktop players discover the controls. Renders near the player. */
+    function drawKbHint() {
+        const isMobileLike = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+        const hint = isMobileLike ? 'tap ▲ to walk forward' : '←  ↑  →   space';
+        const hintW = hint.length * 8;
+        const sx = (W - hintW) / 2;
+        const sy = H - 200;
+        ctx.save();
+        ctx.globalAlpha = state.kbHintAlpha;
+        // background plate so it stays readable over busy scenes
+        ctx.fillStyle = 'rgba(10,14,10,0.55)';
+        ctx.fillRect(sx - 10, sy - 14, hintW + 20, 20);
+        ctx.strokeStyle = `rgba(232,240,221,${0.4 * state.kbHintAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx - 10 + 0.5, sy - 14 + 0.5, hintW + 19, 19);
+        ctx.font = `14px ${FONT}`;
+        ctx.fillStyle = PAL.fgBright;
+        ctx.fillText(hint, sx, sy);
+        // little downward arrow pointing at the player
+        ctx.fillStyle = PAL.accent || PAL.green;
+        ctx.fillText('▼', (W / 2) - 4, sy + 18);
+        ctx.restore();
     }
 
     function drawPlayer() {

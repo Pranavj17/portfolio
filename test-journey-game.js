@@ -258,19 +258,19 @@ async function mobileFlow(browser, url) {
     });
     if (!forwardRect) throw new Error('forward touch button not found');
 
-    // tap-and-hold the forward button for 1.5s to walk forward
+    // tap-and-hold the forward button for 1.5s to walk forward · screenshot
+    // mid-motion so dust/exhaust particles are visible (they fade in ~400ms)
     await page.touchscreen.touchStart(forwardRect.x, forwardRect.y);
-    await sleep(1500);
-    await page.touchscreen.touchEnd();
+    await sleep(1300);
+    await page.screenshot({ path: path.join(OUT_DIR, '06-mobile-walking.png') });
     await sleep(200);
+    await page.touchscreen.touchEnd();
 
     const afterZ = await page.evaluate(() => window.__journey.state.player.z);
     const movedBy = afterZ - beforeZ;
     console.log(`  player.z: ${beforeZ.toFixed(1)} → ${afterZ.toFixed(1)}  (Δ ${movedBy.toFixed(1)})`);
     if (movedBy < 30) throw new Error(`touch d-pad didn't move the player enough · Δz=${movedBy.toFixed(1)}`);
-
-    await page.screenshot({ path: path.join(OUT_DIR, '06-mobile-walking.png') });
-    console.log('  ✓ 06-mobile-walking.png');
+    console.log('  ✓ 06-mobile-walking.png (mid-motion · dust visible)');
 
     // tap the JUMP button and verify player leaves the ground
     const jumpRect = await page.evaluate(() => {
