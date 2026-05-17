@@ -1148,7 +1148,11 @@
         ctx.ellipse(cx, groundY + 4, shadowR * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // dispatch to the per-vehicle drawer
+        // dispatch to the per-vehicle drawer · walk/run keep the procedural
+        // stick figure (reads great at small scale), but wheeled vehicles
+        // render as LARGE colorful emoji glyphs (Apple Color Emoji / Noto)
+        // so the motorbike, hatchback, sedan, race-car are instantly
+        // recognizable. Procedural bike at ~30px was too abstract to read.
         switch (state.vehicle) {
             case 'walk':
                 drawWalker(cx, groundY, state.walkPhase, moving ? 0.6 : 0.0, 0.06, bob);
@@ -1156,19 +1160,25 @@
             case 'run':
                 drawWalker(cx, groundY, state.walkPhase, moving ? 0.7 : 0.0, 0.22, bob);
                 break;
-            case 'cycle':
-                drawCycle(cx, groundY);
-                break;
-            case 'bike':
-                drawBike(cx, groundY);
-                break;
-            case 'alto':
-                drawCar(cx, groundY, { bodyColor: '#d8c4a0', accent: '#7a5b30', isGT: false, shape: 'hatch' });
-                break;
-            case 'vw':
-                drawCar(cx, groundY, { bodyColor: '#1d3a5c', accent: '#d4a653', isGT: true,  shape: 'sedan' });
+            default:
+                drawVehicleEmoji(cx, groundY, VEHICLES[state.vehicle].icon, bob);
                 break;
         }
+    }
+
+    /** Wheeled-vehicle drawer · renders the large emoji glyph from
+     *  VEHICLES[state.vehicle].icon at 64px. Adds a tiny engine-idle
+     *  vibration via bob so the vehicle doesn't look frozen. */
+    function drawVehicleEmoji(cx, footY, glyph, bob) {
+        ctx.save();
+        // engine-vibe: subtle horizontal jitter when running, none when stopped
+        const moving = state.keys.right || state.touchHold || state.keys.left;
+        const jitter = moving ? (Math.sin(state.bobT * 0.05) * 0.6) : 0;
+        ctx.font = '64px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(glyph, cx + jitter, footY + 8 + bob);
+        ctx.restore();
     }
 
     // hex → rgb component helpers · cheap, avoids string parsing per call
