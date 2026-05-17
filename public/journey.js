@@ -743,6 +743,92 @@
             }
         }
 
+        // EXAM-DAY WALL CLOCK · in window 2_0 (lit, top-left of bank)
+        const clkX = px - 36 + 0 * 16 + 5;
+        const clkY = gY - 116 + 2 * 30 + 7;
+        ctx.fillStyle = '#e9d8b0';
+        ctx.beginPath(); ctx.arc(clkX, clkY, 4.2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2a2018'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.arc(clkX, clkY, 4.2, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#2a2018';
+        ctx.fillRect(clkX - 0.3, clkY - 4, 0.6, 1);
+        ctx.fillRect(clkX + 3, clkY - 0.3, 1, 0.6);
+        ctx.fillRect(clkX - 0.3, clkY + 3, 0.6, 1);
+        ctx.fillRect(clkX - 4, clkY - 0.3, 1, 0.6);
+        // 10:55 hands · exam-anxious time
+        ctx.strokeStyle = '#2a2018'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(clkX, clkY);
+        ctx.lineTo(clkX + Math.cos(-Math.PI / 2 - 1.13) * 2.2,
+                   clkY + Math.sin(-Math.PI / 2 - 1.13) * 2.2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(clkX, clkY);
+        ctx.lineTo(clkX + Math.cos(-Math.PI / 2 - 0.52) * 3.2,
+                   clkY + Math.sin(-Math.PI / 2 - 0.52) * 3.2); ctx.stroke();
+        // second hand · 1Hz jerk
+        const sec = Math.floor(t / 1000) % 60;
+        const sa = -Math.PI / 2 + (sec / 60) * Math.PI * 2;
+        ctx.strokeStyle = '#a4332e'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(clkX, clkY);
+        ctx.lineTo(clkX + Math.cos(sa) * 3.6, clkY + Math.sin(sa) * 3.6); ctx.stroke();
+
+        // SWEAT/TENSION LINES around hunched student in window 3_2
+        const sxw = px - 36 + 2 * 16 + 5;
+        const syw = gY - 116 + 3 * 30 + 6;
+        ctx.strokeStyle = '#a4332e'; ctx.lineWidth = 0.5;
+        const pulseT = 0.6 + Math.sin(t / 220) * 0.4;
+        const prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = a * pulseT;
+        ctx.beginPath();
+        ctx.moveTo(sxw - 4, syw - 3); ctx.lineTo(sxw - 6, syw - 6);
+        ctx.moveTo(sxw + 4, syw - 3); ctx.lineTo(sxw + 6, syw - 6);
+        ctx.moveTo(sxw, syw - 5);     ctx.lineTo(sxw, syw - 8);
+        ctx.stroke();
+        ctx.globalAlpha = prevAlpha;
+
+        // STORM CLOUD · mental-pressure scar over top-right corner
+        const cbreath = Math.sin(t / 900) * 1.2;
+        ctx.fillStyle = 'rgba(42, 32, 24, 0.78)';
+        ctx.beginPath();
+        ctx.arc(px + 38 + cbreath, gY - 132, 6, 0, Math.PI * 2);
+        ctx.arc(px + 46, gY - 134, 5, 0, Math.PI * 2);
+        ctx.arc(px + 52 - cbreath, gY - 131, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#a4332e'; ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(px + 44, gY - 126); ctx.lineTo(px + 42, gY - 122);
+        ctx.lineTo(px + 45, gY - 122); ctx.lineTo(px + 43, gY - 118);
+        ctx.stroke();
+
+        // EXAM PAPER · folded sheet on path with red correction marks
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px - 158, gY - 4, 12, 4);
+        ctx.fillStyle = '#d4c090'; ctx.fillRect(px - 158, gY - 4, 12, 1);
+        ctx.fillStyle = '#a4332e'; ctx.font = '5px monospace';
+        ctx.fillText('+', px - 156, gY - 1);
+        ctx.fillText('+', px - 152, gY - 1);
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillRect(px - 156, gY - 3, 3, 0.5);
+        ctx.fillRect(px - 156, gY - 2, 4, 0.5);
+
+        // EXAM IN SESSION sign on wooden stake
+        const stkX = px + 22;
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(stkX, gY - 14, 1, 14);
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(stkX - 14, gY - 22, 28, 9);
+        ctx.strokeStyle = '#a4332e'; ctx.lineWidth = 0.5;
+        ctx.strokeRect(stkX - 14, gY - 22, 28, 9);
+        ctx.fillStyle = '#a4332e'; ctx.font = '5px monospace';
+        ctx.fillText('EXAM IN', stkX - 12, gY - 17);
+        ctx.fillText('SESSION', stkX - 12, gY - 14);
+
+        // SECOND TUITION BILLBOARD · right side, balances the left one
+        const b2x = px + 210, b2y = gY - 72;
+        ctx.fillStyle = '#3a2418'; ctx.fillRect(b2x - 1, b2y, 2, 72);
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(b2x - 34, b2y - 4, 68, 28);
+        ctx.fillStyle = '#a4332e'; ctx.fillRect(b2x - 34, b2y - 4, 68, 6);
+        ctx.fillStyle = '#e9d8b0'; ctx.font = '6px monospace';
+        ctx.fillText('CET PREP', b2x - 30, b2y + 1);
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillText('PHYSICS', b2x - 30, b2y + 10);
+        ctx.fillText('JEE 2014', b2x - 30, b2y + 18);
+
         // entrance · clinical
         ctx.fillStyle = '#5e7a8a'; ctx.fillRect(px - 9, gY - 20, 18, 20);
         ctx.fillStyle = '#0a0604'; ctx.fillRect(px - 7, gY - 18, 14, 18);
@@ -946,7 +1032,64 @@
             ctx.fillRect(sx, conY + 14 + slide, 2, 8);
         }
 
-        // MICROPHONE
+        // PODCAST BOOTH window · user did voice recordings + podcasts here
+        const podX = px - 14, podY = gY - 52;
+        ctx.fillStyle = `rgba(255, 140, 80, ${a * 0.5})`;
+        ctx.fillRect(podX, podY, 28, 28);
+        ctx.fillStyle = color; ctx.fillRect(podX - 1, podY - 2, 30, 2);
+
+        // LARGE BROADCAST MIC + POP FILTER inside booth
+        const bmX = podX + 14, bmY = podY + 22;
+        ctx.strokeStyle = '#3a2a20'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(bmX, podY + 28); ctx.lineTo(bmX, bmY - 8); ctx.stroke();
+        ctx.fillStyle = '#1a1010';
+        ctx.beginPath(); ctx.ellipse(bmX, bmY - 12, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e9d8b0';
+        for (let i = -3; i <= 3; i++) ctx.fillRect(bmX - 4, bmY - 15 + i * 2, 8, 1);
+        // pop filter (foam screen)
+        ctx.strokeStyle = `rgba(233, 216, 176, ${a * 0.85})`; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(bmX - 6, bmY - 11, 3.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = `rgba(233, 216, 176, ${a * 0.4})`;
+        ctx.beginPath(); ctx.moveTo(bmX - 4, bmY - 11); ctx.lineTo(bmX, bmY - 11); ctx.stroke();
+
+        // REC indicator · pulsing red dot + "REC" label
+        const recPulse = (Math.sin(t * 0.006) + 1) * 0.5;
+        ctx.fillStyle = `rgba(255, 60, 50, ${0.4 + recPulse * 0.6})`;
+        ctx.beginPath(); ctx.arc(podX + 5, podY + 5, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255, 200, 160, ${a * 0.85})`;
+        ctx.font = 'bold 5px monospace'; ctx.textAlign = 'left';
+        ctx.fillText('REC', podX + 9, podY + 7);
+
+        // WAVEFORM · scrolls in mixing-console top half
+        ctx.strokeStyle = `rgba(255, 176, 112, ${a * 0.9})`; ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < 32; i++) {
+            const wx = conX + 3 + i;
+            const phaseW = t * 0.005 + i * 0.45;
+            const stableNoise = Math.sin(i * 12.9898) * 0.5;
+            const amp = (Math.sin(phaseW) + Math.sin(phaseW * 2.3) * 0.5 + stableNoise) * 3.5;
+            const wy = conY + 7 + amp;
+            if (i === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+        }
+        ctx.stroke();
+
+        // PLAYBACK METERS · 4 vertical bars audio-level style
+        const metX = conX + 26, metY = conY + 18;
+        for (let i = 0; i < 4; i++) {
+            const lvl = (Math.sin(t * 0.004 + i * 1.3) + 1) * 0.5 * 5 + 1;
+            ctx.fillStyle = '#0a0604'; ctx.fillRect(metX + i * 2.5, metY - 6, 1.5, 6);
+            const hue = lvl > 4 ? color : '#ffb070';
+            ctx.fillStyle = hue;
+            ctx.fillRect(metX + i * 2.5, metY - lvl, 1.5, lvl);
+        }
+
+        // "PODCAST" sign on facade
+        ctx.fillStyle = '#2a1810'; ctx.fillRect(px - 28, gY - 20, 56, 9);
+        ctx.fillStyle = color;
+        ctx.font = 'bold 7px "Cinzel", monospace'; ctx.textAlign = 'center';
+        ctx.fillText('PODCAST', px, gY - 13);
+
+        // MICROPHONE (foreground, outside studio)
         const micX = px - 92, micBaseY = gY;
         ctx.strokeStyle = '#3a2a20'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(micX, micBaseY); ctx.lineTo(micX, micBaseY - 28); ctx.stroke();
@@ -1680,12 +1823,60 @@
         // head
         ctx.fillStyle = SKIN;
         ctx.beginPath(); ctx.arc(headX, headY, headR, 0, Math.PI * 2); ctx.fill();
-        // cowboy hat (brim + crown)
-        ctx.fillStyle = HAT;
-        ctx.beginPath();
-        ctx.ellipse(headX + sinL * 2, headY - headR + 1, headR + 4, 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(headX - 4 + sinL * 3, headY - headR - 5, 8, 4);
+
+        // STAGE-SPECIFIC ACCESSORIES · character evolves with life phase.
+        // School (< 1100m): RED backpack with straps, messy hair tuft.
+        // College (1100-2500m): blue shoulder bag, baseball cap.
+        // Adult (>= 2500m): classic cowboy hat (the original look).
+        const stage = state.playerX < 1100 ? 'school'
+                    : state.playerX < 2500 ? 'college'
+                    : 'adult';
+
+        if (stage === 'school') {
+            // SCHOOL · backpack over shoulders + hair tuft
+            ctx.fillStyle = '#5a3a22';       // hair tuft (dark brown)
+            ctx.beginPath();
+            ctx.arc(headX, headY - headR + 2, headR + 1, Math.PI, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillRect(headX - 3 + sinL * 2, headY - headR - 2, 6, 2);
+            // BACKPACK (rectangle on back, two thin straps over shoulders)
+            const bagX = hipX - sinL * 8 - 7;
+            const bagY = hipY - cosL * (torsoH - 4);
+            ctx.fillStyle = '#a4332e';       // red school bag
+            ctx.fillRect(bagX, bagY, 9, 14);
+            ctx.fillStyle = '#7a221c';
+            ctx.fillRect(bagX, bagY, 9, 2);  // top flap
+            ctx.strokeStyle = '#7a221c'; ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(shoulder.x - 4, shoulder.y); ctx.lineTo(bagX + 2, bagY + 2);
+            ctx.moveTo(shoulder.x + 4, shoulder.y); ctx.lineTo(bagX + 7, bagY + 2);
+            ctx.stroke();
+        } else if (stage === 'college') {
+            // COLLEGE · baseball cap + messenger shoulder bag
+            ctx.fillStyle = '#2a3a5a';       // navy cap crown
+            ctx.beginPath();
+            ctx.arc(headX, headY - headR + 1, headR + 1, Math.PI, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#1a2a4a';       // cap brim (front-only)
+            ctx.fillRect(headX + sinL * 4, headY - headR + 1, headR + 2, 2);
+            // MESSENGER BAG · across the body, strap diagonal
+            ctx.strokeStyle = '#3a4a6a'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(shoulder.x - 3, shoulder.y);
+            ctx.lineTo(hipX + 10, hipY - 4);
+            ctx.stroke();
+            ctx.fillStyle = '#4a5a7a';
+            ctx.fillRect(hipX + 6, hipY - 8, 10, 9);
+            ctx.fillStyle = '#2a3a5a';
+            ctx.fillRect(hipX + 6, hipY - 8, 10, 2);
+        } else {
+            // ADULT · classic cowboy hat (brim + crown) — RDR vibe
+            ctx.fillStyle = HAT;
+            ctx.beginPath();
+            ctx.ellipse(headX + sinL * 2, headY - headR + 1, headR + 4, 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(headX - 4 + sinL * 3, headY - headR - 5, 8, 4);
+        }
         ctx.restore();
     }
 
@@ -2068,7 +2259,14 @@
                 if (state.playerX >= ch.x - 80 && state.playerX <= ch.x + 80) {
                     state.collected.add(ch.id);
                     updateProgress(i);
-                    showAchievement(ch, { kind: 'event' });
+                    // Dedup: skip the chapter achievement card if its achId
+                    // was already fired by a vehicle upgrade in the same
+                    // frame/zone. This stops "GOT THE GT" + "FIRST JOB · ALTO"
+                    // from showing twice (chapter + vehicle share achId).
+                    if (!ch.achId || !state.achievements.has(ch.achId)) {
+                        if (ch.achId) state.achievements.add(ch.achId);
+                        showAchievement(ch, { kind: 'event' });
+                    }
                     updateMission(i);
                     setTimeout(() => updateMission(pickNextObjective()), 1400);
                     triggerLetterbox(1100);
