@@ -549,209 +549,1003 @@
     // ── per-chapter custom landmark drawers · each chapter gets its own
     //    distinct silhouette so the world reads as a sequence of PLACES,
     //    not 8 copies of the same archway with different emoji on top.
+    // =====================================================================
+    // ENRICHED CHAPTER LANDMARKS · each chapter is now a LIVED ZONE with
+    // approach props (left of landmark), heart (landmark itself), and
+    // animated NPCs. All animation drives off state.elapsedMs.
+    // =====================================================================
+
     function landmarkITICS(px, gY, color, collected) {
-        // small primary-school building · classroom with a pitched roof
+        // ITICS · primary school years (Bangalore, age 7-15, until 2013)
+        // Approach: dropped bag, kicked football, swing set, math-tuition sign.
+        // Heart: school building with bell tower + flag. NPCs: 2 kids playing football.
         const a = collected ? 0.55 : 0.92;
         ctx.globalAlpha = a;
+        const t = state.elapsedMs;
+
+        // SWING SET · two empty swings, distant background
+        ctx.strokeStyle = '#5a3a22'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px - 230, gY); ctx.lineTo(px - 215, gY - 34);
+        ctx.lineTo(px - 175, gY - 34); ctx.lineTo(px - 160, gY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px - 215, gY - 34); ctx.lineTo(px - 160, gY - 34); ctx.stroke();
+        const sway = Math.sin(t * 0.0018) * 4;
+        ctx.strokeStyle = '#7a4a26';
+        ctx.beginPath(); ctx.moveTo(px - 205 + sway * 0.4, gY - 33); ctx.lineTo(px - 203, gY - 12); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px - 180 - sway * 0.4, gY - 33); ctx.lineTo(px - 178, gY - 12); ctx.stroke();
+        ctx.fillStyle = '#a86434';
+        ctx.fillRect(px - 207 + sway * 0.4, gY - 12, 8, 2);
+        ctx.fillRect(px - 182 - sway * 0.4, gY - 12, 8, 2);
+
+        // "MATH TUITION" sign · wooden stake
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(px - 145, gY - 22, 2, 22);
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px - 158, gY - 36, 28, 16);
+        ctx.fillStyle = '#5a3a22';
+        ctx.font = '7px monospace';
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('MATH', px - 155, gY - 28);
+        ctx.fillText('TUITION', px - 156, gY - 22);
+
+        // SCHOOL BAG · dropped on the path
+        ctx.fillStyle = '#7a4a26'; ctx.fillRect(px - 115, gY - 14, 18, 14);
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(px - 113, gY - 18, 14, 4);
+        ctx.strokeStyle = '#5a3a22'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(px - 106, gY - 8, 3, 0, Math.PI * 2); ctx.stroke();
+
+        // FOOTBALL · kicked aside, wobbles slightly
+        const ballBob = Math.sin(t * 0.004) * 1;
+        ctx.fillStyle = '#e9d8b0';
+        ctx.beginPath(); ctx.arc(px - 75, gY - 5 + ballBob, 5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#3a2a1a';
-        ctx.fillRect(px - 40, gY - 56, 80, 56);                       // walls
+        ctx.fillRect(px - 77, gY - 7 + ballBob, 2, 2);
+        ctx.fillRect(px - 73, gY - 6 + ballBob, 2, 2);
+
+        // KID NPCs · two silhouettes playing football
+        drawSchoolKid(px - 195, gY, t * 0.005,        color);
+        drawSchoolKid(px - 168, gY, t * 0.005 + 1.4,  '#7a4a26');
+
+        // SCHOOL BUILDING (heart)
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(px - 40, gY - 56, 80, 56);
         ctx.fillStyle = color;
-        // pitched roof
         ctx.beginPath();
         ctx.moveTo(px - 46, gY - 56); ctx.lineTo(px, gY - 86); ctx.lineTo(px + 46, gY - 56); ctx.closePath();
         ctx.fill();
-        // door + windows
         ctx.fillStyle = '#1a0e08';
-        ctx.fillRect(px - 8, gY - 30, 16, 30);                        // door
+        ctx.fillRect(px - 8, gY - 30, 16, 30);
         ctx.fillRect(px - 30, gY - 44, 12, 12);
         ctx.fillRect(px + 18, gY - 44, 12, 12);
-        // little flag on top
+        ctx.strokeStyle = '#a8b87a'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px - 24, gY - 44); ctx.lineTo(px - 24, gY - 32); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + 24, gY - 44); ctx.lineTo(px + 24, gY - 32); ctx.stroke();
+
+        // BELL TOWER + bell that swings
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(px - 8, gY - 100, 16, 14);
         ctx.fillStyle = color;
-        ctx.fillRect(px - 1, gY - 100, 2, 14);
-        ctx.fillStyle = '#e6c285';
-        ctx.beginPath(); ctx.moveTo(px + 1, gY - 100); ctx.lineTo(px + 12, gY - 95); ctx.lineTo(px + 1, gY - 90); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px - 10, gY - 100); ctx.lineTo(px, gY - 110); ctx.lineTo(px + 10, gY - 100); ctx.closePath();
+        ctx.fill();
+        const bellSwing = Math.sin(t * 0.003) * 2;
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(px + bellSwing, gY - 92, 3, 0, Math.PI); ctx.fill();
+        ctx.fillRect(px - 1 + bellSwing, gY - 95, 2, 4);
+
+        // FLAG on top
+        const wave = Math.sin(t * 0.004);
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(px - 1, gY - 124, 2, 24);
+        ctx.fillStyle = '#a86434';
+        ctx.beginPath();
+        ctx.moveTo(px + 1, gY - 124);
+        ctx.lineTo(px + 14 + wave * 2, gY - 121);
+        ctx.lineTo(px + 1, gY - 118); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px + 1, gY - 118, 12, 4);
+        ctx.fillStyle = color;       ctx.fillRect(px + 1, gY - 114, 12, 4);
+
         ctx.globalAlpha = 1;
     }
+    function drawSchoolKid(x, y, phase, shirtColor) {
+        const swing = Math.sin(phase) * 3;
+        ctx.strokeStyle = '#2a1810'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x - 2 + swing, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x + 2 - swing, y); ctx.stroke();
+        ctx.fillStyle = shirtColor; ctx.fillRect(x - 3, y - 18, 6, 9);
+        ctx.strokeStyle = '#2a1810';
+        ctx.beginPath(); ctx.moveTo(x - 3, y - 16); ctx.lineTo(x - 6, y - 10 - swing * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 3, y - 16); ctx.lineTo(x + 6, y - 10 + swing * 0.5); ctx.stroke();
+        ctx.fillStyle = '#a86434';
+        ctx.beginPath(); ctx.arc(x, y - 21, 3, 0, Math.PI * 2); ctx.fill();
+    }
+
     function landmarkCMR(px, gY, color, collected) {
-        // CMR · taller multi-storey school
+        // CMR NATIONAL · PU years (2013-2015) · exam-pressure cooker
         const a = collected ? 0.55 : 0.92;
+        const t = state.elapsedMs;
         ctx.globalAlpha = a;
-        ctx.fillStyle = '#2a2018';
-        ctx.fillRect(px - 36, gY - 100, 72, 100);                     // walls
-        ctx.fillStyle = color;
-        ctx.fillRect(px - 38, gY - 104, 76, 8);                       // crown band
-        // 3 rows of windows
-        ctx.fillStyle = '#0a0604';
-        for (let r = 0; r < 3; r++) {
-            for (let c = 0; c < 4; c++) {
-                ctx.fillRect(px - 30 + c * 16, gY - 90 + r * 22, 8, 12);
+
+        // TUITION CENTER billboard
+        const bx = px - 230, by = gY - 78;
+        ctx.fillStyle = '#3a2418'; ctx.fillRect(bx - 1, by, 2, 78);
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(bx - 32, by - 4, 64, 26);
+        ctx.fillStyle = '#5e7a8a'; ctx.fillRect(bx - 32, by - 4, 64, 6);
+        ctx.fillStyle = '#5a3a22';
+        ctx.font = '7px monospace';
+        ctx.textAlign = 'start'; ctx.textBaseline = 'top';
+        ctx.fillText('TUITION', bx - 28, by + 2);
+        ctx.fillText('CTR  →',  bx - 28, by + 11);
+        ctx.textBaseline = 'alphabetic';
+
+        // STACKED BOOKS
+        const stack = [
+            { x: px - 170, w: 22, h: 4, c: '#a86434' },
+            { x: px - 168, w: 18, h: 4, c: '#5e7a8a' },
+            { x: px - 172, w: 24, h: 5, c: '#7a4a26' },
+        ];
+        let sy = gY;
+        for (const b of stack) {
+            ctx.fillStyle = b.c; ctx.fillRect(b.x, sy - b.h, b.w, b.h);
+            ctx.fillStyle = '#2a1808'; ctx.fillRect(b.x, sy - b.h, b.w, 1);
+            sy -= b.h;
+        }
+
+        // GRAPH PAPER scattered
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px - 195, gY - 2, 10, 2);
+        ctx.fillRect(px - 142, gY - 3, 9, 3);
+        ctx.strokeStyle = '#5e7a8a'; ctx.lineWidth = 0.4;
+        ctx.strokeRect(px - 195, gY - 2, 10, 2);
+        ctx.strokeRect(px - 142, gY - 3, 9, 3);
+
+        // COFFEE CUP with steam
+        ctx.fillStyle = '#d4a653'; ctx.fillRect(px - 110, gY - 7, 7, 7);
+        ctx.fillStyle = '#2a1808'; ctx.fillRect(px - 109, gY - 6, 5, 2);
+        ctx.fillStyle = 'rgba(233, 216, 176, 0.5)';
+        const steamX = px - 106 + Math.sin(t / 400) * 1.5;
+        ctx.fillRect(steamX, gY - 14, 1, 5);
+
+        // STUDY DESK lamp through window
+        ctx.fillStyle = '#1a1208'; ctx.fillRect(px - 80, gY - 26, 24, 20);
+        ctx.fillStyle = '#d4a653'; ctx.fillRect(px - 78, gY - 24, 20, 16);
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(px - 76, gY - 11, 16, 3);
+        ctx.fillStyle = '#2a1808'; ctx.fillRect(px - 72, gY - 22, 2, 11);
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px - 75, gY - 24, 8, 3);
+
+        // FOREGROUND NPC · student with heavy bag, walking
+        const walkBob = Math.sin(t / 250) * 0.6;
+        const wx = px - 130;
+        ctx.fillStyle = '#2a1808'; ctx.fillRect(wx - 2, gY - 18 + walkBob, 4, 10);
+        ctx.fillStyle = '#e9d8b0';
+        ctx.beginPath(); ctx.arc(wx, gY - 20 + walkBob, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5e7a8a'; ctx.fillRect(wx + 1, gY - 14 + walkBob, 5, 6);
+        ctx.fillStyle = '#2a1808';
+        ctx.fillRect(wx - 2, gY - 8 + walkBob, 1.5, 8);
+        ctx.fillRect(wx + 0.5, gY - 8 + walkBob, 1.5, 8);
+
+        // HEART · multi-storey classroom block
+        ctx.fillStyle = '#2a2018'; ctx.fillRect(px - 42, gY - 124, 84, 124);
+        ctx.fillStyle = '#5e7a8a';
+        ctx.fillRect(px - 44, gY - 128, 88, 8);
+        ctx.fillRect(px - 44, gY - 90, 88, 1);
+        ctx.fillRect(px - 44, gY - 60, 88, 1);
+        ctx.fillRect(px - 44, gY - 30, 88, 1);
+
+        const litMap = { '0_1': 0.0, '1_3': 0.4, '2_0': 0.8, '2_4': 1.2, '3_2': 1.6 };
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 5; c++) {
+                const wxw = px - 36 + c * 16;
+                const wyw = gY - 116 + r * 30;
+                const key = r + '_' + c;
+                if (litMap[key] !== undefined) {
+                    drawWindowSilhouette(wxw, wyw, 10, 14, t / 1000 + litMap[key]);
+                } else {
+                    ctx.fillStyle = '#0a0604';
+                    ctx.fillRect(wxw, wyw, 10, 14);
+                }
             }
         }
-        ctx.fillStyle = color;
-        ctx.fillRect(px - 8, gY - 18, 16, 18);                        // entrance frame
-        ctx.fillStyle = '#0a0604';
-        ctx.fillRect(px - 6, gY - 16, 12, 16);
+
+        // entrance · clinical
+        ctx.fillStyle = '#5e7a8a'; ctx.fillRect(px - 9, gY - 20, 18, 20);
+        ctx.fillStyle = '#0a0604'; ctx.fillRect(px - 7, gY - 18, 14, 18);
+        // CMR signboard
+        ctx.fillStyle = '#e9d8b0'; ctx.fillRect(px - 16, gY - 28, 32, 6);
+        ctx.fillStyle = '#5a3a22'; ctx.font = '6px monospace';
+        ctx.fillText('CMR PU', px - 13, gY - 23);
+
         ctx.globalAlpha = 1;
     }
+    function drawWindowSilhouette(wx, wy, w, h, phase) {
+        ctx.fillStyle = '#d4a653'; ctx.fillRect(wx, wy, w, h);
+        ctx.fillStyle = 'rgba(94, 122, 138, 0.35)'; ctx.fillRect(wx, wy, w, h);
+        const bob = Math.sin(phase * 2.0) * 0.5;
+        ctx.fillStyle = '#1a1208';
+        ctx.fillRect(wx + 1, wy + h - 6 + bob, w - 2, 6);
+        ctx.beginPath();
+        ctx.arc(wx + w / 2, wy + h - 8 + bob, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2a2018'; ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(wx + w / 2, wy); ctx.lineTo(wx + w / 2, wy + h);
+        ctx.moveTo(wx, wy + h / 2); ctx.lineTo(wx + w, wy + h / 2);
+        ctx.stroke();
+    }
+
     function landmarkDSCE(px, gY, color, collected) {
-        // DSCE · engineering campus, central tower with side wings
+        // DSCE · mech-eng campus, approach props + tower + hostel + NPCs
         const a = collected ? 0.55 : 0.92;
         ctx.globalAlpha = a;
+        const t = state.elapsedMs;
+
+        // Parked bicycles
+        drawBicycle(px - 180, gY, color);
+        drawBicycle(px - 158, gY, '#8a5230');
+        drawBicycle(px - 136, gY, color);
+
+        // Stack of notebooks
+        ctx.fillStyle = '#3a2418'; ctx.fillRect(px - 110, gY - 6, 22, 4);
+        ctx.fillStyle = color;     ctx.fillRect(px - 108, gY - 10, 22, 4);
+        ctx.fillStyle = '#6b4a2a'; ctx.fillRect(px - 112, gY - 14, 22, 4);
+        ctx.fillStyle = '#0a0604';
+        ctx.fillRect(px - 110, gY - 9, 22, 1);
+        ctx.fillRect(px - 108, gY - 13, 22, 1);
+
+        // Drafting board + compass
+        ctx.fillStyle = '#1a1410'; ctx.fillRect(px - 80, gY - 50, 36, 46);
+        ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px - 70, gY); ctx.lineTo(px - 64, gY - 50);
+        ctx.moveTo(px - 52, gY); ctx.lineTo(px - 58, gY - 50);
+        ctx.stroke();
+        drawDraftingCompass(px - 62, gY - 28);
+
+        // Engineering drawing
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px - 36, gY - 38, 28, 22);
+        ctx.strokeStyle = '#1a1006'; ctx.lineWidth = 0.6;
+        ctx.strokeRect(px - 32, gY - 34, 12, 12);
+        ctx.beginPath();
+        ctx.moveTo(px - 32, gY - 36); ctx.lineTo(px - 20, gY - 36);
+        ctx.moveTo(px - 18, gY - 34); ctx.lineTo(px - 12, gY - 30);
+        ctx.moveTo(px - 32, gY - 20); ctx.lineTo(px - 14, gY - 20);
+        ctx.stroke();
+        ctx.fillStyle = '#1a1006'; ctx.fillRect(px - 30, gY - 26, 2, 2);
+
+        // Canteen sign
+        ctx.fillStyle = '#3a2418'; ctx.fillRect(px + 70, gY - 40, 3, 40);
+        ctx.fillStyle = color;     ctx.fillRect(px + 60, gY - 50, 28, 14);
+        ctx.fillStyle = '#0a0604'; ctx.font = 'bold 7px "Cinzel", serif';
+        ctx.textAlign = 'center'; ctx.fillText('CANTEEN', px + 74, gY - 41);
+        ctx.textAlign = 'start';
+
+        // Hostel block silhouette behind tower
+        ctx.fillStyle = '#15100a';
+        ctx.fillRect(px + 30, gY - 90, 50, 90);
+        ctx.fillStyle = '#2a1e12';
+        for (let r = 0; r < 5; r++)
+            for (let c = 0; c < 4; c++)
+                ctx.fillRect(px + 34 + c * 11, gY - 84 + r * 16, 6, 8);
+
+        // Wings + central tower
         ctx.fillStyle = '#1f1810';
-        ctx.fillRect(px - 56, gY - 64, 112, 64);                      // wings
-        ctx.fillRect(px - 18, gY - 110, 36, 110);                     // central tower
+        ctx.fillRect(px - 56, gY - 64, 112, 64);
+        ctx.fillRect(px - 18, gY - 110, 36, 110);
         ctx.fillStyle = color;
-        ctx.fillRect(px - 20, gY - 115, 40, 8);                       // tower crown
-        // dome on the tower
+        ctx.fillRect(px - 20, gY - 115, 40, 8);
         ctx.beginPath(); ctx.arc(px, gY - 115, 14, Math.PI, 2 * Math.PI); ctx.fill();
-        // window grid
+        ctx.fillRect(px - 1, gY - 134, 2, 6);
+        ctx.beginPath(); ctx.arc(px, gY - 134, 2, 0, Math.PI * 2); ctx.fill();
+
+        // Gear logo · rotating
+        const gearA = t * 0.0008;
+        ctx.save();
+        ctx.translate(px, gY - 88);
+        ctx.rotate(gearA);
+        ctx.fillStyle = color;
+        for (let i = 0; i < 8; i++) {
+            const ang = (i / 8) * Math.PI * 2;
+            ctx.fillRect(Math.cos(ang) * 8 - 1.5, Math.sin(ang) * 8 - 1.5, 3, 3);
+        }
+        ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1f1810';
+        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // Window grid
         ctx.fillStyle = '#080604';
         for (let i = 0; i < 5; i++) ctx.fillRect(px - 14 + i * 8, gY - 80, 5, 8);
         for (let i = 0; i < 5; i++) ctx.fillRect(px - 14 + i * 8, gY - 60, 5, 8);
         for (let i = 0; i < 6; i++) ctx.fillRect(px - 50 + i * 16, gY - 50, 8, 8);
+
+        // Flag · gentle wave
+        const wave = Math.sin(t * 0.004) * 2;
+        ctx.fillStyle = '#3a2418'; ctx.fillRect(px - 30, gY - 140, 2, 30);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(px - 28, gY - 140);
+        ctx.lineTo(px - 14 + wave, gY - 136);
+        ctx.lineTo(px - 28, gY - 130);
+        ctx.fill();
+
+        // NPCs · 3 walkers with different phases + cyclist
+        const w1x = px - 100 + ((t * 0.025) % 220);
+        drawWalkingStudent(w1x, gY, t * 0.008, 1.0);
+        const w2x = px + 120 - ((t * 0.020) % 220);
+        drawWalkingStudent(w2x, gY, t * 0.007 + Math.PI, 0.88);
+        const w3x = px - 60 + ((t * 0.015) % 180);
+        drawWalkingStudent(w3x, gY, t * 0.006, 1.12);
+
+        const cyx = px - 200 + ((t * 0.045) % 420);
+        drawBicycle(cyx, gY, color);
+        ctx.fillStyle = '#e8c498';
+        ctx.beginPath(); ctx.arc(cyx + 4, gY - 22, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a3a5a';
+        ctx.fillRect(cyx + 2, gY - 19, 6, 9);
+
         ctx.globalAlpha = 1;
     }
+    function drawBicycle(x, y, color) {
+        ctx.strokeStyle = '#2a1e14'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x, y - 5, 5, 0, Math.PI * 2);
+        ctx.arc(x + 14, y - 5, 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 5); ctx.lineTo(x + 7, y - 11);
+        ctx.lineTo(x + 14, y - 5);
+        ctx.moveTo(x + 7, y - 11); ctx.lineTo(x + 12, y - 14);
+        ctx.moveTo(x + 14, y - 5); ctx.lineTo(x + 16, y - 14);
+        ctx.lineTo(x + 13, y - 15);
+        ctx.stroke();
+    }
+    function drawWalkingStudent(x, y, phase, scale) {
+        const h = 22 * scale;
+        const legSwing = Math.sin(phase) * 3;
+        ctx.fillStyle = '#e8c498';
+        ctx.beginPath(); ctx.arc(x, y - h, 3 * scale, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillRect(x - 3 * scale, y - h + 3, 6 * scale, 9 * scale);
+        ctx.strokeStyle = '#2a1e14'; ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x, y - h + 12 * scale); ctx.lineTo(x - legSwing, y);
+        ctx.moveTo(x, y - h + 12 * scale); ctx.lineTo(x + legSwing, y);
+        ctx.stroke();
+    }
+    function drawDraftingCompass(x, y) {
+        ctx.fillStyle = '#c47540';
+        ctx.beginPath(); ctx.arc(x, y - 14, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#c47540'; ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 14); ctx.lineTo(x - 8, y + 6);
+        ctx.moveTo(x, y - 14); ctx.lineTo(x + 8, y + 6);
+        ctx.stroke();
+        ctx.fillStyle = '#1a1006'; ctx.fillRect(x + 7, y + 4, 2, 4);
+    }
+
     function landmarkFever104(px, gY, color, collected) {
-        // FM tower · tall lattice mast with ON-AIR sign at base
+        // FEVER 104 FM · radio internship · studio booth + antenna + props
         const a = collected ? 0.55 : 0.92;
+        const t = state.elapsedMs;
         ctx.globalAlpha = a;
-        // base shed with ON AIR sign
-        ctx.fillStyle = '#2a1810';
-        ctx.fillRect(px - 30, gY - 36, 60, 36);
-        ctx.fillStyle = color;
-        ctx.fillRect(px - 26, gY - 30, 52, 14);                       // ON AIR plate
-        ctx.fillStyle = '#0a0604';
-        ctx.font = 'bold 10px "Cinzel", serif';
+
+        // STUDIO BUILDING
+        ctx.fillStyle = '#1a0f0a'; ctx.fillRect(px - 70, gY - 60, 140, 60);
+        ctx.fillStyle = '#2a1810'; ctx.fillRect(px - 70, gY - 66, 140, 6);
+
+        // DJ BOOTH window
+        const boothX = px - 56, boothY = gY - 52;
+        ctx.fillStyle = `rgba(255, 140, 80, ${a * 0.55})`;
+        ctx.fillRect(boothX, boothY, 38, 28);
+        ctx.fillStyle = color; ctx.fillRect(boothX - 1, boothY - 2, 40, 2);
+        drawDJSilhouette(boothX + 19, boothY + 18, t * 0.004);
+
+        // MIXING CONSOLE window
+        const conX = px + 18, conY = gY - 52;
+        ctx.fillStyle = `rgba(255, 140, 80, ${a * 0.45})`;
+        ctx.fillRect(conX, conY, 38, 28);
+        ctx.fillStyle = '#0a0604'; ctx.fillRect(conX + 3, conY + 18, 32, 6);
+        for (let i = 0; i < 5; i++) {
+            const sx = conX + 6 + i * 6;
+            const slide = Math.sin(t * 0.003 + i) * 2;
+            ctx.fillStyle = color;
+            ctx.fillRect(sx, conY + 14 + slide, 2, 8);
+        }
+
+        // MICROPHONE
+        const micX = px - 92, micBaseY = gY;
+        ctx.strokeStyle = '#3a2a20'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(micX, micBaseY); ctx.lineTo(micX, micBaseY - 28); ctx.stroke();
+        ctx.fillStyle = '#3a2a20'; ctx.fillRect(micX - 5, micBaseY - 1, 10, 2);
+        ctx.fillStyle = '#1a1010';
+        ctx.beginPath(); ctx.ellipse(micX, micBaseY - 32, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = color; ctx.fillRect(micX - 3, micBaseY - 34, 6, 1);
+
+        // ON AIR sign
+        drawOnAirSign(px, gY - 30, t * 0.003);
+
+        // 104 FM marquee
+        ctx.font = 'bold 8px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('ON AIR', px, gY - 19);
-        // lattice mast going up · 4 sections
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        const baseY = gY - 36;
-        const tipY = gY - 150;
+        const scroll = (t * 0.05) % 40;
+        ctx.fillStyle = `rgba(255, 200, 160, ${a * 0.7})`;
+        ctx.fillText('· 104 FM · FEVER · 104 FM ·', px - scroll, gY - 9);
+
+        // FLOATING MUSIC NOTES drift up from booth
+        for (let i = 0; i < 5; i++) {
+            const drift = (t * 0.04 + i * 80) % 200;
+            const nx = px - 40 + i * 22 + Math.sin(t * 0.002 + i) * 6;
+            const ny = gY - 60 - drift;
+            const noteAlpha = a * Math.max(0, 1 - drift / 200);
+            drawMusicNote(nx, ny, 1 + i * 0.05, noteAlpha);
+        }
+
+        // ANTENNA LATTICE
+        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        const baseY = gY - 66;
+        const tipY = gY - 180;
         const baseHW = 14, tipHW = 3;
         ctx.beginPath();
         ctx.moveTo(px - baseHW, baseY); ctx.lineTo(px - tipHW, tipY);
         ctx.moveTo(px + baseHW, baseY); ctx.lineTo(px + tipHW, tipY);
         ctx.stroke();
-        // cross-bracing
-        for (let i = 0; i < 6; i++) {
-            const t = i / 6;
-            const y = baseY + (tipY - baseY) * t;
-            const hw = baseHW + (tipHW - baseHW) * t;
+        for (let i = 0; i < 7; i++) {
+            const k = i / 7;
+            const y = baseY + (tipY - baseY) * k;
+            const hw = baseHW + (tipHW - baseHW) * k;
             ctx.beginPath(); ctx.moveTo(px - hw, y); ctx.lineTo(px + hw, y); ctx.stroke();
         }
-        // pulsing red beacon at the tip
-        const beacon = 0.5 + Math.sin(state.elapsedMs * 0.008) * 0.5;
-        ctx.fillStyle = `rgba(255, 60, 50, ${beacon})`;
+        for (let i = 0; i < 4; i++) {
+            const y1 = baseY + i * 16, y2 = y1 + 16;
+            const hw1 = baseHW - i * 1.8, hw2 = baseHW - (i + 1) * 1.8;
+            ctx.beginPath();
+            ctx.moveTo(px - hw1, y1); ctx.lineTo(px + hw2, y2);
+            ctx.moveTo(px + hw1, y1); ctx.lineTo(px - hw2, y2);
+            ctx.stroke();
+        }
+
+        // GLOWING BEACON
+        const beacon = 0.5 + Math.sin(t * 0.008) * 0.5;
+        ctx.fillStyle = `rgba(255, 60, 50, ${beacon * 0.35})`;
+        ctx.beginPath(); ctx.arc(px, tipY - 4, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255, 80, 60, ${beacon})`;
         ctx.beginPath(); ctx.arc(px, tipY - 4, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 1;
+
+        ctx.globalAlpha = 1; ctx.textAlign = 'start';
     }
+    function drawMusicNote(x, y, scale, alpha) {
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffb070';
+        ctx.font = `${Math.round(16 * scale)}px serif`;
+        ctx.textAlign = 'center';
+        const glyph = (Math.floor(x + y) % 2) ? '♪' : '♫';
+        ctx.fillText(glyph, x, y);
+        ctx.restore();
+    }
+    function drawDJSilhouette(x, y, phase) {
+        const nod = Math.sin(phase) * 1.2;
+        ctx.save();
+        ctx.fillStyle = '#0a0604';
+        ctx.fillRect(x - 10, y + 6, 20, 6);
+        ctx.beginPath(); ctx.arc(x, y + nod, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#b84c32'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y + nod - 1, 7, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+        ctx.fillStyle = '#b84c32';
+        ctx.fillRect(x - 8, y + nod - 1, 2, 4);
+        ctx.fillRect(x + 6, y + nod - 1, 2, 4);
+        ctx.restore();
+    }
+    function drawOnAirSign(x, y, blinkPhase) {
+        const on = Math.sin(blinkPhase) > -0.3;
+        ctx.save();
+        ctx.fillStyle = '#2a1810'; ctx.fillRect(x - 26, y - 6, 52, 14);
+        ctx.fillStyle = on ? '#b84c32' : '#3a1810'; ctx.fillRect(x - 24, y - 4, 48, 10);
+        if (on) { ctx.fillStyle = 'rgba(255, 80, 50, 0.25)'; ctx.fillRect(x - 30, y - 8, 60, 18); }
+        ctx.fillStyle = on ? '#0a0604' : '#1a0e08';
+        ctx.font = 'bold 10px "Cinzel", serif'; ctx.textAlign = 'center';
+        ctx.fillText('ON AIR', x, y + 4);
+        ctx.restore();
+    }
+
     function landmarkSakha(px, gY, color, collected) {
-        // SAKHA · mid-rise office tower with window grid
+        // SAKHA GLOBAL · first job (Jul 2019 - Sep 2022)
         const a = collected ? 0.55 : 0.92;
+        const t = state.elapsedMs / 1000;
         ctx.globalAlpha = a;
-        ctx.fillStyle = '#1a1610';
-        ctx.fillRect(px - 32, gY - 120, 64, 120);
+
+        // Maruti Alto parked
+        drawAlto(px - 110, gY - 2, '#d9c9a0');
+
+        // Coffee with steam
+        drawCoffeeWithSteam(px - 60, gY - 4, t);
+
+        // Walking figure toward entrance
+        const walkPhase = Math.sin(t * 4) * 1.2;
+        ctx.fillStyle = '#0a0806';
+        ctx.fillRect(px - 28, gY - 18, 5, 12);
+        ctx.beginPath(); ctx.arc(px - 25.5, gY - 22, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(px - 29, gY - 6 + Math.abs(walkPhase) * 0.5, 2, 6);
+        ctx.fillRect(px - 24, gY - 6 + Math.abs(-walkPhase) * 0.5, 2, 6);
+
+        // Office building
+        ctx.fillStyle = '#1a1610'; ctx.fillRect(px - 36, gY - 110, 72, 110);
+        ctx.fillStyle = '#2a2218'; ctx.fillRect(px - 38, gY - 114, 76, 5);
+        ctx.fillStyle = color; ctx.fillRect(px - 38, gY - 117, 76, 4);
+
+        // Parking lot
+        ctx.fillStyle = '#0c0a08'; ctx.fillRect(px - 130, gY - 1, 220, 6);
+        ctx.fillStyle = '#8a8270';
+        for (let i = 0; i < 5; i++) ctx.fillRect(px - 120 + i * 50, gY + 1, 14, 1);
+
+        // Entrance
+        ctx.fillStyle = '#08060a'; ctx.fillRect(px - 7, gY - 22, 14, 22);
         ctx.fillStyle = color;
-        ctx.fillRect(px - 34, gY - 124, 68, 6);                       // crown
-        // 6×4 window grid · some windows lit (gold), most dark
-        for (let r = 0; r < 6; r++) {
-            for (let c = 0; c < 4; c++) {
-                const lit = ((r * 7 + c * 3) % 5) < 2;
-                ctx.fillStyle = lit ? color : '#08060a';
-                ctx.fillRect(px - 26 + c * 14, gY - 108 + r * 16, 8, 10);
+        ctx.globalAlpha = a * 0.7; ctx.fillRect(px - 8, gY - 24, 16, 2);
+        ctx.globalAlpha = a;
+
+        // SAKHA GLOBAL plate
+        ctx.fillStyle = color; ctx.fillRect(px - 30, gY - 38, 60, 8);
+        ctx.fillStyle = '#1a1610';
+        ctx.font = 'bold 6px "Cinzel", serif'; ctx.textAlign = 'center';
+        ctx.fillText('SAKHA GLOBAL', px, gY - 32);
+        ctx.textAlign = 'start';
+
+        // Windows · 4x5 with desk silhouettes
+        const litPattern = [[1,0,1,1,0],[1,1,0,1,1],[0,1,1,0,1],[1,0,1,1,0]];
+        const deskPattern = [[1,0,0,1,0],[1,1,0,0,1],[0,1,1,0,1],[0,0,1,0,0]];
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 5; c++) {
+                const wx = px - 30 + c * 12;
+                const wy = gY - 100 + r * 16;
+                const phase = t * 3 + r * 1.7 + c * 0.9;
+                drawOfficeWindow(wx, wy, 9, 11, phase, litPattern[r][c], deskPattern[r][c]);
             }
         }
+
         ctx.globalAlpha = 1;
     }
+    function drawAlto(x, y, bodyColor) {
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(x - 14, y - 6, 28, 6);
+        ctx.beginPath();
+        ctx.moveTo(x - 10, y - 6);
+        ctx.lineTo(x - 7, y - 13);
+        ctx.lineTo(x + 8, y - 13);
+        ctx.lineTo(x + 11, y - 6);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1a1812';
+        ctx.fillRect(x - 6, y - 12, 6, 5);
+        ctx.fillRect(x + 1, y - 12, 6, 5);
+        ctx.fillStyle = '#0a0806';
+        ctx.beginPath(); ctx.arc(x - 8, y, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 8, y, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c9a151'; ctx.fillRect(x + 12, y - 4, 2, 2);
+    }
+    function drawOfficeWindow(wx, wy, w, h, phase, lit, hasDesk) {
+        ctx.fillStyle = '#08060a'; ctx.fillRect(wx, wy, w, h);
+        if (!lit) return;
+        const flicker = 0.85 + Math.sin(phase * 4) * 0.08;
+        const prevAlpha = ctx.globalAlpha;
+        ctx.fillStyle = '#c9a151';
+        ctx.globalAlpha = prevAlpha * flicker;
+        ctx.fillRect(wx + 1, wy + 1, w - 2, h - 2);
+        ctx.globalAlpha = prevAlpha;
+        if (hasDesk) {
+            ctx.fillStyle = '#1a1208';
+            ctx.fillRect(wx + 1, wy + h - 4, w - 2, 2);
+            ctx.fillRect(wx + 2, wy + h - 7, 3, 3);
+            const bob = Math.sin(phase) * 0.6;
+            ctx.fillRect(wx + 5, wy + h - 6 + bob, 3, 2);
+            ctx.beginPath();
+            ctx.arc(wx + 6.5, wy + h - 7 + bob, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    function drawCoffeeWithSteam(x, y, t) {
+        ctx.fillStyle = '#e8dcc0'; ctx.fillRect(x - 3, y - 6, 6, 5);
+        ctx.strokeStyle = '#e8dcc0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x + 4, y - 3.5, 1.5, -Math.PI/2, Math.PI/2); ctx.stroke();
+        ctx.fillStyle = '#3a2410'; ctx.fillRect(x - 2, y - 6, 4, 1);
+        const prevAlpha = ctx.globalAlpha;
+        ctx.strokeStyle = '#d8c89a';
+        ctx.globalAlpha = prevAlpha * 0.55; ctx.lineWidth = 0.8;
+        for (let s = 0; s < 3; s++) {
+            ctx.beginPath();
+            for (let py = 0; py < 10; py++) {
+                const sx = x - 1 + s + Math.sin(t * 3 + py * 0.6 + s) * 1.2;
+                const sy = y - 8 - py;
+                if (py === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+        }
+        ctx.globalAlpha = prevAlpha;
+    }
+
     function landmarkScripbox(px, gY, color, collected) {
-        // Scripbox · modern glass tower with rooftop antenna + accent
+        // SCRIPBOX · modern AI-era work (Sep 2022-present)
         const a = collected ? 0.55 : 0.92;
+        const phase = state.elapsedMs / 1000;
+        const cursorOn = Math.floor(state.elapsedMs / 500) % 2 === 0;
         ctx.globalAlpha = a;
-        // tapered glass tower
+
+        // Neural net low-left
+        drawNeuralNet(px - 180, gY - 60, 1.0, phase);
+        // MCP diagram mid-left
+        drawMcpDiagram(px - 110, gY - 130, 1.0);
+
+        // Floating code fragments
+        ctx.fillStyle = '#7fffd4';
+        ctx.globalAlpha = a * 0.6;
+        ctx.font = '8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'start';
+        const frags = ['$ git commit', 'git push origin', 'PR #4271 merged', '> mcp.connect()'];
+        frags.forEach((txt, i) => {
+            const drift = (phase * 6 + i * 30) % 90;
+            ctx.fillText(txt, px - 220 + i * 18, gY - 20 - drift);
+        });
+        ctx.globalAlpha = a;
+
+        // Multi-monitor desk approach-zone
+        ctx.fillStyle = '#0a0e12';
+        ctx.fillRect(px - 260, gY - 18, 60, 4);
+        ctx.fillRect(px - 256, gY - 14, 4, 14);
+        ctx.fillRect(px - 208, gY - 14, 4, 14);
+        ctx.fillStyle = '#1a2230';
+        ctx.fillRect(px - 252, gY - 38, 14, 20);
+        ctx.fillRect(px - 236, gY - 40, 16, 22);
+        ctx.fillRect(px - 218, gY - 38, 14, 20);
+        ctx.fillStyle = '#7fffd4';
+        ctx.globalAlpha = a * (0.5 + 0.2 * Math.sin(phase * 3));
+        ctx.fillRect(px - 250, gY - 36, 10, 16);
+        ctx.fillRect(px - 234, gY - 38, 12, 18);
+        ctx.fillRect(px - 216, gY - 36, 10, 16);
+        ctx.globalAlpha = a;
+
+        // Tapered glass tower (taller)
         ctx.fillStyle = '#0e1218';
         ctx.beginPath();
-        ctx.moveTo(px - 30, gY); ctx.lineTo(px - 24, gY - 140);
-        ctx.lineTo(px + 24, gY - 140); ctx.lineTo(px + 30, gY); ctx.closePath();
+        ctx.moveTo(px - 34, gY); ctx.lineTo(px - 26, gY - 175);
+        ctx.lineTo(px + 26, gY - 175); ctx.lineTo(px + 34, gY); ctx.closePath();
         ctx.fill();
-        // glass reflections
-        ctx.fillStyle = color;
-        ctx.globalAlpha = a * 0.4;
-        for (let i = 0; i < 7; i++) {
-            const y = gY - 24 - i * 18;
-            ctx.fillRect(px - 22 + i, y - 4, 2, 2);
-            ctx.fillRect(px + 18 - i, y - 4, 2, 2);
+        ctx.fillStyle = color; ctx.fillRect(px - 26, gY - 175, 52, 3);
+
+        // Rooftop antenna + dish
+        ctx.fillRect(px - 1, gY - 196, 2, 21);
+        ctx.fillStyle = '#c8e6d8';
+        ctx.beginPath(); ctx.arc(px + 14, gY - 178, 5, Math.PI, 0); ctx.fill();
+        ctx.fillRect(px + 13, gY - 178, 2, 4);
+        if (cursorOn) {
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(px - 2, gY - 198, 3, 3);
         }
-        ctx.globalAlpha = a;
-        // rooftop antenna
+
+        // Code-lit windows · 4 floors × 2
+        for (let floor = 0; floor < 4; floor++) {
+            const wy = gY - 160 + floor * 36;
+            drawCodeWindow(px - 18, wy, 14, 22, phase + floor * 0.7);
+            drawCodeWindow(px + 4,  wy, 14, 22, phase + floor * 1.1);
+        }
+        if (cursorOn) {
+            ctx.fillStyle = '#7fffd4';
+            ctx.fillRect(px - 11, gY - 152, 1, 6);
+            ctx.fillRect(px + 13, gY - 80, 1, 6);
+        }
+
+        // SCRIPBOX sign
         ctx.fillStyle = color;
-        ctx.fillRect(px - 1, gY - 156, 2, 16);
-        // accent strip
-        ctx.fillRect(px - 24, gY - 140, 48, 3);
-        ctx.globalAlpha = 1;
-    }
-    function landmarkVWGT(px, gY, color, collected) {
-        // VW GT showroom · glass-front building with the car silhouette inside
-        const a = collected ? 0.55 : 0.92;
-        ctx.globalAlpha = a;
-        // showroom
-        ctx.fillStyle = '#1a0e0a';
-        ctx.fillRect(px - 56, gY - 70, 112, 70);
-        ctx.fillStyle = color;
-        ctx.fillRect(px - 58, gY - 74, 116, 8);                       // banner above
-        // glass front
-        ctx.fillStyle = '#040608';
-        ctx.fillRect(px - 50, gY - 60, 100, 50);
-        // car silhouette inside · a stylized hatchback profile
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(px - 32, gY - 14);
-        ctx.lineTo(px - 22, gY - 32);
-        ctx.lineTo(px - 6, gY - 38);
-        ctx.lineTo(px + 8, gY - 38);
-        ctx.lineTo(px + 22, gY - 32);
-        ctx.lineTo(px + 32, gY - 14);
-        ctx.closePath();
-        ctx.fill();
-        // wheels
-        ctx.fillStyle = '#0a0604';
-        ctx.beginPath(); ctx.arc(px - 18, gY - 12, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(px + 18, gY - 12, 5, 0, Math.PI * 2); ctx.fill();
-        // showroom sign · "GT"
-        ctx.fillStyle = '#0a0604';
-        ctx.font = 'bold 12px "Cinzel", serif';
+        ctx.globalAlpha = a * 0.85;
+        ctx.font = 'bold 7px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('VW · GT', px, gY - 66);
+        ctx.fillText('SCRIPBOX', px, gY - 10);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'start';
+    }
+    function drawNeuralNet(x, y, scale, phase) {
+        const nodes = [[0,20],[18,0],[18,40],[36,12],[36,32],[54,22]];
+        ctx.strokeStyle = '#7fffd4'; ctx.lineWidth = 0.5;
+        const prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = prevAlpha * (0.4 + 0.2 * Math.sin(phase * 2));
+        const edges = [[0,1],[0,2],[1,3],[2,3],[2,4],[1,4],[3,5],[4,5]];
+        edges.forEach(([a,b]) => {
+            ctx.beginPath();
+            ctx.moveTo(x + nodes[a][0]*scale, y + nodes[a][1]*scale);
+            ctx.lineTo(x + nodes[b][0]*scale, y + nodes[b][1]*scale);
+            ctx.stroke();
+        });
+        ctx.globalAlpha = prevAlpha * 0.85;
+        ctx.fillStyle = '#7a9a8a';
+        nodes.forEach(n => {
+            ctx.beginPath();
+            ctx.arc(x + n[0]*scale, y + n[1]*scale, 2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = prevAlpha;
+    }
+    function drawCodeWindow(wx, wy, w, h, phase) {
+        ctx.fillStyle = '#050a08'; ctx.fillRect(wx, wy, w, h);
+        const glow = 0.55 + 0.25 * Math.sin(phase * 1.6);
+        ctx.fillStyle = `rgba(127, 255, 212, ${glow * 0.35})`;
+        ctx.fillRect(wx + 1, wy + 1, w - 2, h - 2);
+        ctx.fillStyle = '#7fffd4';
+        for (let i = 0; i < 3; i++) {
+            const lineY = wy + 3 + ((i * 6 + phase * 4) % (h - 4));
+            const lineW = 4 + ((i * 3 + Math.floor(phase * 2)) % 7);
+            ctx.fillRect(wx + 2, lineY, lineW, 1);
+        }
+        if (((wx + wy) % 3) === 0) {
+            ctx.fillStyle = '#0a0e12';
+            ctx.beginPath();
+            ctx.arc(wx + w / 2, wy + h - 4, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillRect(wx + w / 2 - 4, wy + h - 2, 8, 2);
+        }
+    }
+    function drawMcpDiagram(x, y, scale) {
+        const boxes = [['MCP', 0], ['SRV', 22], ['TLS', 44]];
+        boxes.forEach(([label, bx]) => {
+            ctx.strokeStyle = '#7a9a8a'; ctx.lineWidth = 0.8;
+            ctx.fillStyle = 'rgba(122, 154, 138, 0.15)';
+            ctx.strokeRect(x + bx * scale, y, 16 * scale, 10 * scale);
+            ctx.fillRect(x + bx * scale, y, 16 * scale, 10 * scale);
+            ctx.fillStyle = '#c8e6d8';
+            ctx.font = '5px "JetBrains Mono", monospace';
+            ctx.fillText(label, x + bx * scale + 3, y + 7 * scale);
+        });
+        ctx.strokeStyle = '#7fffd4';
+        ctx.beginPath();
+        ctx.moveTo(x + 16, y + 5); ctx.lineTo(x + 22, y + 5);
+        ctx.moveTo(x + 38, y + 5); ctx.lineTo(x + 44, y + 5);
+        ctx.stroke();
+    }
+
+    function landmarkVWGT(px, gY, color, collected) {
+        // THE GT · VW Virtus GT delivery (Nov 16, 2025)
+        const a = collected ? 0.55 : 0.95;
+        ctx.globalAlpha = a;
+        const t = state.elapsedMs / 1000;
+        const shake = Math.sin(t * 14) * 0.4;
+
+        // Highway road slab receding
+        ctx.fillStyle = '#1a1a1f';
+        ctx.beginPath();
+        ctx.moveTo(px - 160, gY);
+        ctx.lineTo(px + 160, gY);
+        ctx.lineTo(px + 60, gY - 28);
+        ctx.lineTo(px - 60, gY - 28);
+        ctx.closePath(); ctx.fill();
+
+        // Receding gold lane dashes
+        ctx.fillStyle = '#d4a653';
+        for (let i = 0; i < 5; i++) {
+            const k = i / 5;
+            const y = gY - k * 28;
+            const w = 18 - k * 14;
+            ctx.globalAlpha = a * (1 - k * 0.5);
+            ctx.fillRect(px - w / 2, y - 1.5, w, 3);
+        }
+        ctx.globalAlpha = a;
+
+        // Checkered flag bunting
+        drawCheckeredFlag(px - 60, gY - 34, 120, 4);
+
+        // Showroom in distance
+        drawShowroom(px - 110, gY - 30);
+
+        // Delivery balloon
+        drawDeliveryBalloon(px - 92, gY - 56, t);
+
+        // THE GT sedan with engine vibration
+        drawVwSedan(px + 10, gY - 1 + shake, 1.0);
+
+        // Owner with arm raised in victory
+        ctx.fillStyle = '#f0d9b5';
+        ctx.beginPath(); ctx.arc(px + 56, gY - 28, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = color; ctx.fillRect(px + 54, gY - 25, 5, 10);
+        ctx.fillStyle = '#1d3a5c';
+        ctx.fillRect(px + 54, gY - 15, 2, 9);
+        ctx.fillRect(px + 57, gY - 15, 2, 9);
+        ctx.strokeStyle = '#f0d9b5'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(px + 58, gY - 23); ctx.lineTo(px + 64, gY - 34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + 55, gY - 23); ctx.lineTo(px + 52, gY - 17); ctx.stroke();
+
+        // Salesperson silhouette in showroom window
+        ctx.fillStyle = '#3a2418';
+        ctx.fillRect(px - 96, gY - 44, 3, 8);
+        ctx.beginPath(); ctx.arc(px - 94.5, gY - 46, 2, 0, Math.PI * 2); ctx.fill();
+
+        // Headlight glint sparkle
+        const glint = (Math.sin(t * 6) + 1) * 0.5;
+        ctx.globalAlpha = a * glint;
+        ctx.fillStyle = '#fffbe6';
+        ctx.beginPath(); ctx.arc(px + 40, gY - 14, 2.4, 0, Math.PI * 2); ctx.fill();
+
         ctx.globalAlpha = 1;
     }
-    function landmarkNow(px, gY, color, collected) {
-        // NOW · monument obelisk + checkered flag at the top
-        const a = collected ? 0.55 : 0.92;
-        ctx.globalAlpha = a;
-        // pedestal
-        ctx.fillStyle = '#2a1810';
-        ctx.fillRect(px - 20, gY - 14, 40, 14);
-        // obelisk
-        ctx.fillStyle = color;
+    function drawVwSedan(x, y, scale) {
+        const s = scale;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.ellipse(x, y + 1, 40 * s, 3 * s, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1d3a5c';
         ctx.beginPath();
-        ctx.moveTo(px - 12, gY - 14); ctx.lineTo(px - 8, gY - 96);
-        ctx.lineTo(px + 8, gY - 96); ctx.lineTo(px + 12, gY - 14);
-        ctx.closePath();
-        ctx.fill();
-        // pyramid cap
-        ctx.fillStyle = '#e6c285';
+        ctx.moveTo(x - 38 * s, y - 6 * s);
+        ctx.lineTo(x - 34 * s, y - 13 * s);
+        ctx.lineTo(x - 18 * s, y - 18 * s);
+        ctx.lineTo(x + 10 * s, y - 20 * s);
+        ctx.lineTo(x + 22 * s, y - 17 * s);
+        ctx.lineTo(x + 32 * s, y - 13 * s);
+        ctx.lineTo(x + 38 * s, y - 6 * s);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#0a1420';
         ctx.beginPath();
-        ctx.moveTo(px - 8, gY - 96); ctx.lineTo(px, gY - 112); ctx.lineTo(px + 8, gY - 96); ctx.closePath();
-        ctx.fill();
-        // checkered flag
-        ctx.fillStyle = '#0a0604';
-        ctx.fillRect(px, gY - 130, 1.5, 22);
-        for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) {
-            ctx.fillStyle = (r + c) & 1 ? '#0a0604' : '#e6c285';
-            ctx.fillRect(px + 2 + c * 4, gY - 130 + r * 4, 4, 4);
+        ctx.moveTo(x - 14 * s, y - 17 * s);
+        ctx.lineTo(x + 8 * s, y - 19 * s);
+        ctx.lineTo(x + 18 * s, y - 16 * s);
+        ctx.lineTo(x - 10 * s, y - 14 * s);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#d4a653';
+        ctx.fillRect(x - 36 * s, y - 8 * s, 72 * s, 1.5 * s);
+        ctx.fillStyle = '#1d3a5c';
+        ctx.fillRect(x + 34 * s, y - 14 * s, 6 * s, 2 * s);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${7 * s}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText('01', x + 14 * s, y - 10 * s);
+        ctx.textAlign = 'start';
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(x - 24 * s, y - 9 * s, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffe4a0';
+        ctx.fillRect(x + 36 * s, y - 12 * s, 3 * s, 2 * s);
+        ctx.fillStyle = '#a4332e';
+        ctx.fillRect(x - 39 * s, y - 11 * s, 2 * s, 2 * s);
+        ctx.fillStyle = '#0a0a0c';
+        ctx.beginPath(); ctx.arc(x - 22 * s, y - 3 * s, 5.5 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 22 * s, y - 3 * s, 5.5 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c0c4cc';
+        ctx.beginPath(); ctx.arc(x - 22 * s, y - 3 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 22 * s, y - 3 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(x - 22 * s, y - 3 * s, 1 * s, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 22 * s, y - 3 * s, 1 * s, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawShowroom(x, y) {
+        ctx.fillStyle = '#1a0e0a'; ctx.fillRect(x - 26, y - 22, 52, 22);
+        ctx.fillStyle = '#040608'; ctx.fillRect(x - 22, y - 18, 44, 16);
+        ctx.fillStyle = '#a4332e'; ctx.fillRect(x - 28, y - 26, 56, 5);
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(x, y - 32, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a0e0a';
+        ctx.font = 'bold 6px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('VW', x, y - 30);
+        ctx.textAlign = 'start';
+        ctx.fillStyle = '#d4a653'; ctx.fillRect(x - 28, y - 23, 56, 1);
+    }
+    function drawDeliveryBalloon(x, y, phase) {
+        const bob = Math.sin(phase * 1.8) * 3;
+        const by = y + bob;
+        ctx.strokeStyle = '#888'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(x, y + 14); ctx.lineTo(x, by); ctx.stroke();
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(x, by - 6, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff4c2';
+        ctx.beginPath(); ctx.arc(x - 2, by - 8, 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#a4832e';
+        ctx.beginPath(); ctx.moveTo(x - 1.5, by); ctx.lineTo(x + 1.5, by); ctx.lineTo(x, by + 2); ctx.closePath(); ctx.fill();
+    }
+    function drawCheckeredFlag(x, y, w, h) {
+        const cells = Math.floor(w / 4);
+        for (let c = 0; c < cells; c++) for (let r = 0; r < (h / 2); r++) {
+            ctx.fillStyle = (r + c) & 1 ? '#0a0604' : '#f5f2e8';
+            ctx.fillRect(x + c * 4, y + r * 2, 4, 2);
         }
+    }
+
+    function landmarkNow(px, gY, color, collected) {
+        // NOW · present moment, AI-driven, looking forward (2026-present)
+        const a = collected ? 0.6 : 1;
+        const t = state.elapsedMs * 0.001;
+        ctx.globalAlpha = a;
+
+        // Horizon sun about to rise
+        const sunY = gY - 140, sunX = px + 90;
+        const sunGrad = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 70);
+        sunGrad.addColorStop(0, 'rgba(255,228,170,0.85)');
+        sunGrad.addColorStop(0.4, 'rgba(230,194,133,0.4)');
+        sunGrad.addColorStop(1, 'rgba(230,194,133,0)');
+        ctx.fillStyle = sunGrad;
+        ctx.fillRect(sunX - 70, sunY - 70, 140, 140);
+        ctx.fillStyle = '#ffe4aa';
+        ctx.beginPath(); ctx.arc(sunX, sunY, 9, 0, Math.PI * 2); ctx.fill();
+
+        // Growing tree silhouette
+        ctx.fillStyle = 'rgba(40,30,20,0.55)';
+        ctx.fillRect(px + 60, gY - 26, 2, 26);
+        ctx.beginPath();
+        ctx.arc(px + 61, gY - 32, 9 + Math.sin(t * 1.3) * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Modern home-office building
+        drawModernHouse(px, gY);
+
+        // Dev silhouette at desk
+        drawDevAtDesk(px - 18, gY - 64, 36, 22, t);
+
+        // Future-self figure receding right
+        drawDistantFigure(px + 95, gY - 4, 0.55, 0.35 + Math.sin(t * 0.6) * 0.05);
+
+        // Floating tokens drift up
+        const tokens = ['AI', 'MCP', 'ANTHROPIC', 'CLAUDE', 'CODE'];
+        for (let i = 0; i < tokens.length; i++) {
+            const phase = (t * 0.18 + i * 0.2) % 1;
+            const tx = px - 40 + ((i * 53) % 110) + Math.sin(t * 0.7 + i) * 4;
+            const ty = gY - 30 - phase * 90;
+            const alpha = (1 - phase) * 0.85 * a;
+            drawFloatingToken(tx, ty, tokens[i], phase, alpha);
+        }
+
+        // NOW typography
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#3a2a1c';
+        ctx.font = '600 9px ui-serif, Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('NOW', px, gY - 42);
+        ctx.textAlign = 'start';
         ctx.globalAlpha = 1;
+    }
+    function drawFloatingToken(x, y, text, phase, alpha) {
+        const w = 4 + text.length * 4.2, h = 9;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#f3e0b8';
+        ctx.fillRect(x - w / 2, y - h / 2, w, h);
+        ctx.strokeStyle = 'rgba(120,90,50,0.6)'; ctx.lineWidth = 0.5;
+        ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+        ctx.fillStyle = '#3a2a1c';
+        ctx.font = '600 6px ui-sans-serif, system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y + 0.5);
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+        ctx.globalAlpha = 1;
+    }
+    function drawModernHouse(x, y) {
+        ctx.fillStyle = '#d9b890'; ctx.fillRect(x - 28, y - 70, 56, 70);
+        ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x - 28, y - 8, 56, 8);
+        ctx.fillStyle = '#2a1c12'; ctx.fillRect(x - 30, y - 74, 60, 5);
+        const wg = ctx.createLinearGradient(x - 22, y - 68, x - 22, y - 46);
+        wg.addColorStop(0, '#fff3c4'); wg.addColorStop(1, '#e6c285');
+        ctx.fillStyle = wg;
+        ctx.fillRect(x - 22, y - 68, 44, 26);
+        ctx.fillStyle = '#3a2a1c'; ctx.fillRect(x - 1, y - 68, 1.2, 26);
+        ctx.fillStyle = '#3a2a1c'; ctx.fillRect(x + 14, y - 38, 8, 10);
+        ctx.fillStyle = '#ffe9b0'; ctx.fillRect(x + 15, y - 37, 6, 8);
+        ctx.fillStyle = '#5a3a22'; ctx.fillRect(x - 6, y - 22, 12, 22);
+        ctx.fillStyle = '#e6c285'; ctx.fillRect(x + 3, y - 14, 1.5, 2);
+        ctx.fillStyle = '#1a2a3a';
+        ctx.fillRect(x - 24, y - 78, 22, 4);
+        ctx.fillRect(x - 1,  y - 78, 22, 4);
+        ctx.strokeStyle = '#3a5a7a'; ctx.lineWidth = 0.4;
+        for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - 24 + i * 5, y - 78); ctx.lineTo(x - 24 + i * 5, y - 74); ctx.stroke(); }
+        ctx.strokeStyle = '#2a1c12'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(x + 22, y - 78); ctx.lineTo(x + 22, y - 92); ctx.stroke();
+        ctx.fillStyle = '#e6c285'; ctx.beginPath(); ctx.arc(x + 22, y - 93, 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawDevAtDesk(wx, wy, w, h, phase) {
+        const bob = Math.sin(phase * 2.4) * 0.6;
+        ctx.fillStyle = '#2a1c12'; ctx.fillRect(wx + 2, wy + h - 5, w - 4, 1.5);
+        ctx.fillStyle = 'rgba(180,220,255,0.85)';
+        ctx.fillRect(wx + 4,  wy + 6, 9, 7);
+        ctx.fillRect(wx + 15, wy + 5, 11, 8);
+        ctx.fillStyle = '#1a1208';
+        ctx.fillRect(wx + 12, wy + 12 + bob, 12, 8);
+        ctx.beginPath();
+        ctx.arc(wx + 18, wy + 9 + bob, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawDistantFigure(x, y, scale, alpha) {
+        const prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#2a1c12';
+        ctx.fillRect(x - 2 * scale, y - 14 * scale, 4 * scale, 12 * scale);
+        ctx.beginPath();
+        ctx.arc(x, y - 17 * scale, 2 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        const hg = ctx.createRadialGradient(x, y - 10 * scale, 1, x, y - 10 * scale, 14 * scale);
+        hg.addColorStop(0, 'rgba(255,228,170,0.18)');
+        hg.addColorStop(1, 'rgba(255,228,170,0)');
+        ctx.fillStyle = hg;
+        ctx.fillRect(x - 14 * scale, y - 24 * scale, 28 * scale, 28 * scale);
+        ctx.globalAlpha = prevAlpha;
     }
     const LANDMARK_FN = {
         itics:    landmarkITICS,
