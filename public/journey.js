@@ -1,342 +1,455 @@
 /**
- * the journey · WebGL 3D rebuild (Three.js)
- * ─────────────────────────────────────────────────────────────────
- * Entry point that wires the module tree:
- *   journey/data.js         chapter + vehicle constants
- *   journey/scene.js        renderer, scene, camera, lights, ground
- *   journey/post.js         post-processing (UnrealBloomPass)
- *   journey/meshes.js       procedural meshes (player + vehicles)
- *   journey/checkpoints.js  per-chapter pillar+arch+ring geometry
- *   journey/hud.js          DOM overlay updates (cached refs)
+ * the journey · 2D side-scroller (canvas) · RDR-flavoured western chronicle
+ * ─────────────────────────────────────────────────────────────────────────
+ * Side-on 2D · player auto-walks right · world scrolls left · 8 chapters
+ * laid out along a sepia-toned horizon. Walking IS the feature: every
+ * stride is visible, the character is the unmistakable subject of every
+ * frame, and the parallax layers move at different speeds for depth.
  *
- * The animation loop lives in this file because vehicle progression +
- * collection collisions + camera follow + glitch state are cross-cutting
- * concerns that touch multiple modules.
- *
- * Pre-allocation optimization:
- *   - tmpVec3 / tmpColor are module-level scratch objects reused per frame
- *     instead of `new THREE.Vector3()` inside the loop (avoid GC pressure)
- *   - bloom strength is just a number mutation per frame, no allocations
- *   - DOM lookups all happen at hud.js module load · loop never touches DOM
- *     except inside showAchievement (transitions only, not every frame)
+ * No framework. No Three.js. Plain canvas 2D drawing primitives + emoji.
+ * Total payload ~12KB.
  */
-import * as THREE from 'three';
-import { CHAPTERS, VEHICLES, VEHICLE_THRESHOLDS, CHAPTER_ACHIEVEMENTS, VEHICLE_ACHIEVEMENTS } from './journey/data.js';
-import { buildRenderer, buildScene, buildCamera, addLights, addGround, attachResize } from './journey/scene.js';
-import { buildComposer } from './journey/post.js';
-import { buildWalkerMesh, buildBicycleMesh, buildAltoMesh, buildVWMesh } from './journey/meshes.js';
-import { buildAllCheckpoints } from './journey/checkpoints.js';
-import { updateProgress, updateVehicleCard, showAchievement, showEndCard } from './journey/hud.js';
 
-// ── scene + post-processing assembly ─────────────────────────────
-const canvas    = document.getElementById('stage');
-const renderer  = buildRenderer(canvas);
-const scene     = buildScene();
-const camera    = buildCamera();
-const { sun }   = addLights(scene);
-addGround(scene);
+(() => {
+    'use strict';
 
-const { composer, bloomPass } = buildComposer(renderer, scene, camera);
-attachResize(renderer, camera, composer, bloomPass);
+    const canvas = document.getElementById('stage');
+    const ctx    = canvas.getContext('2d', { alpha: false });
 
-// ── chapter checkpoints ──────────────────────────────────────────
-const checkpoints = buildAllCheckpoints(CHAPTERS, scene);
-
-// ── player + vehicle meshes (built once, swapped in/out of player group) ─
-const player = new THREE.Group();
-scene.add(player);
-const walkerMesh  = buildWalkerMesh();
-const bicycleMesh = buildBicycleMesh();
-const altoMesh    = buildAltoMesh();
-const vwMesh      = buildVWMesh();
-player.add(walkerMesh);
-let currentVehicle = 'walk';
-let currentVehicleMesh = walkerMesh;       // cached · avoids brittle player.children[0] lookup
-
-function setVehicle(name) {
-    if (name === currentVehicle) return;
-    player.clear();
-    let mesh;
-    if      (name === 'cycle') mesh = bicycleMesh;
-    else if (name === 'alto')  mesh = altoMesh;
-    else if (name === 'vw')    mesh = vwMesh;
-    else                        mesh = walkerMesh;
-    player.add(mesh);
-    currentVehicle     = name;
-    currentVehicleMesh = mesh;
-    updateVehicleCard(name);
-    const aId = VEHICLE_ACHIEVEMENTS[name];
-    if (aId) showAchievement(aId, state.achievements);
-}
-
-// ── game state ───────────────────────────────────────────────────
-const state = {
-    running:       false,
-    ended:         false,
-    chapter:       0,
-    collected:     new Set(),
-    achievements:  new Set(),
-    t:             0,
-    glitchT:       0,
-    elapsedMs:     0,           // session timer for HUD
-    pauseT:        0,           // tap-to-pause dramatic-slowdown remainder (ms)
-};
-
-// ── HUD elements wired here (game-feel: visible score + mission tracker)
-const $scoreDist = document.getElementById('score-dist');
-const $scoreChap = document.getElementById('score-chap');
-const $scoreTime = document.getElementById('score-time');
-const $missionText = document.getElementById('mission-text');
-const $missionIcon = document.getElementById('mission-icon');
-const $tapHint   = document.getElementById('tap-hint');
-
-function updateMission(chapterIdx) {
-    if (!$missionText) return;
-    const ch = CHAPTERS[chapterIdx];
-    if (!ch) return;
-    if (state.collected.has(ch.id)) {
-        $missionText.textContent = `Reached: ${ch.label}`;
-        $missionIcon.textContent = '✓';
-        $missionIcon.classList.add('done');
-    } else {
-        $missionText.textContent = `Approach: ${ch.label}`;
-        $missionIcon.textContent = '▸';
-        $missionIcon.classList.remove('done');
+    // viewport-fitting canvas · re-sized on resize, keeps DPR for crispness
+    function fitCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width  = Math.round(window.innerWidth  * dpr);
+        canvas.height = Math.round(window.innerHeight * dpr);
+        canvas.style.width  = '100%';
+        canvas.style.height = '100%';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-}
-function pickNextObjective() {
-    // find first uncollected chapter ahead of the player
-    for (let i = 0; i < CHAPTERS.length; i++) {
-        if (!state.collected.has(CHAPTERS[i].id)) return i;
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas, { passive: true });
+
+    // ── chapter data ─────────────────────────────────────────────────
+    const CHAPTERS = [
+        { id: 'itics',    label: 'ITICS',           period: 'until 2013',           x:  600, color: '#a8b87a', icon: '🏫', achId: 'school-1',     achTitle: 'ITICS',                  achSub: 'where it began' },
+        { id: 'cmr',      label: 'CMR NATIONAL',    period: '2013 — 2015',          x: 1500, color: '#5e7a8a', icon: '📐', achId: 'school-2',     achTitle: 'CMR NATIONAL',           achSub: 'pre-university · 2013–2015' },
+        { id: 'college',  label: 'D.S.C.E.',        period: '2015 — 2019',          x: 2500, color: '#c47540', icon: '🎓', achId: 'first-steps',  achTitle: 'D.S.C.E.',               achSub: 'mechanical engineering · 2015–2019' },
+        { id: 'fever104', label: 'FEVER 104 FM',    period: 'mar — may 2019',       x: 3500, color: '#b84c32', icon: '📻', achId: 'fever-104',    achTitle: 'ON AIR · 104 FM',        achSub: '3-month producer stint' },
+        { id: 'sakha',    label: 'SAKHA GLOBAL',    period: 'jul 2019 — sep 2022',  x: 4500, color: '#c9a151', icon: '💼', achId: 'first-job',    achTitle: 'FIRST JOB · ALTO',       achSub: 'maruti alto · jul 2019' },
+        { id: 'scripbox', label: 'SCRIPBOX',        period: 'sep 2022 — present',   x: 5500, color: '#7a9a8a', icon: '🤖', achId: 'mcp-catalog',  achTitle: 'ANTHROPIC CATALOG',      achSub: 'mcp-server-graylog · PR #2913' },
+        { id: 'vwgt',     label: 'THE GT',           period: 'nov 16, 2025',         x: 6600, color: '#a4332e', icon: '🏎️', achId: 'got-the-gt',   achTitle: 'GOT THE GT',             achSub: 'vw virtus gt · nov 16, 2025' },
+        { id: 'now',      label: 'NOW',              period: '2026 — present',       x: 7700, color: '#e6c285', icon: '🏁', achId: 'journey-end',  achTitle: 'END OF THE TRAIL',       achSub: '8 chapters · 13 years' },
+    ];
+
+    const VEHICLES = {
+        walk:  { speed: 60,  icon: '🚶', label: 'ON FOOT',     sub: 'school years' },
+        cycle: { speed: 90,  icon: '🚴', label: 'BICYCLE',     sub: 'engineering days' },
+        alto:  { speed: 140, icon: '🚗', label: 'MARUTI ALTO', sub: 'first job · 2019' },
+        vw:    { speed: 200, icon: '🏎️', label: 'VW VIRTUS GT', sub: '1.5 TSI · turbo' },
+    };
+    // x-thresholds for vehicle upgrades
+    const VEH_THRESH = { cycle: 2200, alto: 4200 };
+
+    // ── parallax bands & ground constants ─────────────────────────────
+    const HORIZON_PCT = 0.62;   // sky / ground split as % of viewport height
+    const GROUND_PCT  = 0.88;   // player's feet land here
+
+    // pre-generate distant hill points (silhouette polyline)
+    const distHills = [];
+    for (let i = 0; i < 800; i++) {
+        const x = i * 80;
+        const y = 60 + Math.sin(i * 0.18) * 28 + Math.cos(i * 0.41 + 1.3) * 22;
+        distHills.push({ x, y });
     }
-    return CHAPTERS.length - 1;
-}
 
-// ── tap-to-pause · the only player interaction. Tapping the canvas
-//    triggers a brief dramatic-slowdown pause (500ms of slow time + the
-//    achievement card for the NEXT chapter ahead). This is the "thing
-//    the player can do" that turns it from video → game.
-let tapHintSeen = false;
-const stageEl = document.querySelector('.journey-stage');
-stageEl.addEventListener('pointerdown', (e) => {
-    // Ignore clicks on the score panel / mission tracker
-    if (e.target.closest('.score-panel') || e.target.closest('.mission-tracker') || e.target.closest('.vehicle-card')) return;
-    state.pauseT = Math.max(state.pauseT, 700);
-    triggerGlitch(120);
-    // briefly re-show the nearest unread chapter's achievement
-    const nextIdx = pickNextObjective();
-    const ch = CHAPTERS[nextIdx];
-    if (ch) {
-        const aId = CHAPTER_ACHIEVEMENTS[ch.id];
-        if (aId && !state.achievements.has(aId)) {
-            // ephemeral peek · don't mark as permanently seen, just show
-            showAchievement(aId, new Set());
-        }
+    // pre-generate mid-ground trees + telegraph poles at random x positions
+    const midProps = [];
+    for (let i = 0; i < 150; i++) {
+        const x = i * 110 + (Math.random() - 0.5) * 50;
+        midProps.push({
+            x,
+            kind: Math.random() < 0.65 ? 'tree' : 'pole',
+            scale: 0.85 + Math.random() * 0.35,
+        });
     }
-    if (!tapHintSeen && $tapHint) {
-        tapHintSeen = true;
-        $tapHint.classList.add('faded');
+    // pre-generate foreground tufts
+    const fgTufts = [];
+    for (let i = 0; i < 500; i++) {
+        fgTufts.push({ x: i * 40 + (Math.random() - 0.5) * 20, h: 2 + Math.random() * 5 });
     }
-});
 
-// auto-start after splash · 3400ms = CSS 2700ms delay + 700ms fade duration.
-// Previous 3000ms started the player while the splash was still 57% visible.
-setTimeout(() => { state.running = true; }, 3400);
+    // ── game state ────────────────────────────────────────────────────
+    const state = {
+        running:      false,
+        ended:        false,
+        playerX:      0,            // world-space x of the player
+        vehicle:      'walk',
+        collected:    new Set(),
+        achievements: new Set(),
+        elapsedMs:    0,
+        walkPhase:    0,            // for leg-swing animation
+        pauseT:       0,            // tap-to-slow remainder
+        bobT:         0,
+    };
 
-// glitch trigger · pumps bloom strength briefly. No user input wires it
-// anymore (Z key/button removed) · still fired internally on loot collect
-// so the bloom pulse remains as an organic milestone-celebration effect.
-function triggerGlitch(ms) { state.glitchT = Math.max(state.glitchT, ms); }
+    // auto-start after splash (3.4s matches CSS splashFadeOut)
+    setTimeout(() => { state.running = true; }, 3400);
 
-/** trigger cinematic letterbox bars · briefly close + retract during
- *  chapter entry. Adds the RDR-style "title card" cinematic feel. */
-let letterboxTimer = null;
-function triggerLetterbox(holdMs) {
-    if (letterboxTimer) clearTimeout(letterboxTimer);
-    document.body.classList.add('cinematic');
-    letterboxTimer = setTimeout(() => {
-        document.body.classList.remove('cinematic');
-        letterboxTimer = null;
-    }, holdMs || 1200);
-}
+    // ── HUD lookups (cached) ─────────────────────────────────────────
+    const $vehicleIcon  = document.getElementById('vehicle-icon');
+    const $vehicleLabel = document.getElementById('vehicle-label');
+    const $vehicleCard  = document.getElementById('vehicle-card');
+    const $progress     = document.getElementById('progress-strip');
+    const $achStack     = document.getElementById('achievement-stack');
+    const $scoreDist    = document.getElementById('score-dist');
+    const $scoreChap    = document.getElementById('score-chap');
+    const $scoreTime    = document.getElementById('score-time');
+    const $missionIcon  = document.getElementById('mission-icon');
+    const $missionText  = document.getElementById('mission-text');
+    const $tapHint      = document.getElementById('tap-hint');
+    const $end          = document.getElementById('end');
 
-// ── pre-allocated scratch objects · reused inside animate() ──────
-const tmpFogTarget = new THREE.Color();
-const tmpFogBase   = new THREE.Color(0x3d2818);   // sepia base (RDR fog)
-const tmpCamTarget = new THREE.Vector3();
-const tmpLookAt    = new THREE.Vector3();
+    // build progress dots once
+    const dots = [];
+    if ($progress) {
+        CHAPTERS.forEach(() => {
+            const d = document.createElement('span');
+            d.className = 'dot';
+            $progress.appendChild(d);
+            dots.push(d);
+        });
+    }
+    function updateProgress(currentIdx) {
+        dots.forEach((d, i) => {
+            d.classList.remove('done', 'current');
+            if (state.collected.has(CHAPTERS[i].id)) d.classList.add('done');
+            if (i === currentIdx)                    d.classList.add('current');
+        });
+    }
 
-// caches that gate per-frame work to actual change events
-const RING_FLOOR_Y = 60;     // ring stops flying once past this y · prevents
-                              // unbounded scale → denormalized-float GPU slow path
-
-// scratch color objects for proximity-blended fog (one per chapter)
-const chapterColors = CHAPTERS.map((ch) => new THREE.Color(ch.color));
-const fogBlend     = new THREE.Color();
-const fogContrib   = new THREE.Color();
-
-// ── initial HUD paint ───────────────────────────────────────────
-updateProgress(0, state.collected);
-updateVehicleCard('walk');
-updateMission(0);                    // "Approach: ITICS" on launch
-
-// ── animation loop ──────────────────────────────────────────────
-let lastT = performance.now();
-function animate(now) {
-    requestAnimationFrame(animate);
-    const dt = Math.min(48, now - lastT);
-    lastT = now;
-    state.t += dt;
-    const f = dt / 16.67;     // frame-rate-independence multiplier (1.0 @ 60Hz)
-
-    if (state.running && !state.ended) {
-        state.elapsedMs += dt;
-
-        // tap-to-pause · scales forward motion + camera lerp by pauseScale.
-        // While pauseT > 0, time slows to 35% · feels like a dramatic moment.
-        let pauseScale = 1;
-        if (state.pauseT > 0) {
-            state.pauseT = Math.max(0, state.pauseT - dt);
-            pauseScale = 0.35;
+    function updateVehicleCard() {
+        if (!$vehicleIcon) return;
+        const v = VEHICLES[state.vehicle];
+        $vehicleIcon.textContent  = v.icon;
+        $vehicleLabel.textContent = v.label;
+        if ($vehicleCard) $vehicleCard.style.borderColor = colorForCurrentChapter();
+    }
+    function colorForCurrentChapter() {
+        for (let i = CHAPTERS.length - 1; i >= 0; i--) {
+            if (state.playerX >= CHAPTERS[i].x - 200) return CHAPTERS[i].color;
         }
+        return '#d4a653';
+    }
 
-        // forward motion · speed scales with vehicle + pause
-        const v = VEHICLES[currentVehicle];
-        player.position.z += v.speed * f * pauseScale;
-
-        // HUD score panel · ticks each frame
-        if ($scoreDist) $scoreDist.textContent = Math.round(player.position.z) + ' m';
-        if ($scoreChap) $scoreChap.textContent = state.collected.size + ' / ' + CHAPTERS.length;
-        if ($scoreTime) {
-            const s = Math.floor(state.elapsedMs / 1000);
-            $scoreTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-        }
-
-        // vehicle-progression state machine · driven by z + collected
-        let want;
-        if      (state.collected.has('vwgt'))                       want = 'vw';
-        else if (player.position.z >= VEHICLE_THRESHOLDS.alto)       want = 'alto';
-        else if (player.position.z >= VEHICLE_THRESHOLDS.cycle)      want = 'cycle';
-        else                                                          want = 'walk';
-        if (want !== currentVehicle) setVehicle(want);
-
-        // walking leg-swing animation (only while on foot)
-        if (currentVehicle === 'walk') {
-            const phase = Math.sin(state.t * 0.012) * 0.4;
-            if (walkerMesh._legL) walkerMesh._legL.rotation.x = phase;
-            if (walkerMesh._legR) walkerMesh._legR.rotation.x = -phase;
-            walkerMesh.position.y = Math.abs(Math.sin(state.t * 0.012)) * 0.06;
-        }
-        // wheel spin · cached vehicle mesh ref · not brittle children[0] lookup
-        if (currentVehicleMesh && currentVehicleMesh._wheels) {
-            const spin = 0.4 * f;
-            const wheels = currentVehicleMesh._wheels;
-            for (let i = 0; i < wheels.length; i++) wheels[i].rotation.x += spin;
-        }
-
-        // checkpoint loop · collision detect + ring animation
-        for (let i = 0; i < checkpoints.length; i++) {
-            const cp = checkpoints[i];
-            const dz = cp.group.position.z - player.position.z;
-            // collect when close enough
-            if (!state.collected.has(cp.ch.id) && Math.abs(dz) < 3 && Math.abs(player.position.x) < 5) {
-                state.collected.add(cp.ch.id);
-                state.chapter = i;
-                updateProgress(i, state.collected);
-                const aId = CHAPTER_ACHIEVEMENTS[cp.ch.id];
-                if (aId) showAchievement(aId, state.achievements);
-                cp.ring.userData.collected = true;
-                triggerGlitch(160);
-                triggerLetterbox(1100);     // RDR cinematic chapter-card moment
-                // Mission tracker · brief "reached" state, then advance to next
-                updateMission(i);
-                setTimeout(() => updateMission(pickNextObjective()), 1400);
-            }
-            // ring animation · the only on-canvas chapter signal now (pillars
-            // are gone). Stronger emission means the ring carries more
-            // visual weight, so the bob/rotate has more importance.
-            cp.ring.rotation.z += 0.025 * f;
-            if (cp.ring.userData.collected) {
-                // capped fly-away · avoids denormalized-float GPU slow path
-                if (cp.ring.position.y < RING_FLOOR_Y) {
-                    cp.ring.position.y += 0.12 * f;
-                    cp.ring.scale.multiplyScalar(Math.pow(0.98, f));
-                    if (cp.ring.scale.x < 0.02) cp.ring.visible = false;
-                }
-                // ground pool fades out alongside the ring
-                if (cp.poolMat && cp.poolMat.opacity > 0.01) {
-                    cp.poolMat.opacity *= Math.pow(0.97, f);
-                    if (cp.poolMat.opacity < 0.02) cp.pool.visible = false;
-                }
-            } else {
-                // gentle bob at the new ring height (y=2.4 in checkpoints.js)
-                cp.ring.position.y = 2.4 + Math.sin(state.t * 0.003 + i) * 0.18;
-                // pool subtly pulses (breathe effect on the ground glow)
-                if (cp.poolMat) {
-                    cp.poolMat.opacity = 0.4 + Math.sin(state.t * 0.003 + i) * 0.08;
-                }
-            }
-        }
-
-        // fog + sky · PROXIMITY-WEIGHTED blend of all chapters' colors.
-        // Each chapter contributes weight proportional to 1/distance², so
-        // as the player approaches Fever 104 its pink contribution rises
-        // smoothly (no waiting for "collected" state to update). Old code
-        // only changed fog when state.chapter flipped, producing the
-        // visible discontinuity the user reported between college and FM.
-        let wSum = 0;
-        fogBlend.set(0, 0, 0);
+    function pickNextObjective() {
         for (let i = 0; i < CHAPTERS.length; i++) {
-            const dz = CHAPTERS[i].z - player.position.z;
-            // weight peaks at the chapter z · drops off with distance²
-            const w = 1 / (1 + (dz * dz) * 0.003);
-            wSum += w;
-            fogContrib.copy(chapterColors[i]).multiplyScalar(w);
-            fogBlend.add(fogContrib);
+            if (!state.collected.has(CHAPTERS[i].id)) return i;
         }
-        if (wSum > 0) fogBlend.multiplyScalar(1 / wSum);
-        // mix in 18% of the weighted-chapter color with the deep-bg base
-        tmpFogTarget.copy(tmpFogBase).lerp(fogBlend, 0.18);
-        scene.fog.color.lerp(tmpFogTarget, 0.08 * f);
-        scene.background.copy(scene.fog.color).multiplyScalar(0.7);
-
-        // camera follow · tighter rig framing the player. Previous shot was
-        // looking 4 units FORWARD of player which pushed the player to the
-        // bottom of the frame (where the vehicle card was covering them).
-        // New shot: closer (z-7), lower (y=3), looks at the player's chest
-        // (player.y + 1.2) so the player + their vehicle become the focal
-        // subject. Lerp factor scaled by f for 120Hz device parity.
-        tmpCamTarget.set(0, 3, player.position.z - 7);
-        camera.position.lerp(tmpCamTarget, 0.08 * f);
-        tmpLookAt.set(player.position.x, player.position.y + 1.2, player.position.z + 0.5);
-        camera.lookAt(tmpLookAt);
-
-        // sun follows player so the shadow frustum doesn't strand them.
-        // Without this, once player.z > ~50 they exit the shadow camera's
-        // bounds (-50..+50) and lose shadows entirely.
-        sun.position.z = player.position.z + 30;
-        sun.target.position.z = player.position.z;
-        sun.target.updateMatrixWorld();
-
-        // end-state · past the final checkpoint with all loot
-        if (state.collected.size >= CHAPTERS.length &&
-            player.position.z > CHAPTERS[CHAPTERS.length - 1].z + 10) {
-            state.ended = true;
-            showEndCard();
+        return CHAPTERS.length - 1;
+    }
+    function updateMission(idx) {
+        if (!$missionText) return;
+        const ch = CHAPTERS[idx];
+        if (!ch) return;
+        if (state.collected.has(ch.id)) {
+            $missionText.textContent = `Reached: ${ch.label}`;
+            $missionIcon.textContent = '✓';
+            $missionIcon.classList.add('done');
+        } else {
+            $missionText.textContent = `Approach: ${ch.label}`;
+            $missionIcon.textContent = '▸';
+            $missionIcon.classList.remove('done');
         }
     }
 
-    // glitch effect · pump bloom briefly when triggered
-    if (state.glitchT > 0) {
-        state.glitchT = Math.max(0, state.glitchT - dt);
-        bloomPass.strength = 0.95 + (state.glitchT / 280) * 1.4;
-    } else if (bloomPass.strength !== 0.95) {
-        bloomPass.strength = 0.95;
+    function showAchievement(ch) {
+        if (!$achStack) return;
+        const el = document.createElement('div');
+        el.className = 'achievement';
+        el.innerHTML = `
+            <span class="a-icon">${ch.icon}</span>
+            <div class="a-text">
+                <span class="a-title">${ch.achTitle}</span>
+                <span class="a-sub">${ch.achSub}</span>
+            </div>`;
+        $achStack.appendChild(el);
+        setTimeout(() => el.remove(), 2900);
     }
 
-    composer.render();
-}
-requestAnimationFrame(animate);
+    function triggerLetterbox(ms) {
+        document.body.classList.add('cinematic');
+        setTimeout(() => document.body.classList.remove('cinematic'), ms || 1100);
+    }
 
-// expose for debugging from devtools
-window.__journey = { scene, camera, renderer, player, state, CHAPTERS, setVehicle };
+    // ── tap-to-pause interaction ─────────────────────────────────────
+    let tapHintSeen = false;
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.target !== canvas) return;
+        state.pauseT = Math.max(state.pauseT, 700);
+        const nextIdx = pickNextObjective();
+        const ch = CHAPTERS[nextIdx];
+        if (ch) showAchievement(ch);
+        if (!tapHintSeen && $tapHint) {
+            tapHintSeen = true;
+            $tapHint.classList.add('faded');
+        }
+    });
+
+    // initial HUD paint
+    updateProgress(0);
+    updateVehicleCard();
+    updateMission(0);
+
+    // ── rendering helpers ────────────────────────────────────────────
+
+    /** sky · vertical sepia gradient ending at horizon */
+    function drawSky(W, H, horizonY) {
+        const grad = ctx.createLinearGradient(0, 0, 0, horizonY);
+        grad.addColorStop(0, '#2a1810');
+        grad.addColorStop(0.55, '#5a3a22');
+        grad.addColorStop(1, '#a87544');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, horizonY);
+
+        // sun · low, near the horizon
+        const sunX = W * 0.78;
+        const sunY = horizonY - 38;
+        const sg = ctx.createRadialGradient(sunX, sunY, 3, sunX, sunY, 60);
+        sg.addColorStop(0, 'rgba(255, 220, 160, 0.95)');
+        sg.addColorStop(0.4, 'rgba(255, 180, 100, 0.6)');
+        sg.addColorStop(1, 'rgba(255, 140, 70, 0)');
+        ctx.fillStyle = sg;
+        ctx.fillRect(sunX - 60, sunY - 60, 120, 120);
+    }
+
+    /** distant hills · slow parallax silhouette */
+    function drawDistHills(W, horizonY, cameraX) {
+        const offset = -(cameraX * 0.15);
+        ctx.fillStyle = '#3a2818';
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let i = 0; i < distHills.length; i++) {
+            const p = distHills[i];
+            const px = p.x + offset;
+            if (px > -100 && px < W + 100) {
+                ctx.lineTo(px, horizonY - p.y * 0.6);
+            }
+        }
+        ctx.lineTo(W, horizonY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    /** mid-ground · trees + telegraph poles · medium parallax */
+    function drawMidProps(W, horizonY, groundY, cameraX) {
+        const offset = -(cameraX * 0.5);
+        ctx.font = '36px serif';
+        ctx.textBaseline = 'bottom';
+        for (let i = 0; i < midProps.length; i++) {
+            const p = midProps[i];
+            const px = p.x + offset;
+            if (px < -60 || px > W + 60) continue;
+            if (p.kind === 'tree') {
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(px - 2, groundY - 24 * p.scale, 3, 24 * p.scale);
+                ctx.fillStyle = '#5a3a1f';
+                ctx.beginPath();
+                ctx.arc(px, groundY - 24 * p.scale, 12 * p.scale, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // telegraph pole
+                ctx.fillStyle = '#2a1808';
+                ctx.fillRect(px - 1.5, groundY - 40 * p.scale, 3, 40 * p.scale);
+                ctx.fillRect(px - 8 * p.scale, groundY - 38 * p.scale, 16 * p.scale, 2);
+            }
+        }
+    }
+
+    /** ground plane · warm dirt + texture marks · full parallax */
+    function drawGround(W, H, horizonY, groundY, cameraX) {
+        const grad = ctx.createLinearGradient(0, horizonY, 0, H);
+        grad.addColorStop(0, '#7a4a26');
+        grad.addColorStop(0.4, '#5a3418');
+        grad.addColorStop(1, '#3a2010');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, horizonY, W, H - horizonY);
+
+        // ground tufts (foreground · fast parallax)
+        const offset = -(cameraX * 1.0);
+        ctx.fillStyle = 'rgba(20, 12, 6, 0.6)';
+        for (let i = 0; i < fgTufts.length; i++) {
+            const t = fgTufts[i];
+            const px = t.x + offset;
+            if (px < -10 || px > W + 10) continue;
+            ctx.fillRect(px, groundY + 6, 2, t.h);
+        }
+        // a few horizontal ruts running across
+        ctx.strokeStyle = 'rgba(20,12,6,0.35)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+            const y = groundY + 12 + i * 14;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+        }
+    }
+
+    /** chapter buildings · drawn from the chapter data array */
+    function drawChapters(W, horizonY, groundY, cameraX) {
+        ctx.textBaseline = 'bottom';
+        for (let i = 0; i < CHAPTERS.length; i++) {
+            const ch = CHAPTERS[i];
+            const px = ch.x - cameraX;
+            if (px < -160 || px > W + 160) continue;
+            const collected = state.collected.has(ch.id);
+
+            // arch · two short pillars + a beam
+            const archColor = collected ? '#5a3a1a' : ch.color;
+            ctx.fillStyle = archColor;
+            ctx.globalAlpha = collected ? 0.55 : 0.85;
+            ctx.fillRect(px - 36, groundY - 64, 6, 64);
+            ctx.fillRect(px + 30, groundY - 64, 6, 64);
+            ctx.fillRect(px - 38, groundY - 70, 76, 8);
+            ctx.globalAlpha = 1;
+
+            // chapter icon (big emoji at the arch top)
+            ctx.font = '54px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(ch.icon, px, groundY - 80);
+
+            // pulsing aura under uncollected chapters
+            if (!collected) {
+                const pulse = 0.5 + Math.sin(state.elapsedMs * 0.004 + i) * 0.25;
+                const ag = ctx.createRadialGradient(px, groundY, 6, px, groundY, 60);
+                ag.addColorStop(0, `rgba(${hexR(ch.color)},${hexG(ch.color)},${hexB(ch.color)},${pulse * 0.55})`);
+                ag.addColorStop(1, `rgba(${hexR(ch.color)},${hexG(ch.color)},${hexB(ch.color)},0)`);
+                ctx.fillStyle = ag;
+                ctx.fillRect(px - 60, groundY - 30, 120, 50);
+            }
+
+            // chapter label below the arch in engraved serif
+            ctx.font = 'bold 11px "Cinzel", serif';
+            ctx.fillStyle = collected ? 'rgba(233,216,176,0.5)' : 'rgba(233,216,176,0.92)';
+            ctx.textAlign = 'center';
+            ctx.fillText(ch.label, px, groundY + 28);
+        }
+        ctx.textAlign = 'start';
+    }
+
+    /** the player · big emoji that swaps based on vehicle. Bobs while walking */
+    function drawPlayer(W, groundY) {
+        const cx = W * 0.32;
+        const v = VEHICLES[state.vehicle];
+        const bob = state.vehicle === 'walk'
+            ? Math.abs(Math.sin(state.walkPhase)) * 4
+            : Math.sin(state.bobT * 0.006) * 1.5;
+        const cy = groundY - 36 + bob;
+
+        // shadow under feet
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(cx, groundY + 4, 30, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // emoji
+        ctx.font = '72px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(v.icon, cx, cy);
+        ctx.textAlign = 'start';
+    }
+
+    // hex → rgb component helpers · cheap, avoids string parsing per call
+    function hexR(h) { return parseInt(h.slice(1, 3), 16); }
+    function hexG(h) { return parseInt(h.slice(3, 5), 16); }
+    function hexB(h) { return parseInt(h.slice(5, 7), 16); }
+
+    // ── main loop ────────────────────────────────────────────────────
+    let lastT = performance.now();
+    function frame(now) {
+        requestAnimationFrame(frame);
+        const dt = Math.min(48, now - lastT);
+        lastT = now;
+
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const horizonY = H * HORIZON_PCT;
+        const groundY  = H * GROUND_PCT;
+
+        if (state.running && !state.ended) {
+            state.elapsedMs += dt;
+            state.bobT += dt;
+            let pauseScale = 1;
+            if (state.pauseT > 0) {
+                state.pauseT = Math.max(0, state.pauseT - dt);
+                pauseScale = 0.35;
+            }
+
+            // forward motion · pixels per second
+            const v = VEHICLES[state.vehicle];
+            state.playerX += v.speed * (dt / 1000) * pauseScale;
+
+            // walking leg-phase advance
+            if (state.vehicle === 'walk') {
+                state.walkPhase += dt * 0.008 * pauseScale;
+            }
+
+            // vehicle progression by x
+            let want;
+            if      (state.collected.has('vwgt'))                  want = 'vw';
+            else if (state.playerX >= VEH_THRESH.alto)              want = 'alto';
+            else if (state.playerX >= VEH_THRESH.cycle)             want = 'cycle';
+            else                                                    want = 'walk';
+            if (want !== state.vehicle) {
+                state.vehicle = want;
+                updateVehicleCard();
+                triggerLetterbox(800);
+            }
+
+            // chapter collection · player passes within range of chapter x
+            for (let i = 0; i < CHAPTERS.length; i++) {
+                const ch = CHAPTERS[i];
+                if (state.collected.has(ch.id)) continue;
+                if (state.playerX >= ch.x - 80 && state.playerX <= ch.x + 80) {
+                    state.collected.add(ch.id);
+                    updateProgress(i);
+                    showAchievement(ch);
+                    updateMission(i);
+                    setTimeout(() => updateMission(pickNextObjective()), 1400);
+                    triggerLetterbox(1100);
+                }
+            }
+
+            // HUD score
+            if ($scoreDist) $scoreDist.textContent = Math.round(state.playerX) + ' m';
+            if ($scoreChap) $scoreChap.textContent = state.collected.size + ' / ' + CHAPTERS.length;
+            if ($scoreTime) {
+                const s = Math.floor(state.elapsedMs / 1000);
+                $scoreTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+            }
+
+            // end · past the last chapter
+            if (state.collected.size >= CHAPTERS.length && state.playerX > CHAPTERS[CHAPTERS.length - 1].x + 150) {
+                state.ended = true;
+                if ($end) $end.hidden = false;
+            }
+        }
+
+        // camera · player anchored at 32% from left
+        const cameraX = state.playerX - W * 0.32;
+
+        // ── RENDER ──
+        ctx.fillStyle = '#1f1610';
+        ctx.fillRect(0, 0, W, H);
+        drawSky(W, H, horizonY);
+        drawDistHills(W, horizonY, cameraX);
+        drawGround(W, H, horizonY, groundY, cameraX);
+        drawMidProps(W, horizonY, groundY, cameraX);
+        drawChapters(W, horizonY, groundY, cameraX);
+        drawPlayer(W, groundY);
+    }
+    requestAnimationFrame(frame);
+
+    // debug
+    window.__journey = { state, CHAPTERS };
+})();
