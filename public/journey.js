@@ -101,6 +101,7 @@
         achievements: new Set(),
         elapsedMs:    0,
         walkPhase:    0,
+        wheelPhase:   0,            // wheel rotation · always spins (idle drift)
         bobT:         0,
         // INPUT · key-driven walking · player only moves when an input is
         // held. No auto-walk.
@@ -327,7 +328,12 @@
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = sg;
-        ctx.fillRect(sunX - sunSize, sunY - sunSize, sunSize * 2, sunSize * 2);
+        // Paint sun gradient over the WHOLE sky rect (not just the sun's
+        // bounding box). Outer color stop is rgba(0,0,0,0), so 'lighter'
+        // composite contributes nothing outside the gradient circle ·
+        // this guarantees no rect-edge seam even on rendering backends
+        // (Safari/macOS) that anti-alias fractional fillRect bounds.
+        ctx.fillRect(0, 0, W, horizonY);
         ctx.restore();
     }
 
@@ -657,31 +663,300 @@
         ctx.textAlign = 'start';
     }
 
-    /** the player · big emoji that swaps based on vehicle. Bobs while walking.
-     *  cy uses 'alphabetic' baseline so visible glyph bottom lands on groundY,
-     *  not the EM-box bottom (which has invisible descender padding). */
+    // ── procedural player · stick-figure character + per-vehicle drawers ──
+    //   Each drawer takes (cx, groundY) where cx/groundY are the feet-anchor.
+    //   Walk/Run animate via state.walkPhase; vehicles animate via state.wheelPhase.
+    //   Colors stay in the sepia/brass palette to match the RDR world tint.
+
+    const SKIN  = '#c8a482';
+    const COAT  = '#5a3a22';       // dark-brown coat
+    const SHIRT = '#a86434';       // burnt-sienna shirt
+    const PANT  = '#2a1810';       // near-black trousers
+    const HAT   = '#1c0e06';       // cowboy-hat black
+    const METAL = '#8a6d4a';       // brass-tinged metal
+    const TIRE  = '#0e0805';       // tire black
+
+    /** draw a stick figure standing/walking · feet anchored at (cx, footY).
+     *  phase: walking cycle radians (0..2π). amp: stride amplitude in radians.
+     *  lean: forward body lean radians (run > walk). bob: vertical body bob. */
+    function drawWalker(cx, footY, phase, amp, lean, bob) {
+        const torsoH = 22;
+        const legH   = 22;
+        const armL   = 16;
+        const hipX   = cx;
+        const hipY   = footY - legH + bob;
+        // forward lean: pivot the upper body around the hip
+        const cosL = Math.cos(lean), sinL = Math.sin(lean);
+        const torsoTop = { x: hipX + sinL * torsoH, y: hipY - cosL * torsoH };
+        const headR    = 7;
+        const headY    = torsoTop.y - headR - 1;
+        const headX    = torsoTop.x + sinL * (headR + 1);
+
+        // legs · alternate phase (left leg = phase, right leg = phase + π)
+        const legAngL = Math.sin(phase) * amp;
+        const legAngR = Math.sin(phase + Math.PI) * amp;
+        const footLX  = hipX + Math.sin(legAngL) * legH;
+        const footLY  = hipY + Math.cos(legAngL) * legH;
+        const footRX  = hipX + Math.sin(legAngR) * legH;
+        const footRY  = hipY + Math.cos(legAngR) * legH;
+
+        // arms swing opposite to legs
+        const armAngL = Math.sin(phase + Math.PI) * amp * 0.8 + lean;
+        const armAngR = Math.sin(phase)            * amp * 0.8 + lean;
+        const shoulder = { x: hipX + sinL * (torsoH - 4), y: hipY - cosL * (torsoH - 4) };
+        const handLX  = shoulder.x + Math.sin(armAngL) * armL;
+        const handLY  = shoulder.y + Math.cos(armAngL) * armL;
+        const handRX  = shoulder.x + Math.sin(armAngR) * armL;
+        const handRY  = shoulder.y + Math.cos(armAngR) * armL;
+
+        ctx.lineCap = 'round';
+        // back leg first so front leg overlaps it
+        ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(footRX, footRY); ctx.stroke();
+        // back arm
+        ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handRX, handRY); ctx.stroke();
+        // torso (shirt under coat — coat painted as thick line over shirt)
+        ctx.strokeStyle = SHIRT; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
+        ctx.strokeStyle = COAT;  ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(hipX, hipY - 2); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
+        // front leg
+        ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(footLX, footLY); ctx.stroke();
+        // front arm
+        ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handLX, handLY); ctx.stroke();
+        // head
+        ctx.fillStyle = SKIN;
+        ctx.beginPath(); ctx.arc(headX, headY, headR, 0, Math.PI * 2); ctx.fill();
+        // cowboy hat (brim + crown) — sells the RDR vibe
+        ctx.fillStyle = HAT;
+        ctx.beginPath();
+        ctx.ellipse(headX + sinL * 2, headY - headR + 1, headR + 4, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(headX - 4 + sinL * 3, headY - headR - 5, 8, 4);
+    }
+
+    /** spinning wheel · centered at (x, y), radius r, rotation theta.
+     *  Drawn as: rim + 4 spokes + hub. The spokes are the motion cue. */
+    function drawWheel(x, y, r, theta) {
+        // tire
+        ctx.fillStyle = TIRE;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        // rim inner ring
+        ctx.strokeStyle = METAL; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y, r - 2.5, 0, Math.PI * 2); ctx.stroke();
+        // spokes — 4 lines through center, rotated by theta
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(theta);
+        ctx.strokeStyle = METAL; ctx.lineWidth = 1.2;
+        for (let i = 0; i < 4; i++) {
+            ctx.rotate(Math.PI / 4);
+            ctx.beginPath();
+            ctx.moveTo(-r + 3, 0); ctx.lineTo(r - 3, 0);
+            ctx.stroke();
+        }
+        ctx.restore();
+        // hub
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+
+    /** rider sitting on a saddle · simplified upper body, legs angled to pedals/footpegs */
+    function drawRider(cx, seatY, pedalPhase, footSpread, withHelmet) {
+        const torsoH = 18;
+        const torsoTop = { x: cx, y: seatY - torsoH };
+        const headR = 6.5;
+        ctx.lineCap = 'round';
+        // torso
+        ctx.strokeStyle = COAT; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(cx, seatY); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
+        // arms forward to handlebar
+        ctx.strokeStyle = COAT; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.moveTo(torsoTop.x, torsoTop.y + 2); ctx.lineTo(cx + 16, seatY - 4); ctx.stroke();
+        // legs · alternate phase (pedaling)
+        const lLY = seatY + 4 + Math.sin(pedalPhase) * footSpread;
+        const lLX = cx - 6 + Math.cos(pedalPhase) * 2;
+        const rLY = seatY + 4 + Math.sin(pedalPhase + Math.PI) * footSpread;
+        const rLX = cx - 6 + Math.cos(pedalPhase + Math.PI) * 2;
+        ctx.strokeStyle = PANT; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(cx, seatY); ctx.lineTo(lLX, lLY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, seatY); ctx.lineTo(rLX, rLY); ctx.stroke();
+        // head
+        ctx.fillStyle = SKIN;
+        ctx.beginPath(); ctx.arc(torsoTop.x, torsoTop.y - headR, headR, 0, Math.PI * 2); ctx.fill();
+        if (withHelmet) {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(torsoTop.x, torsoTop.y - headR - 1, headR + 1.5, Math.PI, 2 * Math.PI);
+            ctx.fill();
+            // visor
+            ctx.fillStyle = 'rgba(120,180,220,0.7)';
+            ctx.fillRect(torsoTop.x - headR, torsoTop.y - headR - 2, headR * 2, 2);
+        } else {
+            // bandana / cowboy hat
+            ctx.fillStyle = HAT;
+            ctx.beginPath();
+            ctx.ellipse(torsoTop.x, torsoTop.y - headR * 2, headR + 3, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    /** bicycle · two wheels + frame triangle + handlebars · rider sits on saddle */
+    function drawCycle(cx, footY) {
+        const wheelR = 12;
+        const wheelY = footY - wheelR;
+        const wLx = cx - 14, wRx = cx + 14;
+        // frame
+        ctx.strokeStyle = METAL; ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(wLx + 2, wheelY);        // rear hub
+        ctx.lineTo(cx - 2, wheelY - 12);    // seat tube top
+        ctx.lineTo(wRx - 4, wheelY - 2);    // down tube to fork
+        ctx.lineTo(cx + 2, wheelY - 14);    // top tube up to handlebar
+        ctx.moveTo(wRx - 4, wheelY - 2);    // fork to front wheel
+        ctx.lineTo(wRx, wheelY);
+        ctx.stroke();
+        // wheels (spinning)
+        drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+        drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+        // rider on top
+        drawRider(cx - 2, wheelY - 13, state.wheelPhase * 1.4, 4, false);
+    }
+
+    /** motorbike · larger wheels + engine box + exhaust + leaning rider w/helmet */
+    function drawBike(cx, footY) {
+        const wheelR = 14;
+        const wheelY = footY - wheelR;
+        const wLx = cx - 18, wRx = cx + 18;
+        // engine block
+        ctx.fillStyle = METAL;
+        ctx.fillRect(cx - 12, wheelY - 10, 24, 12);
+        ctx.fillStyle = COAT;
+        ctx.fillRect(cx - 10, wheelY - 8, 20, 8);
+        // exhaust pipe
+        ctx.strokeStyle = METAL; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx + 8, wheelY - 4); ctx.lineTo(wRx + 4, wheelY - 1); ctx.stroke();
+        // seat
+        ctx.fillStyle = HAT;
+        ctx.fillRect(cx - 8, wheelY - 14, 16, 4);
+        // handlebar
+        ctx.strokeStyle = METAL; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(cx + 6, wheelY - 14); ctx.lineTo(cx + 14, wheelY - 22); ctx.stroke();
+        // wheels (spinning)
+        drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+        drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+        // rider w/ helmet, slight forward lean
+        drawRider(cx, wheelY - 14, state.wheelPhase * 0.6, 2, true);
+    }
+
+    /** car · body silhouette + 2 wheels + window with driver hint · used for alto & vw.
+     *  bodyColor distinguishes the two; vw also gets a spoiler+stripe. */
+    function drawCar(cx, footY, opts) {
+        const { bodyColor, accent, isGT } = opts;
+        const wheelR = 11;
+        const wheelY = footY - wheelR;
+        const wLx = cx - 22, wRx = cx + 22;
+        const carTop = wheelY - 22;
+        const roofTop = carTop - 12;
+
+        // body — low, wide
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(cx - 32, wheelY);
+        ctx.lineTo(cx - 32, carTop + 2);
+        ctx.quadraticCurveTo(cx - 28, carTop - 2, cx - 20, carTop - 2);
+        ctx.lineTo(cx - 8,  roofTop);
+        ctx.lineTo(cx + 12, roofTop);
+        ctx.lineTo(cx + 22, carTop - 2);
+        ctx.quadraticCurveTo(cx + 30, carTop, cx + 34, carTop + 4);
+        ctx.lineTo(cx + 34, wheelY);
+        ctx.closePath();
+        ctx.fill();
+        // window glass
+        ctx.fillStyle = 'rgba(140,180,210,0.55)';
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, carTop);
+        ctx.lineTo(cx - 6,  roofTop + 1);
+        ctx.lineTo(cx + 10, roofTop + 1);
+        ctx.lineTo(cx + 20, carTop);
+        ctx.closePath();
+        ctx.fill();
+        // driver silhouette through window
+        ctx.fillStyle = HAT;
+        ctx.beginPath(); ctx.arc(cx + 2, roofTop + 6, 4, 0, Math.PI * 2); ctx.fill();
+        // bumper highlight / accent stripe
+        ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx - 30, wheelY - 4); ctx.lineTo(cx + 32, wheelY - 4); ctx.stroke();
+        // GT: rear spoiler + go-faster stripe
+        if (isGT) {
+            ctx.fillStyle = '#1a0d08';
+            ctx.fillRect(cx - 32, carTop + 4, 4, 6);
+            ctx.fillRect(cx - 34, carTop + 2, 6, 3);
+            ctx.fillStyle = '#f0d590';
+            ctx.fillRect(cx - 28, wheelY - 10, 56, 1.5);
+        }
+        // wheels
+        drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+        drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+        // headlight glow (only when dusk-ish — progress > 0.55)
+        const progress = Math.min(1, state.playerX / 6500);
+        if (progress > 0.55) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const hg = ctx.createRadialGradient(cx + 34, wheelY - 6, 0, cx + 34, wheelY - 6, 40);
+            hg.addColorStop(0, 'rgba(255,220,150,0.8)');
+            hg.addColorStop(1, 'rgba(255,220,150,0)');
+            ctx.fillStyle = hg;
+            ctx.fillRect(cx, wheelY - 40, 90, 60);
+            ctx.restore();
+        }
+    }
+
+    /** the player · procedural drawing per vehicle. Walking/running uses
+     *  drawWalker; wheeled vehicles use drawCycle/drawBike/drawCar with
+     *  spinning wheels driven by state.wheelPhase. */
     function drawPlayer(W, groundY) {
         const cx = W * 0.32;
-        const v = VEHICLES[state.vehicle];
-        const bob = state.vehicle === 'walk'
-            ? Math.abs(Math.sin(state.walkPhase)) * 4
-            : Math.sin(state.bobT * 0.006) * 1.5;
-        const cy = groundY + 6 - bob;
+        // small body bob for organic feel · bigger when walking, tiny when riding
+        const moving = state.keys.right || state.touchHold || state.keys.left;
+        const bob = (state.vehicle === 'walk' || state.vehicle === 'run')
+            ? (moving ? Math.abs(Math.sin(state.walkPhase)) * 2 : 0)
+            : Math.sin(state.bobT * 0.003) * 0.8;
 
-        // shadow under feet · shrinks slightly when player bobs up (sells lift)
-        const shadowScale = 1 - (bob / 24);
-        ctx.fillStyle = `rgba(0,0,0,${0.42 * shadowScale})`;
+        // shadow under feet · scales with vertical lift to sell motion
+        const shadowR = state.vehicle === 'walk' || state.vehicle === 'run' ? 18 :
+                        state.vehicle === 'cycle' ? 22 :
+                        state.vehicle === 'bike' ? 26 : 36;
+        const shadowScale = 1 - bob / 24;
+        ctx.fillStyle = `rgba(0,0,0,${0.38 * shadowScale})`;
         ctx.beginPath();
-        ctx.ellipse(cx, groundY + 8, 30 * shadowScale, 5 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, groundY + 4, shadowR * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // emoji · 'alphabetic' baseline sits ~at glyph bottom for emoji fonts
-        ctx.font = '72px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(v.icon, cx, cy);
-        ctx.textAlign = 'start';
-        ctx.textBaseline = 'alphabetic';
+        // dispatch to the per-vehicle drawer
+        switch (state.vehicle) {
+            case 'walk':
+                drawWalker(cx, groundY, state.walkPhase, moving ? 0.55 : 0.0, 0.08, bob);
+                break;
+            case 'run':
+                drawWalker(cx, groundY, state.walkPhase, moving ? 0.85 : 0.0, 0.22, bob);
+                break;
+            case 'cycle':
+                drawCycle(cx, groundY);
+                break;
+            case 'bike':
+                drawBike(cx, groundY);
+                break;
+            case 'alto':
+                drawCar(cx, groundY, { bodyColor: '#d8c4a0', accent: '#7a5b30', isGT: false });
+                break;
+            case 'vw':
+                drawCar(cx, groundY, { bodyColor: '#1d3a5c', accent: '#d4a653', isGT: true });
+                break;
+        }
     }
 
     // hex → rgb component helpers · cheap, avoids string parsing per call
@@ -721,10 +996,15 @@
             // pre-world space). Now the start of the journey is a hard wall.
             if (state.playerX < 0) state.playerX = 0;
 
-            // walking leg-phase only advances when actually walking
-            if (state.vehicle === 'walk' && dir !== 0) {
-                state.walkPhase += dt * 0.008 * Math.abs(dir);
+            // walking leg-phase only advances when actually walking/running
+            if ((state.vehicle === 'walk' || state.vehicle === 'run') && dir !== 0) {
+                const cycleRate = state.vehicle === 'run' ? 0.014 : 0.008;
+                state.walkPhase += dt * cycleRate * Math.abs(dir);
             }
+            // wheel-phase ALWAYS advances · vehicles never look frozen.
+            // Base idle drift = 0.0005 (sloth-slow), motion adds proportional spin.
+            const moveBoost = Math.abs(dir) * (v.speed / 60);
+            state.wheelPhase += dt * (0.0005 + 0.012 * moveBoost);
 
             // vehicle progression · LATCHED to highest rank ever reached.
             // Previously the if-chain re-evaluated every frame, so walking
