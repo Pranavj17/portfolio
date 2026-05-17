@@ -486,9 +486,12 @@
         // end-state: collected everything AND reached zone 5
         if (state.loot >= ZONES.length && state.zone === ZONES.length - 1 && !state.ended) {
             state.ended = true;
-            endTitle.textContent = 'thanks for playing.';
-            endSub.textContent   = `you walked through 11 years · ${ZONES.length} chapters · all ${ZONES.length} loot collected.`;
-            endLoot.textContent  = `loot · ${state.loot} / ${ZONES.length}`;
+            // leave end-title as the HTML default ("GAME COMPLETE") — it fits
+            // the VT323 width without wrapping. JS only updates the dynamic
+            // bits: the subhead and the loot cell. Stat cells render their
+            // values directly from state.loot / ZONES.length below.
+            endSub.textContent  = `you walked through 11 years · ${ZONES.length} chapters · all ${ZONES.length} loot collected.`;
+            endLoot.textContent = `${String(state.loot).padStart(2,'0')} / ${String(ZONES.length).padStart(2,'0')}`;
             overlayEnd.hidden = false;
             triggerGlitch(600, PAL.gold);
         }

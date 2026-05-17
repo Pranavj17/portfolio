@@ -30,8 +30,11 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
+    <!-- IBM Plex Mono · body voice (existing). VT323 · display voice (new, pixel CRT).
+         Noto Sans JP · for the kanji decoration in the right rail (Japanese glyphs
+         look correct + monospaced enough to align with the rest). -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=VT323&family=Noto+Sans+JP:wght@400;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=VT323&family=Noto+Sans+JP:wght@400;700&display=swap"></noscript>
 
     <link rel="stylesheet" href="/styles.css?v=20260514-2">
 
@@ -131,66 +134,381 @@
             border-radius: 2px;
         }
 
-        /* start / pause overlay */
+        /* ── overlay system · arcade-cabinet × Akira-brutalism ──────────
+           Three-rail composition (left = diagnostic terminal, center = hero,
+           right = kanji decoration). Asymmetric grid breaks the centered-
+           overlay AI-slop pattern. Staggered reveal makes the page-load a
+           designed moment, not an instant. */
         .overlay {
             position: absolute;
             inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             z-index: 20;
             color: var(--fg-bright, #e8f0dd);
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
-            background: rgba(10,14,10,0.78);
-            backdrop-filter: blur(2px);
-            text-align: center;
-            padding: 20px;
+            background:
+                radial-gradient(ellipse 120% 80% at 50% 50%, rgba(10,14,10,0.55) 0%, rgba(10,14,10,0.95) 100%),
+                repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0,0,0,0.18) 4px, transparent 5px);
+            backdrop-filter: blur(3px);
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(0, 3fr) minmax(160px, 1fr);
+            grid-template-rows: 1fr auto;
+            grid-template-areas:
+                "left center right"
+                "left footer right";
+            gap: 24px;
+            padding: 28px 22px 16px;
+            overflow: hidden;
         }
         .overlay[hidden] { display: none; }
-        .overlay h1 {
-            margin: 0 0 6px;
-            font-size: clamp(18px, 2.6vw, 28px);
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
+
+        /* diagnostic side rails · terminal output style, dim, monospace */
+        .diag-rail {
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            color: rgba(200,211,191,0.62);
+            white-space: pre;
+            margin: 0;
+            letter-spacing: 0.04em;
+            overflow: hidden;
+            opacity: 0;
+            animation: railIn 600ms 200ms cubic-bezier(.18,.7,.25,1) forwards;
+        }
+        .diag-rail .rail-key {
             color: var(--accent, #6dffa6);
-            text-shadow: -2px 0 #ff3b8a, 2px 0 #5ad8ff, 0 0 18px var(--accent-soft, #6dffa61f);
+            font-weight: 700;
+            letter-spacing: 0.1em;
         }
-        .overlay p {
-            margin: 4px 0;
-            font-size: clamp(11px, 1.2vw, 14px);
-            opacity: 0.85;
+        .rail-left  { grid-area: left;  border-left:  1px solid rgba(109,255,166,0.18); padding-left:  12px; }
+        .rail-right { grid-area: right; border-right: 1px solid rgba(109,255,166,0.18); padding-right: 12px;
+                      text-align: right; font-family: 'Noto Sans JP', 'IBM Plex Mono', monospace;
+                      animation-delay: 400ms; }
+        .rail-right .rail-key { font-family: 'IBM Plex Mono', monospace; }
+
+        /* center hero · the actual headline content */
+        .hero {
+            grid-area: center;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 14px;
+            padding: 8px 4px;
         }
-        .overlay .keys {
-            margin: 14px 0 4px;
-            font-size: clamp(11px, 1.2vw, 14px);
+        .hero > * {
+            opacity: 0;
+            transform: translateY(8px);
+            animation: heroIn 700ms cubic-bezier(.18,.7,.25,1) forwards;
         }
-        .overlay .keys kbd {
-            display: inline-block;
-            border: 1px solid var(--fg);
-            padding: 2px 8px;
-            margin: 0 3px;
-            font-family: inherit;
-            background: rgba(109,255,166,0.08);
+        .hero-eyebrow            { animation-delay: 600ms; }
+        .hero-title              { animation-delay: 800ms; }
+        .hero-tag                { animation-delay: 900ms; }
+        .hero-roster             { animation-delay: 1000ms; }
+        .coin-btn                { animation-delay: 1200ms; }
+        .mobile-hint             { animation-delay: 1400ms; }
+
+        .hero-eyebrow {
+            font-size: 11px;
+            color: rgba(200,211,191,0.6);
+            letter-spacing: 0.18em;
+            margin: 0;
+            text-transform: lowercase;
+            white-space: pre;
+        }
+        .hero-eyebrow .accent { color: var(--accent, #6dffa6); font-weight: 700; }
+
+        /* the signature title · VT323 pixel font, huge, with permanent
+           chromatic-aberration text-shadow. Subtle flicker keeps it alive. */
+        .hero-title {
+            font-family: 'VT323', 'IBM Plex Mono', monospace;
+            font-size: clamp(48px, 9vw, 116px);
+            line-height: 0.92;
+            margin: 0;
+            color: var(--fg-bright, #e8f0dd);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            position: relative;
+            text-shadow:
+                -3px 0 #ff3b8a,
+                 3px 0 #5ad8ff,
+                 0 0 24px rgba(109,255,166,0.35);
+            animation: heroIn 700ms 800ms cubic-bezier(.18,.7,.25,1) forwards,
+                       titleFlicker 5.2s 1.6s infinite steps(1);
+        }
+
+        .hero-tag {
+            font-size: clamp(11px, 1.1vw, 13px);
+            color: rgba(200,211,191,0.85);
+            margin: 0;
+            letter-spacing: 0.04em;
+        }
+
+        /* chapter roster as a typographic list — 6 chapters, two columns */
+        .hero-roster {
+            list-style: none;
+            padding: 0;
+            margin: 6px 0 4px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 24px;
+            font-size: 12px;
+            max-width: 460px;
+            width: 100%;
+        }
+        .hero-roster li {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: baseline;
+            padding: 3px 0;
+            border-bottom: 1px dashed rgba(109,255,166,0.16);
+        }
+        .hero-roster b {
+            font-weight: 700;
+            color: var(--accent, #6dffa6);
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            letter-spacing: 0.04em;
+        }
+        .hero-roster em {
+            font-style: normal;
             color: var(--fg-bright);
-            min-width: 18px;
+        }
+        .hero-roster span {
+            color: rgba(200,211,191,0.5);
+            font-size: 10.5px;
+        }
+
+        /* arcade INSERT COIN button · pulses + has a permanent glow + blink */
+        .coin-btn {
+            margin-top: 6px;
+            background: transparent;
+            border: none;
+            color: var(--accent, #6dffa6);
+            font-family: 'VT323', 'IBM Plex Mono', monospace;
+            font-size: clamp(20px, 2.4vw, 28px);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 12px 0;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            text-shadow: 0 0 18px rgba(109,255,166,0.6);
+            transition: color 120ms, transform 120ms;
+        }
+        .coin-btn::before {
+            content: '';
+            position: absolute;
+            inset: 4px -10px;
+            border: 1px solid var(--accent, #6dffa6);
+            border-radius: 2px;
+            opacity: 0.35;
+            transition: opacity 120ms, transform 120ms;
+        }
+        .coin-btn:hover { color: var(--fg-bright); transform: translateY(-1px); }
+        .coin-btn:hover::before { opacity: 1; transform: scale(1.02); }
+        .coin-btn:active { transform: translateY(0); }
+        .coin-mark {
+            color: var(--pink, #ff3b8a);
+            font-size: 0.7em;
+            letter-spacing: 0.15em;
+            text-shadow: 0 0 14px rgba(255,59,138,0.5);
+        }
+        .coin-label { animation: coinPulse 1.6s ease-in-out infinite; }
+        .coin-blink { animation: blink 1s steps(1) infinite; opacity: 0.85; }
+
+        .mobile-hint {
+            margin: 0;
+            font-size: 10.5px;
+            color: rgba(200,211,191,0.45);
+            letter-spacing: 0.08em;
+        }
+
+        .overlay-footer {
+            grid-area: footer;
+            grid-column: 1 / -1;
+            margin: 0;
+            color: rgba(109,255,166,0.18);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            text-align: center;
+            opacity: 0;
+            animation: railIn 600ms 1500ms cubic-bezier(.18,.7,.25,1) forwards;
+            white-space: pre;
+            overflow: hidden;
+        }
+
+        /* ── END overlay · transmission-ends frame ────────────────── */
+        .overlay--end { grid-template-rows: auto 1fr auto;
+            grid-template-areas: "top top top" "left center right" "bot bot bot";
+            gap: 12px;
+        }
+        .end-frame-top, .end-frame-bot {
+            grid-column: 1 / -1;
+            margin: 0;
+            color: rgba(109,255,166,0.28);
+            font-size: 11px;
+            text-align: center;
+            white-space: pre;
+            overflow: hidden;
+        }
+        .end-frame-top { grid-area: top; }
+        .end-frame-bot { grid-area: bot; }
+        .end-hero {
+            grid-area: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
             text-align: center;
         }
-        .overlay button {
-            margin-top: 16px;
-            background: transparent;
-            border: 1px solid var(--accent, #6dffa6);
-            color: var(--accent, #6dffa6);
-            font-family: inherit;
-            font-size: 13px;
-            padding: 8px 22px;
-            cursor: pointer;
+        .end-eyebrow {
+            font-size: 11px;
+            color: rgba(200,211,191,0.6);
             letter-spacing: 0.18em;
-            text-transform: uppercase;
-            transition: background 120ms ease, color 120ms ease;
+            margin: 0;
+            white-space: pre;
         }
-        .overlay button:hover {
-            background: var(--accent, #6dffa6);
-            color: var(--bg, #0a0e0a);
+        .end-eyebrow .accent { color: var(--gold, #ffd47a); font-weight: 700; }
+        .end-title {
+            font-family: 'VT323', monospace;
+            font-size: clamp(40px, 7vw, 88px);
+            margin: 0;
+            color: var(--fg-bright);
+            letter-spacing: 0.05em;
+            text-shadow:
+                -3px 0 #ff3b8a,
+                 3px 0 #5ad8ff,
+                 0 0 28px rgba(255,212,122,0.4);
+            animation: titleFlicker 5.2s 1s infinite steps(1);
+        }
+        .end-sub {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(232,240,221,0.85);
+            letter-spacing: 0.02em;
+        }
+        .end-stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(96px, 120px));
+            gap: 12px;
+            margin: 8px 0 4px;
+        }
+        .end-stats > div { text-align: center; border: 1px solid rgba(109,255,166,0.22); padding: 8px 6px; background: rgba(109,255,166,0.04); white-space: nowrap; }
+        .end-stats dt { font-size: 9.5px; letter-spacing: 0.18em; color: rgba(200,211,191,0.55); text-transform: uppercase; margin: 0; }
+        .end-stats dd { margin: 4px 0 0; font-family: 'VT323', monospace; font-size: 26px; color: var(--accent, #6dffa6); line-height: 1; }
+        .end-contact {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 8px;
+            font-size: 11.5px;
+            color: rgba(200,211,191,0.85);
+        }
+        .end-contact li { padding: 1px 0; }
+        .end-contact .contact-key { color: rgba(109,255,166,0.55); letter-spacing: 0.1em; }
+        .end-contact a { color: var(--fg-bright); text-decoration: underline; text-decoration-color: rgba(109,255,166,0.4); }
+        .end-contact a:hover { color: var(--accent); }
+
+        /* ── keyframes ────────────────────────────────────────────── */
+        @keyframes railIn {
+            from { opacity: 0; transform: translateX(-6px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .rail-right { animation-name: railInRight; }
+        @keyframes railInRight {
+            from { opacity: 0; transform: translateX(6px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes heroIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes titleFlicker {
+            0%, 92%, 100% { opacity: 1; }
+            93%           { opacity: 0.6; text-shadow: -5px 0 #ff3b8a, 5px 0 #5ad8ff, 0 0 24px rgba(109,255,166,0.4); }
+            94%           { opacity: 1; }
+            96%           { opacity: 0.7; transform: translateY(0) translateX(-1px); }
+            97%           { opacity: 1;   transform: translateY(0) translateX(0); }
+        }
+        @keyframes coinPulse {
+            0%, 100% { text-shadow: 0 0 18px rgba(109,255,166,0.5); }
+            50%      { text-shadow: 0 0 30px rgba(109,255,166,1), 0 0 10px rgba(109,255,166,0.8); }
+        }
+        @keyframes blink {
+            0%, 49%  { opacity: 1; }
+            50%, 99% { opacity: 0; }
+        }
+
+        /* ── responsive · collapse rails on narrow screens ─────────── */
+        @media (max-width: 760px) {
+            /* break overlay OUT of canvas-wrap on mobile so it gets the
+               full viewport. ALSO centre the hero vertically so INSERT
+               COIN is visible without scrolling on phones up to ~870px tall. */
+            .overlay {
+                position: fixed;
+                inset: 0;
+                grid-template-columns: 1fr;
+                grid-template-areas: "center";
+                align-items: start;          /* anchor at top so INSERT COIN stays in view */
+                padding: 48px 14px 16px;
+                gap: 8px;
+                overflow-y: auto;
+            }
+            .rail-left, .rail-right { display: none; }
+            .overlay-footer, .end-frame-top, .end-frame-bot { display: none; }
+            /* hide eyebrow on mobile · pure decoration that costs 2 lines */
+            .hero-eyebrow { display: none; }
+
+            .hero {
+                align-items: center;
+                text-align: center;
+                gap: 10px;
+                width: 100%;
+                max-width: 360px;
+                margin: 0 auto;
+            }
+            .hero-tag {
+                font-size: 11px;
+                white-space: normal;
+                line-height: 1.4;
+                opacity: 0.75;
+            }
+            .hero-title { font-size: clamp(40px, 13vw, 64px); letter-spacing: 0.03em; line-height: 0.94; }
+            /* mobile · drop the period column to keep roster compact */
+            .hero-roster {
+                grid-template-columns: 1fr 1fr;
+                max-width: 320px;
+                gap: 1px 16px;
+                font-size: 11px;
+            }
+            .hero-roster li     { grid-template-columns: auto 1fr; padding: 2px 0; }
+            .hero-roster li span { display: none; }
+            .hero-roster b      { font-size: 13px; }
+            .coin-btn {
+                font-size: clamp(18px, 5vw, 22px);
+                padding: 8px 0;
+                gap: 10px;
+                margin-top: 4px;
+            }
+            .mobile-hint { font-size: 10px; opacity: 0.55; }
+
+            .overlay--end {
+                grid-template-rows: 1fr;
+                grid-template-areas: "center";
+                align-items: center;
+            }
+            .end-hero { gap: 10px; padding: 0 8px; width: 100%; max-width: 360px; margin: 0 auto; }
+            .end-eyebrow { font-size: 9.5px; }
+            .end-title   { font-size: clamp(36px, 11vw, 56px); }
+            .end-sub     { font-size: 11.5px; }
+            .end-stats   { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; }
+            .end-stats > div { padding: 6px 4px; }
+            .end-stats dt    { font-size: 8.5px; letter-spacing: 0.12em; }
+            .end-stats dd    { font-size: 18px; }
+            .end-contact     { font-size: 10.5px; text-align: left; padding-left: 16px; }
         }
 
         .journey-back {
@@ -300,33 +618,115 @@
                 </div>
             </div>
 
-            <div class="overlay" id="overlay-start">
-                <div>
-                    <h1>the journey</h1>
-                    <p>a glitch-terminal 3D walker · 6 chapters · 11 years</p>
-                    <p class="dim">2015 — 2026 · college → fever 104 → sakha → scripbox → the GT → now</p>
-                    <div class="keys">
-                        <kbd>↑</kbd> walk in &nbsp;
-                        <kbd>←</kbd><kbd>→</kbd> strafe &nbsp;
-                        <kbd>↓</kbd> back &nbsp;
-                        <kbd>space</kbd> jump &nbsp;
-                        <kbd>Z</kbd> glitch &nbsp;
-                        <kbd>R</kbd> restart
-                    </div>
-                    <p class="dim" style="margin-top:10px;font-size:11px;">on mobile: tap the on-screen pad to walk + jump</p>
-                    <button id="btn-start" autofocus>insert coin · press start</button>
-                </div>
+            <!-- START · arcade-cabinet boot sequence × Akira-cyber composition.
+                 Three rails: left = diagnostic terminal feed, center = hero,
+                 right = kanji decoration. Stagger-revealed on page load. -->
+            <div class="overlay overlay--start" id="overlay-start">
+                <pre class="diag-rail rail-left" aria-hidden="true">[ <span class="rail-key">system</span> ]
+host  · pranavjagadish.com
+build · v2.0 · 3D walker
+chap. · 6 / 6
+loot  · 6 items
+years · 2015 → 2026
+
+[ <span class="rail-key">trace</span> ]
+sector ·· 00 · waiting
+station · D.S.C.E. (1/6)
+distance ·· 0 m
+status ·· NOMINAL
+█████████░  98%
+
+[ <span class="rail-key">keys</span> ]
+↑   walk forward
+←/→ strafe lanes
+↓   step back
+␣   jump
+Z   glitch.exe
+R   restart</pre>
+
+                <section class="hero" role="region" aria-label="title">
+                    <pre class="hero-eyebrow">// transmission &nbsp;<span class="accent">002</span>&nbsp; ··· 2015 ▸ 2026 ··· 11 yr · 6 ch · 6 lt</pre>
+
+                    <h1 class="hero-title" data-text="THE JOURNEY">THE JOURNEY</h1>
+
+                    <p class="hero-tag">a glitch-terminal 3D walker · third-person · ASCII</p>
+
+                    <ol class="hero-roster" aria-label="chapter roster">
+                        <li><b>01</b><em>college</em><span>2015–19</span></li>
+                        <li><b>02</b><em>fever 104</em><span>mar–may '19</span></li>
+                        <li><b>03</b><em>sakha global</em><span>'19–'22</span></li>
+                        <li><b>04</b><em>scripbox</em><span>'22 → now</span></li>
+                        <li><b>05</b><em>the GT</em><span>nov 2025</span></li>
+                        <li><b>06</b><em>now</em><span>2026</span></li>
+                    </ol>
+
+                    <button id="btn-start" class="coin-btn" autofocus>
+                        <span class="coin-mark">▢▣▢</span>
+                        <span class="coin-label">insert coin · press start</span>
+                        <span class="coin-blink">▌</span>
+                    </button>
+
+                    <p class="mobile-hint">tap the on-screen d-pad to walk + jump</p>
+                </section>
+
+                <pre class="diag-rail rail-right" aria-hidden="true"><span class="rail-key">// 路</span>
+路 旅 拾
+旅 路 拾
+拾 旅 路
+路 路 旅
+旅 拾 路
+
+<span class="rail-key">// 拾</span>
+─ ─ ─ ─ ─
+■ ■ ■ ■ ■
+░ ░ ░ ░ ░
+─ ─ ─ ─ ─
+
+<span class="rail-key">// 旅</span>
+路 = path
+旅 = journey
+拾 = collect
+
+╳───────╳
+│ READY │
+╳───────╳</pre>
+
+                <pre class="overlay-footer" aria-hidden="true">┌── transmission 002 ───────────────────────── press start ──┐</pre>
             </div>
 
-            <div class="overlay" id="overlay-end" hidden>
-                <div>
-                    <h1 id="end-title">end of line</h1>
-                    <p id="end-sub">you walked through 11 years of a journey.</p>
-                    <p class="dim" id="end-loot">loot: 0 / 6</p>
-                    <p>pranavjagadish.com · github.com/Pranavj17</p>
-                    <p>medium.com/@jpranav97 · jpranav97@gmail.com</p>
-                    <button id="btn-replay">replay · press R</button>
-                </div>
+            <!-- END · transmission-ends frame. Stats dump + replay. -->
+            <div class="overlay overlay--end" id="overlay-end" hidden>
+                <pre class="end-frame end-frame-top" aria-hidden="true">┌─── transmission ends ──────────────────────── connection closed ───┐</pre>
+
+                <section class="end-hero">
+                    <pre class="end-eyebrow">// session terminated   <span class="accent">002</span>   ··· thanks for playing</pre>
+
+                    <h1 class="end-title" id="end-title" data-text="GAME COMPLETE">GAME COMPLETE</h1>
+
+                    <p class="end-sub" id="end-sub">you walked through 11 years · 6 chapters · all 6 loot collected.</p>
+
+                    <dl class="end-stats" aria-label="run stats">
+                        <div><dt>chapters</dt><dd>06 / 06</dd></div>
+                        <div><dt>loot</dt><dd id="end-loot">06 / 06</dd></div>
+                        <div><dt>years</dt><dd>11</dd></div>
+                        <div><dt>route</dt><dd>BLR ↻</dd></div>
+                    </dl>
+
+                    <ul class="end-contact" aria-label="contact">
+                        <li><span class="contact-key">site    </span> <a href="https://pranavjagadish.com">pranavjagadish.com</a></li>
+                        <li><span class="contact-key">github  </span> <a href="https://github.com/Pranavj17" target="_blank" rel="noopener">github.com/Pranavj17</a></li>
+                        <li><span class="contact-key">medium  </span> <a href="https://medium.com/@jpranav97" target="_blank" rel="noopener">medium.com/@jpranav97</a></li>
+                        <li><span class="contact-key">email   </span> <a href="mailto:jpranav97@gmail.com">jpranav97@gmail.com</a></li>
+                    </ul>
+
+                    <button id="btn-replay" class="coin-btn coin-btn-end">
+                        <span class="coin-mark">↻</span>
+                        <span class="coin-label">replay · press R</span>
+                        <span class="coin-blink">▌</span>
+                    </button>
+                </section>
+
+                <pre class="end-frame end-frame-bot" aria-hidden="true">└──── pranavjagadish.com ─────────── open to senior eng / staff roles ──┘</pre>
             </div>
         </div>
 

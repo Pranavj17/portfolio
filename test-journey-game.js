@@ -62,7 +62,10 @@ async function desktopFlow(browser, url) {
     page.on('console',   (m) => { if (m.type() === 'error') { console.error('[page]', m.text()); errors.push(m.text()); } });
     page.on('pageerror', (e) => { console.error('[pageerror]', e.message); errors.push(e.message); });
     await page.goto(url, { waitUntil: 'networkidle0' });
-    await sleep(400);
+    // start overlay has 1500ms of staggered reveal animations · wait for them
+    // to finish before screenshotting so the coin button, mobile hint, etc.
+    // aren't captured mid-fade-in.
+    await sleep(1800);
 
     // verify __journey hook + 6 zones
     const meta = await page.evaluate(() => {
@@ -144,9 +147,10 @@ async function mobileFlow(browser, url) {
     page.on('console',   (m) => { if (m.type() === 'error') { console.error('[page]', m.text()); errors.push(m.text()); } });
     page.on('pageerror', (e) => { console.error('[pageerror]', e.message); errors.push(e.message); });
     await page.goto(url, { waitUntil: 'networkidle0' });
-    await sleep(400);
+    // wait for the same staggered animations to finish on mobile
+    await sleep(1800);
 
-    // screenshot the start overlay in mobile · touch controls should also be visible behind it
+    // screenshot the start overlay in mobile · touch controls visible below
     await page.screenshot({ path: path.join(OUT_DIR, '05-mobile-start.png') });
     console.log('  ✓ 05-mobile-start.png');
 
