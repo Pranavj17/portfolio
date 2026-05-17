@@ -231,6 +231,7 @@
         hire:    'compose a hiring email',
         cli:     'this portfolio in your real terminal · npx pranav-j',
         demo:    'play the Echo demo video',
+        journey: 'glitch-terminal side-scroller · arrow keys · 5 chapters',
         resume:  'open the printable resume',
         history: 'show typed-command history',
         matrix:  'matrix-rain animation',
@@ -787,6 +788,7 @@
                 ['audio [on|off]',      'click sounds toggle'],
                 ['boot',                'replay boot sequence'],
                 ['demo',                'open Echo · AI agent platform demo'],
+                ['journey',             'play the side-scroller · arrows + space'],
                 ['resume',              'download resume.pdf'],
                 ['hire',                'compose hiring email'],
                 ['echo &lt;text&gt;',   'print text'],
@@ -1164,6 +1166,14 @@ Phone: +91 8123310664
             print('  → <a href="https://pranavj17.github.io/echo-demo-v2/" target="_blank" rel="noopener">https://pranavj17.github.io/echo-demo-v2/</a>', 'muted');
             print('  → <a href="/assets/videos/echo-demo.mp4" target="_blank" rel="noopener">2-minute video walkthrough</a>', 'muted');
             try { window.open('https://pranavj17.github.io/echo-demo-v2/', '_blank', 'noopener'); } catch (_) {}
+        },
+        journey() {
+            print('booting <span class="hl">the journey</span> · glitch-terminal side-scroller...', 'ok');
+            print('  → ←→ walk · ↑/space jump · Z glitch · R restart', 'muted');
+            print('  → 5 chapters · college → fever 104 fm → sakha → scripbox → now', 'muted');
+            print('  → collect 5/5 loot · diploma · mic · elixir · catalog · trophy', 'muted');
+            print('  → <a href="/journey" target="_blank" rel="noopener">/journey</a>', 'muted');
+            try { window.open('/journey', '_blank', 'noopener'); } catch (_) {}
         },
         resume() {
             print('opening resume...', 'ok');

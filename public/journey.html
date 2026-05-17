@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; media-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <title>the journey — pranavjagadish:~$ ./play</title>
+    <meta name="title" content="the journey · playable terminal game · pranavjagadish.com">
+    <meta name="description" content="A glitch-terminal side-scroller: walk + jump through 5 chapters (college → Fever 104 FM → SAKHA Global → Scripbox → now) and collect the loot. Arrow keys + space.">
+    <meta name="keywords" content="developer journey, terminal game, pixel art, pranav jagadish">
+    <meta name="author" content="Pranav Jagadish">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0a0e0a">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pranavjagadish.com/journey">
+    <meta property="og:title" content="the journey — playable terminal game">
+    <meta property="og:description" content="Walk + jump + collect through 5 chapters of a 6-year career. Arrow keys.">
+    <meta property="og:image" content="https://pranavjagadish.com/favicon-512x512.png">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://pranavjagadish.com/journey">
+    <meta property="twitter:title" content="the journey — playable terminal game">
+    <meta property="twitter:image" content="https://pranavjagadish.com/favicon-512x512.png">
+
+    <link rel="canonical" href="https://pranavjagadish.com/journey">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"></noscript>
+
+    <link rel="stylesheet" href="/styles.css?v=20260514-2">
+
+    <style>
+        /* the journey · canvas-based glitch-terminal side-scroller
+           ─────────────────────────────────────────────────────────────
+           - canvas (960×540) drawn 1:1 by JS, then CSS scales to fit
+           - chromatic-aberration scanline overlay via CSS pseudo-elements
+           - HUD elements are absolutely positioned over the canvas */
+        body.journey-only {
+            background: var(--bg, #0a0e0a);
+            margin: 0;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            color: var(--fg, #c8d3bf);
+        }
+        .journey-stage {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-sizing: border-box;
+            background:
+                radial-gradient(ellipse 90% 70% at 50% 50%, transparent 0%, rgba(0,0,0,0.55) 100%);
+        }
+        .journey-canvas-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
+            box-shadow: 0 0 80px var(--accent-soft, #6dffa61f), inset 0 0 60px rgba(0,0,0,0.6);
+            border: 1px solid rgba(109,255,166,0.18);
+            overflow: hidden;
+        }
+        .journey-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        /* scanline overlay · pure CSS, gpu-cheap */
+        .journey-canvas-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0,0,0,0) 0px,
+                rgba(0,0,0,0) 2px,
+                rgba(0,0,0,0.18) 3px,
+                rgba(0,0,0,0) 4px
+            );
+            pointer-events: none;
+            z-index: 5;
+            mix-blend-mode: multiply;
+        }
+        /* vignette */
+        .journey-canvas-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 50% 50%, transparent 50%, rgba(0,0,0,0.55) 100%);
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        /* HUD · top-left status, top-right loot counter, bottom controls */
+        .hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+            color: var(--fg-bright, #e8f0dd);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            font-size: clamp(10px, 1.1vw, 13px);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .hud .corner { position: absolute; padding: 10px 14px; opacity: 0.85; }
+        .hud .tl    { top: 0; left: 0; }
+        .hud .tr    { top: 0; right: 0; text-align: right; }
+        .hud .bl    { bottom: 0; left: 0; }
+        .hud .br    { bottom: 0; right: 0; text-align: right; }
+        .hud .key   { color: var(--accent, #6dffa6); }
+        .hud .dim   { opacity: 0.55; }
+        .hud .pill  {
+            display: inline-block;
+            border: 1px solid var(--accent, #6dffa6);
+            color: var(--accent, #6dffa6);
+            padding: 1px 6px;
+            margin: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* start / pause overlay */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            color: var(--fg-bright, #e8f0dd);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            background: rgba(10,14,10,0.78);
+            backdrop-filter: blur(2px);
+            text-align: center;
+            padding: 20px;
+        }
+        .overlay[hidden] { display: none; }
+        .overlay h1 {
+            margin: 0 0 6px;
+            font-size: clamp(18px, 2.6vw, 28px);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent, #6dffa6);
+            text-shadow: -2px 0 #ff3b8a, 2px 0 #5ad8ff, 0 0 18px var(--accent-soft, #6dffa61f);
+        }
+        .overlay p {
+            margin: 4px 0;
+            font-size: clamp(11px, 1.2vw, 14px);
+            opacity: 0.85;
+        }
+        .overlay .keys {
+            margin: 14px 0 4px;
+            font-size: clamp(11px, 1.2vw, 14px);
+        }
+        .overlay .keys kbd {
+            display: inline-block;
+            border: 1px solid var(--fg);
+            padding: 2px 8px;
+            margin: 0 3px;
+            font-family: inherit;
+            background: rgba(109,255,166,0.08);
+            color: var(--fg-bright);
+            min-width: 18px;
+            text-align: center;
+        }
+        .overlay button {
+            margin-top: 16px;
+            background: transparent;
+            border: 1px solid var(--accent, #6dffa6);
+            color: var(--accent, #6dffa6);
+            font-family: inherit;
+            font-size: 13px;
+            padding: 8px 22px;
+            cursor: pointer;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            transition: background 120ms ease, color 120ms ease;
+        }
+        .overlay button:hover {
+            background: var(--accent, #6dffa6);
+            color: var(--bg, #0a0e0a);
+        }
+
+        .journey-back {
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            color: var(--fg, #c8d3bf);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            font-size: 12px;
+            text-decoration: none;
+            opacity: 0.55;
+            letter-spacing: 0.1em;
+            z-index: 30;
+        }
+        .journey-back:hover { opacity: 1; color: var(--accent, #6dffa6); }
+    </style>
+</head>
+<body data-theme="phosphor" class="journey-only intro-done">
+    <a href="/" class="journey-back">← back to site</a>
+
+    <main class="journey-stage">
+        <div class="journey-canvas-wrap">
+            <canvas class="journey-canvas" id="stage" width="960" height="540" aria-label="the journey · playable terminal game"></canvas>
+
+            <div class="hud" aria-hidden="true">
+                <div class="corner tl">
+                    <span id="hud-chapter">ch.0 / 5 · loading</span>
+                </div>
+                <div class="corner tr">
+                    <span class="dim">loot</span> <span id="hud-loot">0 / 5</span>
+                </div>
+                <div class="corner bl">
+                    <span class="dim">fps</span> <span id="hud-fps">--</span>
+                </div>
+                <div class="corner br">
+                    <span class="dim">tip</span> stand near a sign
+                </div>
+            </div>
+
+            <div class="overlay" id="overlay-start">
+                <div>
+                    <h1>the journey</h1>
+                    <p>a glitch-terminal side-scroller · 5 chapters · 6 years</p>
+                    <p class="dim">2015 — 2026 · college → fever 104 fm → sakha global → scripbox → now</p>
+                    <div class="keys">
+                        <kbd>←</kbd><kbd>→</kbd> walk &nbsp;
+                        <kbd>↑</kbd>/<kbd>space</kbd> jump &nbsp;
+                        <kbd>Z</kbd> glitch &nbsp;
+                        <kbd>R</kbd> restart
+                    </div>
+                    <button id="btn-start" autofocus>insert coin · press start</button>
+                </div>
+            </div>
+
+            <div class="overlay" id="overlay-end" hidden>
+                <div>
+                    <h1 id="end-title">end of line</h1>
+                    <p id="end-sub">you walked through 6 years of a career.</p>
+                    <p class="dim" id="end-loot">loot: 0 / 5</p>
+                    <p>pranavjagadish.com · github.com/Pranavj17</p>
+                    <p>medium.com/@jpranav97 · jpranav97@gmail.com</p>
+                    <button id="btn-replay">replay · press R</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/journey.js?v=20260517-3" defer></script>
+</body>
+</html>
