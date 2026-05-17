@@ -26,7 +26,7 @@ import { buildRenderer, buildScene, buildCamera, addLights, addGround, attachRes
 import { buildComposer } from './journey/post.js';
 import { buildWalkerMesh, buildBicycleMesh, buildAltoMesh, buildVWMesh } from './journey/meshes.js';
 import { buildAllCheckpoints } from './journey/checkpoints.js';
-import { updateBanner, updateProgress, updateVehicleCard, showAchievement, showEndCard } from './journey/hud.js';
+import { updateProgress, updateVehicleCard, showAchievement, showEndCard } from './journey/hud.js';
 
 // ── scene + post-processing assembly ─────────────────────────────
 const canvas    = document.getElementById('stage');
@@ -84,13 +84,10 @@ const state = {
 // Previous 3000ms started the player while the splash was still 57% visible.
 setTimeout(() => { state.running = true; }, 3400);
 
-// glitch trigger · pumps bloom strength briefly. Wired to Z key + button.
+// glitch trigger · pumps bloom strength briefly. No user input wires it
+// anymore (Z key/button removed) · still fired internally on loot collect
+// so the bloom pulse remains as an organic milestone-celebration effect.
 function triggerGlitch(ms) { state.glitchT = Math.max(state.glitchT, ms); }
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'z' || e.key === 'Z') triggerGlitch(280);
-});
-const glitchBtn = document.getElementById('glitch-btn');
-if (glitchBtn) glitchBtn.addEventListener('click', () => triggerGlitch(280));
 
 // ── pre-allocated scratch objects · reused inside animate() ──────
 const tmpFogTarget = new THREE.Color();
@@ -104,7 +101,6 @@ const RING_FLOOR_Y = 60;     // ring stops flying once past this y · prevents
                               // unbounded scale → denormalized-float GPU slow path
 
 // ── initial HUD paint ───────────────────────────────────────────
-updateBanner(0);
 updateProgress(0, state.collected);
 updateVehicleCard('walk');
 
@@ -153,7 +149,6 @@ function animate(now) {
                 state.collected.add(cp.ch.id);
                 state.chapter = i;
                 updateProgress(i, state.collected);
-                updateBanner(i);
                 const aId = CHAPTER_ACHIEVEMENTS[cp.ch.id];
                 if (aId) showAchievement(aId, state.achievements);
                 cp.ring.userData.collected = true;

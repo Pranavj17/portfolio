@@ -10,9 +10,9 @@
  */
 import { CHAPTERS, VEHICLES, ACHIEVEMENTS } from './data.js';
 
-// cached DOM lookups · resolved once, mutated in place forever after
-const $chapterTitle = document.getElementById('chapter-title');
-const $chapterPeriod = document.getElementById('chapter-period');
+// cached DOM lookups · resolved once, mutated in place forever after.
+// chapter banner removed in v20260518-3 · achievement card handles all
+// milestone-announcement copy now (one impact moment, not two competing).
 const $vehicleIcon   = document.getElementById('vehicle-icon');
 const $vehicleLabel  = document.getElementById('vehicle-label');
 const $vehicleSub    = document.getElementById('vehicle-sub');
@@ -33,13 +33,8 @@ if ($progress) {
     });
 }
 
-export function updateBanner(chapterIdx) {
-    if (!$chapterTitle) return;
-    const ch = CHAPTERS[chapterIdx];
-    if (!ch) return;
-    $chapterTitle.textContent  = ch.label;
-    $chapterPeriod.textContent = ch.period;
-}
+// updateBanner removed · chapter title no longer rendered in the HUD.
+// The big-smash achievement card carries chapter announcements instead.
 
 export function updateProgress(currentIdx, collected) {
     for (let i = 0; i < dots.length; i++) {
@@ -83,7 +78,8 @@ export function showAchievement(achievementId, achievementsSet) {
             <span class="a-sub">${a.sub}</span>
         </div>`;
     $achStack.appendChild(el);
-    setTimeout(() => el.remove(), 3300);
+    // matches the CSS @keyframes iconSmash / textSettle total = 2800ms
+    setTimeout(() => el.remove(), 2900);
 }
 
 export function showEndCard() {
