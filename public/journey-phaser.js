@@ -23,11 +23,10 @@
 (() => {
     'use strict';
 
-    // ── world constants ──────────────────────────────────────────────
+    // ── world constants · GROUND_Y / HORIZON_Y are derived from actual
+    //    viewport height in create() since Phaser.Scale.RESIZE makes the
+    //    game canvas exactly match window dimensions (world coords === viewport).
     const WORLD_W   = 6800;             // total horizontal scroll
-    const WORLD_H   = 1080;             // taller than typical viewport, scales down
-    const GROUND_Y  = WORLD_H * 0.78;   // where the path runs
-    const HORIZON_Y = WORLD_H * 0.55;   // sky/ground split
     const WALK_SPEED = 220;             // px/s — Phaser uses px/s not px/frame
     const CHAPTERS = [
         { x:  500, label: 'ITICS',         color: 0xa8b87a },
@@ -48,13 +47,16 @@
 
         create() {
             const { width: viewW, height: viewH } = this.scale;
+            // Derive ground/horizon from ACTUAL viewport so the player lands
+            // on the visible ground regardless of window size.
+            this.groundY  = viewH * 0.82;
+            this.horizonY = viewH * 0.58;
+            const GROUND_Y  = this.groundY;
+            const HORIZON_Y = this.horizonY;
+            const WORLD_H   = viewH;
 
             // ── parallax background layers ──────────────────────────
-            // sky · drawn into a giant Graphics rect with a linear gradient
             const skyGfx = this.add.graphics();
-            const skyGrad = skyGfx;
-            // Phaser Graphics doesn't support real gradients, so we use a
-            // fillGradientStyle on a rect (top/bottom corners)
             skyGfx.fillGradientStyle(0x3a2418, 0x3a2418, 0x8a4a26, 0x8a4a26, 1);
             skyGfx.fillRect(0, 0, WORLD_W, HORIZON_Y);
             skyGfx.setScrollFactor(0.1, 0);          // very slow parallax = distant sky
@@ -77,32 +79,41 @@
             const groundGfx = this.add.graphics();
             groundGfx.fillGradientStyle(0x7a4a26, 0x7a4a26, 0x3a2010, 0x3a2010, 1);
             groundGfx.fillRect(0, HORIZON_Y, WORLD_W, WORLD_H - HORIZON_Y);
-            groundGfx.setScrollFactor(1, 0);          // moves with camera
+            groundGfx.setScrollFactor(1, 0);
 
             // path strip · slightly darker line along ground
             const pathGfx = this.add.graphics();
             pathGfx.fillStyle(0x4a2c14, 1);
-            pathGfx.fillRect(0, GROUND_Y + 30, WORLD_W, 6);
+            pathGfx.fillRect(0, GROUND_Y + 12, WORLD_W, 4);
             pathGfx.setScrollFactor(1, 0);
 
-            // ── chapter landmarks · placeholder flag posts ──────────
+            // ── chapter landmarks · flag posts ──────────────────────
             for (const ch of CHAPTERS) {
-                const pole = this.add.rectangle(ch.x, GROUND_Y - 60, 4, 80, 0x5a3a22);
-                const flag = this.add.rectangle(ch.x + 14, GROUND_Y - 80, 22, 14, ch.color);
+                const pole = this.add.rectangle(ch.x, GROUND_Y - 40, 4, 80, 0x5a3a22);
+                const flag = this.add.rectangle(ch.x + 14, GROUND_Y - 60, 22, 14, ch.color);
                 pole.setScrollFactor(1, 0);
                 flag.setScrollFactor(1, 0);
-                // chapter label
-                const label = this.add.text(ch.x, GROUND_Y + 24, ch.label, {
+                const label = this.add.text(ch.x, GROUND_Y + 20, ch.label, {
                     fontFamily: 'Cinzel, serif',
-                    fontSize: '12px',
+                    fontSize: '13px',
                     color: '#e9d8b0',
                 });
                 label.setOrigin(0.5, 0);
                 label.setScrollFactor(1, 0);
             }
 
-            // ── player · placeholder cyan rectangle (Stage 2 = sprite)
-            this.player = this.add.rectangle(180, GROUND_Y - 32, 22, 56, 0x66c7d6);
+            // ── PLAYER · emoji-based character ──────────────────────
+            //   Apple Color Emoji 🚶 renders as the colorful walking-person
+            //   glyph via Phaser.Text → canvas fillText. Anchor origin at
+            //   feet (0.5, 1) so the emoji's bottom sits on GROUND_Y.
+            //   We also flip horizontally when facing-right (emoji walks
+            //   left by default in Apple's font).
+            this.player = this.add.text(180, GROUND_Y, '🚶', {
+                fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif',
+                fontSize: '72px',
+            });
+            this.player.setOrigin(0.5, 1);   // bottom-center anchor → feet on ground
+            this.player.setScale(-1, 1);      // flip to face right (emoji default = left)
             this.physics.add.existing(this.player);
             this.player.body.setCollideWorldBounds(true);
             this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
@@ -110,7 +121,7 @@
             // camera follow
             this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
             this.cameras.main.startFollow(this.player, true, 0.1, 0);
-            this.cameras.main.setDeadzone(viewW * 0.4, viewH);  // dead zone left of center
+            this.cameras.main.setDeadzone(viewW * 0.4, viewH);
 
             // ── input · keyboard + touch-hold ───────────────────────
             this.keys = this.input.keyboard.addKeys('RIGHT,LEFT,D,A');
@@ -138,10 +149,21 @@
             if      (movingRight) vx =  WALK_SPEED;
             else if (movingLeft)  vx = -WALK_SPEED * 0.6;
             this.player.body.setVelocityX(vx);
-            // walking bob: tiny scale wobble while moving
+
+            // Swap emoji to 🏃 once player passes 800 px (run threshold).
+            // Future stages: 🚴 at 1700, 🏍️ at 2500, 🚗 at 3300, 🏎️ at vwgt.
+            const wantGlyph = this.player.x >= 800 ? '🏃' : '🚶';
+            if (this.player.text !== wantGlyph) this.player.setText(wantGlyph);
+
+            // Facing: flip horizontally when moving-right (or default).
+            // When explicitly back-stepping, face left (no flip).
+            const facingRight = !(movingLeft && !movingRight);
+            this.player.scaleX = facingRight ? -1 : 1;
+
+            // walking bob: tiny vertical wobble while moving sells the gait
             const moving = movingRight || movingLeft;
             this.player.scaleY = moving ? 1 + Math.sin(this.time.now * 0.012) * 0.04 : 1;
-            // HUD
+
             this.distText.setText(`DIST ${Math.round(this.player.x)} M`);
         }
     }
