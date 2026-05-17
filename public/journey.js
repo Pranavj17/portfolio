@@ -655,6 +655,13 @@
         overlayStart.hidden = true;
         state.running = true;
         state.ended   = false;
+        // on touch devices, skip the keyboard-hint overlay · the player will
+        // auto-walk forward, so showing "tap ▲" would be wrong + confusing.
+        const isTouchDevice = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+        if (isTouchDevice) {
+            state.kbHintSeen  = true;
+            state.kbHintAlpha = 0;
+        }
     }
     function restart() {
         const p = state.player;
@@ -709,8 +716,12 @@
         const speedMult = VEHICLE_SPEED[p.vehicle] || 1.0;
 
         // forward / back · speed scales with current vehicle
+        // On touch devices, the player AUTO-WALKS forward (no d-pad to hold).
+        // Desktop keyboard users still get full manual control.
         let vz = 0;
-        if (state.keys['arrowup']   || state.keys['w']) { vz += WALK_VZ; p.forwardActive = true; }
+        const isTouchDevice = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+        const wantsForward = state.keys['arrowup'] || state.keys['w'] || isTouchDevice;
+        if (wantsForward)                              { vz += WALK_VZ; p.forwardActive = true; }
         else                                            { p.forwardActive = false; }
         if (state.keys['arrowdown'] || state.keys['s']) vz -= BACK_VZ;
         p.z += vz * f * speedMult;
@@ -1388,28 +1399,60 @@
         }
     }
 
-    /** transient keyboard-controls hint that fades after first input · helps
-     *  desktop players discover the controls. Renders near the player. */
+    /** transient keyboard-controls hint that fades after first input.
+     *  On mobile, points AT the ▲ button on the d-pad (bottom-left) so the
+     *  player knows which button is "forward". On desktop, shows the
+     *  keyboard equivalents centered. */
     function drawKbHint() {
         const isMobileLike = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
-        const hint = isMobileLike ? 'tap ▲ to walk forward' : '←  ↑  →   space';
-        const hintW = hint.length * 8;
-        const sx = (W - hintW) / 2;
-        const sy = H - 200;
+        const hint = isMobileLike ? 'AUTO-WALKING  ·  TAP JUMP TO LEAP' : 'PRESS  ↑  TO WALK FORWARD';
+        const hintW = hint.length * 8.4;
+        let sx, sy, arrowX, arrowY;
+
+        if (isMobileLike) {
+            // anchor above the ▲ button which lives bottom-left of canvas.
+            // The d-pad is at viewport bottom-left at left:14px / bottom:18px
+            // with grid-row 1 = ▲. The button center in viewport is roughly
+            // (14 + 54 + 54/2, viewport_height - 18 - 54*2 - 6 - 54/2).
+            // Translate to canvas coords (canvas stretches to viewport).
+            const vw = window.innerWidth  || 390;
+            const vh = window.innerHeight || 844;
+            // ▲ button center in viewport
+            const btnVpX = 14 + 54 + 54 / 2;
+            const btnVpY = vh - 18 - 54 * 2 - 6 - 54 / 2;
+            // map to canvas
+            const btnCnvX = (btnVpX / vw) * W;
+            const btnCnvY = (btnVpY / vh) * H;
+            sx = btnCnvX - hintW / 2;
+            sy = btnCnvY - 70;
+            arrowX = btnCnvX;
+            arrowY = sy + 22;
+        } else {
+            // desktop · centered above the player area
+            sx = (W - hintW) / 2;
+            sy = H - 220;
+            arrowX = W / 2;
+            arrowY = sy + 22;
+        }
+
         ctx.save();
-        ctx.globalAlpha = state.kbHintAlpha;
+        // gentle breathing pulse on the hint itself (not the button) · CSS
+        // handles the button pulse separately so it works while paused
+        const pulse = 0.85 + 0.15 * Math.sin(state.t * 0.005);
+        ctx.globalAlpha = state.kbHintAlpha * pulse;
         // background plate so it stays readable over busy scenes
-        ctx.fillStyle = 'rgba(10,14,10,0.55)';
-        ctx.fillRect(sx - 10, sy - 14, hintW + 20, 20);
-        ctx.strokeStyle = `rgba(232,240,221,${0.4 * state.kbHintAlpha})`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx - 10 + 0.5, sy - 14 + 0.5, hintW + 19, 19);
-        ctx.font = `14px ${FONT}`;
+        ctx.fillStyle = 'rgba(10,14,10,0.78)';
+        ctx.fillRect(sx - 12, sy - 14, hintW + 24, 20);
+        ctx.strokeStyle = PAL.accent || PAL.green;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(sx - 12 + 0.5, sy - 14 + 0.5, hintW + 23, 19);
+        ctx.font = `13px 'VT323', ${FONT}`;
         ctx.fillStyle = PAL.fgBright;
         ctx.fillText(hint, sx, sy);
-        // little downward arrow pointing at the player
-        ctx.fillStyle = PAL.accent || PAL.green;
-        ctx.fillText('▼', (W / 2) - 4, sy + 18);
+        // arrow pointing at the actual button (mobile) or down (desktop)
+        ctx.fillStyle = PAL.green;
+        ctx.font = `18px ${FONT}`;
+        ctx.fillText('▼', arrowX - 6, arrowY);
         ctx.restore();
     }
 

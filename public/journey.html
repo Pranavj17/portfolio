@@ -724,7 +724,7 @@ R   restart</pre>
                         <span class="coin-blink">▌</span>
                     </button>
 
-                    <p class="mobile-hint">tap the on-screen d-pad to walk + jump</p>
+                    <p class="mobile-hint">on mobile · auto-walks forward · tap JUMP to leap</p>
                 </section>
 
                 <pre class="diag-rail rail-right" aria-hidden="true"><span class="rail-key">// 路</span>
@@ -752,16 +752,10 @@ R   restart</pre>
                 <pre class="overlay-footer" aria-hidden="true">┌── transmission 002 ───────────────────────── press start ──┐</pre>
             </div>
 
-            <!-- touch controls · OVERLAY the canvas (back inside the wrap)
-                 since the canvas now fills the viewport. Visible only on
-                 coarse-pointer + no-hover devices. -->
+            <!-- touch controls · just JUMP + Z. The player auto-walks forward
+                 on mobile (see autoWalk in journey.js). No d-pad — relaxes the
+                 mobile experience into a "watch the journey unfold" mode. -->
             <div class="touch-controls" id="touch-controls" aria-hidden="true">
-                <div class="pad pad-left">
-                    <button class="tbtn tbtn-up" data-key="arrowup"  aria-label="forward">▲</button>
-                    <button class="tbtn" data-key="arrowleft"  aria-label="strafe left">◀</button>
-                    <button class="tbtn" data-key="arrowdown"  aria-label="back">▼</button>
-                    <button class="tbtn" data-key="arrowright" aria-label="strafe right">▶</button>
-                </div>
                 <div class="pad pad-right">
                     <button class="tbtn tbtn-jump"   data-key=" " aria-label="jump">JUMP</button>
                     <button class="tbtn tbtn-glitch" data-key="z" aria-label="glitch">Z</button>
@@ -805,6 +799,6 @@ R   restart</pre>
         </div>
     </main>
 
-    <script src="/journey.js?v=20260517-14" defer></script>
+    <script src="/journey.js?v=20260517-15" defer></script>
 </body>
 </html>

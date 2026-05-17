@@ -243,34 +243,19 @@ async function mobileFlow(browser, url) {
     if (!ctrlsVisible.exists) throw new Error('touch-controls element missing');
     if (ctrlsVisible.opacity < 0.5) throw new Error(`touch-controls opacity too low: ${ctrlsVisible.opacity}`);
 
-    // press start (still a regular button in mobile)
+    // press start · on mobile, auto-walk should kick in immediately
     await page.tap('#btn-start');
-    await sleep(300);
-
-    // simulate touching the FORWARD button (the "up" arrow on the d-pad)
-    // Get its bounding rect then dispatch touch events
-    const beforeZ = await page.evaluate(() => window.__journey.state.player.z);
-    const forwardRect = await page.evaluate(() => {
-        const el = document.querySelector('.touch-controls .tbtn.tbtn-up');
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    if (!forwardRect) throw new Error('forward touch button not found');
-
-    // tap-and-hold the forward button for 1.5s to walk forward · screenshot
-    // mid-motion so dust/exhaust particles are visible (they fade in ~400ms)
-    await page.touchscreen.touchStart(forwardRect.x, forwardRect.y);
-    await sleep(1300);
-    await page.screenshot({ path: path.join(OUT_DIR, '06-mobile-walking.png') });
     await sleep(200);
-    await page.touchscreen.touchEnd();
 
+    // verify auto-walk · player should be moving forward without any input
+    const beforeZ = await page.evaluate(() => window.__journey.state.player.z);
+    await sleep(1500);
+    await page.screenshot({ path: path.join(OUT_DIR, '06-mobile-walking.png') });
     const afterZ = await page.evaluate(() => window.__journey.state.player.z);
     const movedBy = afterZ - beforeZ;
-    console.log(`  player.z: ${beforeZ.toFixed(1)} → ${afterZ.toFixed(1)}  (Δ ${movedBy.toFixed(1)})`);
-    if (movedBy < 30) throw new Error(`touch d-pad didn't move the player enough · Δz=${movedBy.toFixed(1)}`);
-    console.log('  ✓ 06-mobile-walking.png (mid-motion · dust visible)');
+    console.log(`  auto-walk · player.z: ${beforeZ.toFixed(1)} → ${afterZ.toFixed(1)}  (Δ ${movedBy.toFixed(1)})`);
+    if (movedBy < 100) throw new Error(`auto-walk should advance player ~150+ units in 1.5s, got Δz=${movedBy.toFixed(1)}`);
+    console.log('  ✓ 06-mobile-walking.png · auto-walk fires without d-pad input');
 
     // tap the JUMP button and verify player leaves the ground
     const jumpRect = await page.evaluate(() => {
