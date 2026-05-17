@@ -78,7 +78,66 @@ const state = {
     achievements:  new Set(),
     t:             0,
     glitchT:       0,
+    elapsedMs:     0,           // session timer for HUD
+    pauseT:        0,           // tap-to-pause dramatic-slowdown remainder (ms)
 };
+
+// ── HUD elements wired here (game-feel: visible score + mission tracker)
+const $scoreDist = document.getElementById('score-dist');
+const $scoreChap = document.getElementById('score-chap');
+const $scoreTime = document.getElementById('score-time');
+const $missionText = document.getElementById('mission-text');
+const $missionIcon = document.getElementById('mission-icon');
+const $tapHint   = document.getElementById('tap-hint');
+
+function updateMission(chapterIdx) {
+    if (!$missionText) return;
+    const ch = CHAPTERS[chapterIdx];
+    if (!ch) return;
+    if (state.collected.has(ch.id)) {
+        $missionText.textContent = `Reached: ${ch.label}`;
+        $missionIcon.textContent = '✓';
+        $missionIcon.classList.add('done');
+    } else {
+        $missionText.textContent = `Approach: ${ch.label}`;
+        $missionIcon.textContent = '▸';
+        $missionIcon.classList.remove('done');
+    }
+}
+function pickNextObjective() {
+    // find first uncollected chapter ahead of the player
+    for (let i = 0; i < CHAPTERS.length; i++) {
+        if (!state.collected.has(CHAPTERS[i].id)) return i;
+    }
+    return CHAPTERS.length - 1;
+}
+
+// ── tap-to-pause · the only player interaction. Tapping the canvas
+//    triggers a brief dramatic-slowdown pause (500ms of slow time + the
+//    achievement card for the NEXT chapter ahead). This is the "thing
+//    the player can do" that turns it from video → game.
+let tapHintSeen = false;
+const stageEl = document.querySelector('.journey-stage');
+stageEl.addEventListener('pointerdown', (e) => {
+    // Ignore clicks on the score panel / mission tracker
+    if (e.target.closest('.score-panel') || e.target.closest('.mission-tracker') || e.target.closest('.vehicle-card')) return;
+    state.pauseT = Math.max(state.pauseT, 700);
+    triggerGlitch(120);
+    // briefly re-show the nearest unread chapter's achievement
+    const nextIdx = pickNextObjective();
+    const ch = CHAPTERS[nextIdx];
+    if (ch) {
+        const aId = CHAPTER_ACHIEVEMENTS[ch.id];
+        if (aId && !state.achievements.has(aId)) {
+            // ephemeral peek · don't mark as permanently seen, just show
+            showAchievement(aId, new Set());
+        }
+    }
+    if (!tapHintSeen && $tapHint) {
+        tapHintSeen = true;
+        $tapHint.classList.add('faded');
+    }
+});
 
 // auto-start after splash · 3400ms = CSS 2700ms delay + 700ms fade duration.
 // Previous 3000ms started the player while the splash was still 57% visible.
@@ -119,6 +178,7 @@ const fogContrib   = new THREE.Color();
 // ── initial HUD paint ───────────────────────────────────────────
 updateProgress(0, state.collected);
 updateVehicleCard('walk');
+updateMission(0);                    // "Approach: ITICS" on launch
 
 // ── animation loop ──────────────────────────────────────────────
 let lastT = performance.now();
@@ -130,9 +190,27 @@ function animate(now) {
     const f = dt / 16.67;     // frame-rate-independence multiplier (1.0 @ 60Hz)
 
     if (state.running && !state.ended) {
-        // forward motion · speed scales with vehicle
+        state.elapsedMs += dt;
+
+        // tap-to-pause · scales forward motion + camera lerp by pauseScale.
+        // While pauseT > 0, time slows to 35% · feels like a dramatic moment.
+        let pauseScale = 1;
+        if (state.pauseT > 0) {
+            state.pauseT = Math.max(0, state.pauseT - dt);
+            pauseScale = 0.35;
+        }
+
+        // forward motion · speed scales with vehicle + pause
         const v = VEHICLES[currentVehicle];
-        player.position.z += v.speed * f;
+        player.position.z += v.speed * f * pauseScale;
+
+        // HUD score panel · ticks each frame
+        if ($scoreDist) $scoreDist.textContent = Math.round(player.position.z) + ' m';
+        if ($scoreChap) $scoreChap.textContent = state.collected.size + ' / ' + CHAPTERS.length;
+        if ($scoreTime) {
+            const s = Math.floor(state.elapsedMs / 1000);
+            $scoreTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        }
 
         // vehicle-progression state machine · driven by z + collected
         let want;
@@ -170,6 +248,9 @@ function animate(now) {
                 cp.ring.userData.collected = true;
                 triggerGlitch(160);
                 triggerLetterbox(1100);     // RDR cinematic chapter-card moment
+                // Mission tracker · brief "reached" state, then advance to next
+                updateMission(i);
+                setTimeout(() => updateMission(pickNextObjective()), 1400);
             }
             // ring animation · the only on-canvas chapter signal now (pillars
             // are gone). Stronger emission means the ring carries more
