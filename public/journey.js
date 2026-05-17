@@ -1167,17 +1167,24 @@
     }
 
     /** Wheeled-vehicle drawer · renders the large emoji glyph from
-     *  VEHICLES[state.vehicle].icon at 64px. Adds a tiny engine-idle
-     *  vibration via bob so the vehicle doesn't look frozen. */
+     *  VEHICLES[state.vehicle].icon at 64px. Apple/Noto Color Emoji draws
+     *  🚴 🏍️ 🚗 🏎️ facing LEFT by default, but the player moves rightward
+     *  in our world. We mirror via ctx.scale(-1, 1) so the vehicle faces
+     *  forward (right). When the player is actively backing up via
+     *  ArrowLeft, we DON'T flip — they face left naturally.
+     *  A tiny engine-idle horizontal jitter sells motion. */
     function drawVehicleEmoji(cx, footY, glyph, bob) {
         ctx.save();
-        // engine-vibe: subtle horizontal jitter when running, none when stopped
-        const moving = state.keys.right || state.touchHold || state.keys.left;
-        const jitter = moving ? (Math.sin(state.bobT * 0.05) * 0.6) : 0;
+        const movingRight = state.keys.right || state.touchHold;
+        const movingLeft  = state.keys.left && !movingRight;
+        const facingRight = !movingLeft;   // default forward unless explicitly back
+        const jitter = (movingRight || movingLeft) ? (Math.sin(state.bobT * 0.05) * 0.6) : 0;
+        ctx.translate(cx + jitter, footY + 8 + bob);
+        if (facingRight) ctx.scale(-1, 1);
         ctx.font = '64px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif';
         ctx.textAlign    = 'center';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(glyph, cx + jitter, footY + 8 + bob);
+        ctx.fillText(glyph, 0, 0);
         ctx.restore();
     }
 
