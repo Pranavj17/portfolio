@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>the journey · phaser preview · pranavjagadish.com</title>
+    <meta name="description" content="Phaser 3 port of the journey side-scroller · sprite-based RPG aesthetic preview.">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #1a1410;
+            font-family: 'Cinzel', 'IM Fell English', serif;
+            color: #e9d8b0;
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+            touch-action: none;
+            user-select: none;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #game {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+        }
+        /* preview banner so you know which build you're testing */
+        .preview-banner {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 14px;
+            background: rgba(212, 166, 83, 0.95);
+            color: #1a0e06;
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            border-radius: 2px;
+            border: 1.5px solid #5a3a22;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .preview-hint {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'IM Fell English', serif;
+            font-style: italic;
+            font-size: 13px;
+            color: rgba(233, 216, 176, 0.7);
+            text-align: center;
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-banner">PHASER 3 PREVIEW · STAGE 1</div>
+    <div id="game"></div>
+    <div class="preview-hint">hold → / D to walk · tap-hold on mobile · placeholder art</div>
+
+    <!-- Phaser 3 from official CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script src="/journey-phaser.js?v=20260518-1" defer></script>
+</body>
+</html>
