@@ -822,82 +822,156 @@
         if (state.glitchT > 0) drawGlitchOverlay();
     }
 
-    /** decorative chrome inside the canvas · 4 corner brackets, a vehicle
-     *  pill at bottom-center showing the current ride, and a speed bar
-     *  whose fill animates with the player's actual forward motion. */
+    /** Consolidated HUD chrome · ONE top progress bar (with chapter ticks
+     *  + current position marker + loot indicators), ONE bottom vehicle
+     *  card (with icon, name, period, and segmented speed bar). No corner
+     *  text. No distance readout. Everything is visual + minimal. */
     function drawCanvasChrome(z) {
-        // corner brackets · subtle, match current chapter accent
-        ctx.font = `16px ${FONT}`;
-        ctx.fillStyle = z.color + '88';   // ~53% alpha
-        ctx.fillText('╔══',  2, 16);
-        ctx.fillText('══╗',  W - 36, 16);
-        ctx.fillText('╚══',  2, H - 6);
-        ctx.fillText('══╝',  W - 36, H - 6);
-
-        // vehicle pill at bottom-center
         const p = state.player;
+        const zones = ZONES;
+        const atm = ATMOSPHERE[z.id] || ATMOSPHERE.college;
+
+        // ── top: world-progress strip ────────────────────────────────
+        // Horizontal bar showing player position across the whole world,
+        // chapter markers + filled section before the player + collected
+        // dots above each chapter marker.
+        const stripY = 74;
+        const stripPadX = 80;
+        const stripW = W - 2 * stripPadX;
+        const stripH = 4;
+
+        // background rail
+        ctx.fillStyle = 'rgba(200,211,191,0.10)';
+        ctx.fillRect(stripPadX, stripY, stripW, stripH);
+
+        // filled-to-current
+        const totalLen = zones[zones.length - 1].z - zones[0].z + 400;
+        const playerPct = Math.max(0, Math.min(1, (p.z - zones[0].z + 200) / totalLen));
+        ctx.fillStyle = z.color + 'cc';
+        ctx.fillRect(stripPadX, stripY, stripW * playerPct, stripH);
+
+        // chapter markers · vertical ticks + filled dot if collected
+        for (let i = 0; i < zones.length; i++) {
+            const zn = zones[i];
+            const t = (zn.z - zones[0].z + 200) / totalLen;
+            const x = stripPadX + t * stripW;
+            const collected = state.collected.has(zn.id);
+            const current = (i === state.zone);
+
+            // tick
+            ctx.fillStyle = (i <= state.zone) ? zn.color : 'rgba(200,211,191,0.25)';
+            ctx.fillRect(x - 1, stripY - 4, 2, stripH + 8);
+
+            // collected indicator (filled diamond above)
+            if (collected) {
+                ctx.fillStyle = zn.color;
+                ctx.font = `12px ${FONT}`;
+                ctx.fillText('◆', x - 4, stripY - 8);
+            } else if (current) {
+                // current chapter pulses
+                const pulse = (Math.sin(state.t * 0.005) + 1) / 2;
+                ctx.fillStyle = `rgba(232,240,221,${0.4 + 0.5 * pulse})`;
+                ctx.font = `12px ${FONT}`;
+                ctx.fillText('◇', x - 4, stripY - 8);
+            }
+        }
+
+        // player position marker (bright vertical caret)
+        const playerX = stripPadX + stripW * playerPct;
+        ctx.fillStyle = PAL.fgBright;
+        ctx.font = `14px ${FONT}`;
+        ctx.fillText('▼', playerX - 5, stripY - 4);
+
+        // strip caption
+        ctx.fillStyle = 'rgba(200,211,191,0.45)';
+        ctx.font = `10px ${FONT}`;
+        ctx.fillText('// route', stripPadX, stripY - 8);
+        const lootText = `loot  ${state.loot}/${zones.length}`;
+        const ltw = lootText.length * 6;
+        ctx.fillText(lootText, W - stripPadX - ltw, stripY - 8);
+
+        // ── bottom: vehicle card (single focal element) ──────────────
         const vehicleInfo = {
-            walk:  { label: 'ON FOOT · BACKPACK',     color: PAL.green, badge: '▢' },
-            cycle: { label: 'BICYCLE · COLLEGE DAYS', color: PAL.cyan,  badge: '◯' },
-            alto:  { label: 'MARUTI ALTO · COMMUTE',  color: PAL.gold,  badge: '◖◗' },
-            vw:    { label: 'VW VIRTUS GT · TURBO',   color: PAL.red,   badge: '⬢' },
-        }[p.vehicle] || { label: 'ON FOOT', color: PAL.green, badge: '▢' };
+            walk:  { label: 'ON FOOT',          sub: 'with backpack',     color: PAL.green,  icon: '▢' },
+            cycle: { label: 'BICYCLE',          sub: 'college days',      color: PAL.cyan,   icon: '◯─◯' },
+            alto:  { label: 'MARUTI ALTO',      sub: 'commute · 2019–25', color: PAL.gold,   icon: '◖═◗' },
+            vw:    { label: 'VW VIRTUS GT',     sub: '1.5 TSI · turbo',   color: PAL.red,    icon: '◣◤◢◥' },
+        }[p.vehicle] || { label: 'ON FOOT', sub: '', color: PAL.green, icon: '▢' };
 
-        const pillText = `[ ${vehicleInfo.badge}  ${vehicleInfo.label}  ${vehicleInfo.badge} ]`;
-        const pillW = pillText.length * 8;
-        const pillX = (W - pillW) / 2;
-        const pillY = H - 22;
+        const cardW = 280;
+        const cardH = 48;
+        const cardX = (W - cardW) / 2;
+        // sit well above the bottom so the mobile touch d-pad/JUMP buttons
+        // (which overlay the canvas's bottom ~100px) don't collide with us.
+        const cardY = H - cardH - 96;
 
-        ctx.font = `12px ${FONT}`;
-        // pill background
+        // card background · gradient + border in vehicle color
         ctx.save();
-        ctx.fillStyle = 'rgba(10,14,10,0.65)';
-        ctx.fillRect(pillX - 6, pillY - 12, pillW + 12, 18);
-        ctx.strokeStyle = vehicleInfo.color;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(pillX - 5.5, pillY - 11.5, pillW + 11, 17);
-        ctx.restore();
-        // pill text
-        ctx.fillStyle = vehicleInfo.color;
-        ctx.fillText(pillText, pillX, pillY);
+        const cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+        cardGrad.addColorStop(0, 'rgba(20,28,22,0.82)');
+        cardGrad.addColorStop(1, 'rgba(8,12,10,0.92)');
+        ctx.fillStyle = cardGrad;
+        ctx.fillRect(cardX, cardY, cardW, cardH);
+        ctx.strokeStyle = vehicleInfo.color + 'aa';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cardX + 0.5, cardY + 0.5, cardW - 1, cardH - 1);
 
-        // speed bar to the right of the vehicle pill · fills with movement
+        // inset bracket marks at corners (decorative)
+        ctx.fillStyle = vehicleInfo.color;
+        ctx.font = `11px ${FONT}`;
+        ctx.fillText('┌',  cardX + 2,           cardY + 11);
+        ctx.fillText('┐',  cardX + cardW - 10,  cardY + 11);
+        ctx.fillText('└',  cardX + 2,           cardY + cardH - 2);
+        ctx.fillText('┘',  cardX + cardW - 10,  cardY + cardH - 2);
+        ctx.restore();
+
+        // vehicle icon (left side of card · large)
+        ctx.fillStyle = vehicleInfo.color;
+        ctx.font = `20px ${FONT}`;
+        ctx.fillText(vehicleInfo.icon, cardX + 14, cardY + 22);
+
+        // vehicle label + sublabel
+        ctx.fillStyle = PAL.fgBright;
+        ctx.font = `15px 'VT323', ${FONT}`;
+        ctx.fillText(vehicleInfo.label, cardX + 92, cardY + 20);
+        ctx.fillStyle = 'rgba(200,211,191,0.55)';
+        ctx.font = `10px ${FONT}`;
+        ctx.fillText(vehicleInfo.sub, cardX + 92, cardY + 32);
+
+        // segmented speed bar at bottom of card · 8 cells, fills with motion
         const moving = (state.keys['arrowup'] || state.keys['w']) ? 1
                      : (state.keys['arrowdown'] || state.keys['s']) ? 0.5 : 0;
         const speedMult = VEHICLE_SPEED[p.vehicle] || 1;
-        const speedFill = moving * speedMult / 2.2;      // normalize to [0, 1]
-        const barCells  = 10;
-        const filledCells = Math.round(speedFill * barCells);
-        let bar = '';
-        for (let i = 0; i < barCells; i++) bar += (i < filledCells) ? '█' : '▒';
-        ctx.fillStyle = vehicleInfo.color + 'bb';
-        ctx.fillText(bar, pillX + pillW + 24, pillY);
-        ctx.fillStyle = 'rgba(200,211,191,0.45)';
-        ctx.fillText('speed', pillX + pillW + 24, pillY + 12);
-
-        // distance-to-next-station readout at top-left, below corner bracket
-        const zones = ZONES;
-        let nextZ = null;
-        for (let i = 0; i < zones.length; i++) {
-            if (zones[i].z > p.z) { nextZ = zones[i]; break; }
-        }
-        if (nextZ) {
-            const remaining = Math.max(0, Math.round(nextZ.z - p.z));
-            ctx.fillStyle = 'rgba(200,211,191,0.45)';
-            ctx.font = `11px ${FONT}`;
-            ctx.fillText(`→ next ${nextZ.id}  ${String(remaining).padStart(4)}m`, 42, 16);
+        const speedFill = moving * speedMult / 2.2;
+        const cells = 12;
+        const cellW = 12;
+        const cellGap = 2;
+        const barX = cardX + 92;
+        const barY = cardY + cardH - 8;
+        for (let i = 0; i < cells; i++) {
+            const filled = i / cells < speedFill;
+            ctx.fillStyle = filled ? vehicleInfo.color + 'dd' : 'rgba(200,211,191,0.12)';
+            ctx.fillRect(barX + i * (cellW + cellGap), barY, cellW, 3);
         }
 
-        // loot collection trail at top-right (small icons per collected zone)
-        let trail = '';
-        for (let i = 0; i < zones.length; i++) {
-            trail += state.collected.has(zones[i].id) ? '◆' : '◇';
-            if (i < zones.length - 1) trail += ' ';
-        }
-        ctx.fillStyle = 'rgba(200,211,191,0.55)';
-        ctx.font = `11px ${FONT}`;
-        const trailW = trail.length * 7;
-        ctx.fillText(trail, W - 42 - trailW, 16);
+        // tiny SPEED label
+        ctx.fillStyle = 'rgba(200,211,191,0.4)';
+        ctx.font = `9px ${FONT}`;
+        ctx.fillText('SPEED', cardX + cardW - 50, barY + 3);
+
+        // chapter pill at top-left of card (chapter # · name)
+        const chapLabel = `CH.${state.zone + 1}  ·  ${z.id.toUpperCase()}`;
+        const pillW = chapLabel.length * 6.4 + 16;
+        const pillX = cardX;
+        const pillY = cardY - 18;
+        ctx.fillStyle = 'rgba(10,14,10,0.85)';
+        ctx.fillRect(pillX, pillY, pillW, 14);
+        ctx.strokeStyle = z.color + '88';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pillX + 0.5, pillY + 0.5, pillW - 1, 13);
+        ctx.fillStyle = z.color;
+        ctx.font = `10px ${FONT}`;
+        ctx.fillText(chapLabel, pillX + 8, pillY + 10);
     }
 
     function drawGroundGrid() {

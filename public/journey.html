@@ -279,37 +279,48 @@
             font-size: 10.5px;
         }
 
-        /* arcade INSERT COIN button · pulses + has a permanent glow + blink */
+        /* arcade INSERT COIN button · real tactile depth (gradient + shadow)
+           rather than thin-border placeholder. Pulses with coin-pulse to
+           draw attention; press state collapses the shadow. */
         .coin-btn {
-            margin-top: 6px;
-            background: transparent;
-            border: none;
+            margin-top: 10px;
+            background: linear-gradient(180deg, rgba(109,255,166,0.18) 0%, rgba(20,40,28,0.55) 100%);
+            border: 1.5px solid var(--accent, #6dffa6);
+            border-radius: 6px;
             color: var(--accent, #6dffa6);
             font-family: 'VT323', 'IBM Plex Mono', monospace;
             font-size: clamp(20px, 2.4vw, 28px);
             letter-spacing: 0.12em;
             text-transform: uppercase;
             cursor: pointer;
-            padding: 12px 0;
-            position: relative;
+            padding: 12px 24px;
             display: inline-flex;
             align-items: center;
             gap: 14px;
-            text-shadow: 0 0 18px rgba(109,255,166,0.6);
-            transition: color 120ms, transform 120ms;
+            text-shadow: 0 0 18px rgba(109,255,166,0.55);
+            box-shadow:
+                0 6px 0 rgba(20,40,28,0.85),
+                0 12px 28px rgba(109,255,166,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 0 24px rgba(109,255,166,0.15);
+            transition: transform 100ms cubic-bezier(.2,.7,.3,1), box-shadow 100ms, color 120ms;
         }
-        .coin-btn::before {
-            content: '';
-            position: absolute;
-            inset: 4px -10px;
-            border: 1px solid var(--accent, #6dffa6);
-            border-radius: 2px;
-            opacity: 0.35;
-            transition: opacity 120ms, transform 120ms;
+        .coin-btn:hover {
+            color: var(--fg-bright);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 0 rgba(20,40,28,0.85),
+                0 16px 36px rgba(109,255,166,0.28),
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                inset 0 0 28px rgba(109,255,166,0.22);
         }
-        .coin-btn:hover { color: var(--fg-bright); transform: translateY(-1px); }
-        .coin-btn:hover::before { opacity: 1; transform: scale(1.02); }
-        .coin-btn:active { transform: translateY(0); }
+        .coin-btn:active {
+            transform: translateY(4px);
+            box-shadow:
+                0 2px 0 rgba(20,40,28,0.85),
+                0 4px 14px rgba(109,255,166,0.18),
+                inset 0 2px 8px rgba(0,0,0,0.3);
+        }
         .coin-mark {
             color: var(--pink, #ff3b8a);
             font-size: 0.7em;
@@ -525,11 +536,10 @@
         }
         .journey-back:hover { opacity: 1; color: var(--accent, #6dffa6); }
 
-        /* ── touch / mobile controls ──────────────────────────────────
-           Overlays the canvas (canvas now fills viewport) so controls live
-           IN the playfield, not below it. Hidden on desktop · keyboard +
-           mouse is the right input there. Semi-transparent so the game
-           still shows through behind. */
+        /* ── touch controls · NEO GEO arcade buttons ─────────────────
+           D-pad as a diamond cluster (▲ top, ◀▶ middle, ▼ bottom).
+           JUMP as the primary tactile button. Z as a smaller secondary.
+           Glassmorphic w/ backdrop-blur, strong pressed-state shadow. */
         .touch-controls {
             display: none;
             position: absolute;
@@ -548,51 +558,104 @@
             gap: 6px;
             pointer-events: auto;
         }
+        /* diamond d-pad · 3 columns × 3 rows, buttons in + cross */
         .touch-controls .pad-left {
-            left: 12px;
-            bottom: 16px;
-            grid-template-columns: repeat(3, 52px);
-            grid-template-rows:    repeat(2, 48px);
+            left: 14px;
+            bottom: 18px;
+            grid-template-columns: repeat(3, 54px);
+            grid-template-rows:    repeat(3, 54px);
         }
-        .touch-controls .pad-left .tbtn.tbtn-up   { grid-column: 2; grid-row: 1; }
-        .touch-controls .pad-left .tbtn[data-key="arrowleft"]  { grid-column: 1; grid-row: 2; }
-        .touch-controls .pad-left .tbtn[data-key="arrowdown"]  { grid-column: 2; grid-row: 2; }
-        .touch-controls .pad-left .tbtn[data-key="arrowright"] { grid-column: 3; grid-row: 2; }
+        .touch-controls .pad-left .tbtn.tbtn-up                 { grid-column: 2; grid-row: 1; }
+        .touch-controls .pad-left .tbtn[data-key="arrowleft"]   { grid-column: 1; grid-row: 2; }
+        .touch-controls .pad-left .tbtn[data-key="arrowright"]  { grid-column: 3; grid-row: 2; }
+        .touch-controls .pad-left .tbtn[data-key="arrowdown"]   { grid-column: 2; grid-row: 3; }
+
         .touch-controls .pad-right {
-            right: 12px;
-            bottom: 16px;
-            grid-template-columns: 88px 54px;
-            grid-template-rows:    48px;
-            min-width: 152px;
+            right: 14px;
+            bottom: 18px;
+            grid-template-columns: 96px;
+            grid-template-rows:    60px 48px;
+            gap: 10px;
+            justify-items: end;
         }
+        .touch-controls .pad-right .tbtn-jump   { width: 96px; height: 60px; }
+        .touch-controls .pad-right .tbtn-glitch { width: 48px; height: 48px; justify-self: end; }
+
+        /* base button · circular, glassmorphic with subtle inner glow */
         .touch-controls .tbtn {
-            background: rgba(10,14,10,0.55);
-            border: 1px solid rgba(109,255,166,0.65);
+            background: linear-gradient(180deg, rgba(20,32,24,0.55) 0%, rgba(10,14,10,0.75) 100%);
+            border: 1.5px solid rgba(109,255,166,0.55);
             color: var(--accent, #6dffa6);
             font-family: 'IBM Plex Mono', ui-monospace, monospace;
-            font-size: 22px;
-            font-weight: 700;
+            font-size: 24px;
+            font-weight: 600;
             cursor: pointer;
-            border-radius: 6px;
-            transition: background 80ms ease, transform 80ms ease;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow:
+                0 6px 16px rgba(0,0,0,0.45),
+                inset 0 1px 0 rgba(255,255,255,0.05),
+                inset 0 0 14px rgba(109,255,166,0.12);
+            transition: transform 80ms cubic-bezier(.2,.7,.3,1), box-shadow 80ms, background 80ms;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            backdrop-filter: blur(2px);
+            line-height: 1;
         }
         .touch-controls .tbtn:active,
         .touch-controls .tbtn.is-pressed {
-            background: var(--accent, #6dffa6);
+            background: linear-gradient(180deg, var(--accent, #6dffa6) 0%, #5ce897 100%);
             color: var(--bg, #0a0e0a);
-            transform: scale(0.92);
+            transform: scale(0.9);
+            box-shadow:
+                0 2px 6px rgba(0,0,0,0.55),
+                inset 0 2px 8px rgba(0,0,0,0.3),
+                0 0 32px rgba(109,255,166,0.55);
         }
-        .touch-controls .tbtn-jump   { font-size: 14px; letter-spacing: 0.12em; }
-        .touch-controls .tbtn-glitch { font-size: 16px; color: var(--pink, #ff3b8a); border-color: rgba(255,59,138,0.65); }
+        /* JUMP · primary action · rounded rectangle, not circular */
+        .touch-controls .tbtn-jump {
+            border-radius: 30px;
+            font-family: 'VT323', 'IBM Plex Mono', monospace;
+            font-size: 26px;
+            letter-spacing: 0.16em;
+            background: linear-gradient(180deg, rgba(109,255,166,0.22) 0%, rgba(20,40,28,0.7) 100%);
+            border-color: rgba(109,255,166,0.75);
+            box-shadow:
+                0 8px 20px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 0 22px rgba(109,255,166,0.18);
+        }
+        /* Z · secondary action · pink */
+        .touch-controls .tbtn-glitch {
+            font-family: 'VT323', 'IBM Plex Mono', monospace;
+            font-size: 24px;
+            color: var(--pink, #ff3b8a);
+            border-color: rgba(255,59,138,0.55);
+            background: linear-gradient(180deg, rgba(40,18,28,0.55) 0%, rgba(14,8,12,0.78) 100%);
+            box-shadow:
+                0 6px 16px rgba(0,0,0,0.45),
+                inset 0 0 14px rgba(255,59,138,0.18);
+        }
+        .touch-controls .tbtn-glitch:active,
+        .touch-controls .tbtn-glitch.is-pressed {
+            background: linear-gradient(180deg, var(--pink, #ff3b8a) 0%, #d8326f 100%);
+            color: #100408;
+            box-shadow:
+                0 2px 6px rgba(0,0,0,0.55),
+                inset 0 2px 8px rgba(0,0,0,0.3),
+                0 0 32px rgba(255,59,138,0.55);
+        }
 
-        /* extra-narrow phones · scale d-pad a notch down */
+        /* tighter sizes on narrow phones */
         @media (max-width: 380px) {
-            .touch-controls .pad-left  { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 42px); }
-            .touch-controls .pad-right { grid-template-columns: 76px 46px; grid-template-rows: 42px; min-width: 130px; }
-            .touch-controls .tbtn { font-size: 19px; }
+            .touch-controls .pad-left  { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); }
+            .touch-controls .pad-right { grid-template-columns: 84px; grid-template-rows: 54px 44px; }
+            .touch-controls .pad-right .tbtn-jump   { width: 84px; height: 54px; font-size: 22px; }
+            .touch-controls .pad-right .tbtn-glitch { width: 44px; height: 44px; font-size: 21px; }
+            .touch-controls .tbtn { font-size: 22px; }
         }
     </style>
 </head>
@@ -603,19 +666,14 @@
         <div class="journey-canvas-wrap">
             <canvas class="journey-canvas" id="stage" width="960" height="540" aria-label="the journey · playable terminal game"></canvas>
 
-            <div class="hud" aria-hidden="true">
-                <div class="corner tl">
-                    <span id="hud-chapter">ch.0 / 6 · loading</span>
-                </div>
-                <div class="corner tr">
-                    <span class="dim">loot</span> <span id="hud-loot">0 / 6</span>
-                </div>
-                <div class="corner bl">
-                    <span class="dim">fps</span> <span id="hud-fps">--</span>
-                </div>
-                <div class="corner br">
-                    <span class="dim">tip</span> ↑ walks forward
-                </div>
+            <!-- HUD lives entirely on the canvas now · drawCanvasChrome
+                 in journey.js renders a unified top bar + bottom vehicle
+                 card. The four-corner HTML divs were too noisy and
+                 duplicated info the canvas already showed. -->
+            <div class="hud-debug" aria-hidden="true" hidden>
+                <span id="hud-chapter"></span>
+                <span id="hud-loot"></span>
+                <span id="hud-fps"></span>
             </div>
 
             <!-- START · arcade-cabinet boot sequence × Akira-cyber composition.
@@ -747,6 +805,6 @@ R   restart</pre>
         </div>
     </main>
 
-    <script src="/journey.js?v=20260517-11" defer></script>
+    <script src="/journey.js?v=20260517-12" defer></script>
 </body>
 </html>
