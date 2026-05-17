@@ -206,6 +206,76 @@
             z-index: 30;
         }
         .journey-back:hover { opacity: 1; color: var(--accent, #6dffa6); }
+
+        /* ── touch / mobile controls ──────────────────────────────────
+           Lives as a sibling of .journey-canvas-wrap inside .journey-stage,
+           so on mobile it sits BELOW the canvas (no overlay). Hidden on
+           desktops (mouse+keyboard is the right input there). */
+        .touch-controls {
+            display: none;
+            width: 100%;
+            max-width: 1280px;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 12px;
+            padding: 14px 10px 6px;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* show on coarse-pointer / no-hover devices · phones + tablets */
+        @media (hover: none) and (pointer: coarse) {
+            .touch-controls { display: flex; }
+            /* mobile portrait · keep the canvas the full viewport width with
+               the standard 16:9 aspect so the game has all the room it can.
+               The touch controls then take the remaining vertical space. */
+            .journey-stage { justify-content: flex-start; padding: 8px 0 0; gap: 8px; }
+        }
+        .touch-controls .pad {
+            display: grid;
+            gap: 6px;
+        }
+        .touch-controls .pad-left {
+            grid-template-columns: repeat(3, 56px);
+            grid-template-rows:    repeat(2, 52px);
+        }
+        .touch-controls .pad-left .tbtn.tbtn-up   { grid-column: 2; grid-row: 1; }
+        .touch-controls .pad-left .tbtn[data-key="arrowleft"]  { grid-column: 1; grid-row: 2; }
+        .touch-controls .pad-left .tbtn[data-key="arrowdown"]  { grid-column: 2; grid-row: 2; }
+        .touch-controls .pad-left .tbtn[data-key="arrowright"] { grid-column: 3; grid-row: 2; }
+        .touch-controls .pad-right {
+            grid-template-columns: 1fr 60px;
+            grid-template-rows:    52px;
+            min-width: 160px;
+        }
+        .touch-controls .tbtn {
+            background: rgba(10,14,10,0.85);
+            border: 1px solid var(--accent, #6dffa6);
+            color: var(--accent, #6dffa6);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 80ms ease, transform 80ms ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .touch-controls .tbtn:active,
+        .touch-controls .tbtn.is-pressed {
+            background: var(--accent, #6dffa6);
+            color: var(--bg, #0a0e0a);
+            transform: scale(0.92);
+        }
+        .touch-controls .tbtn-jump   { font-size: 14px; letter-spacing: 0.12em; }
+        .touch-controls .tbtn-glitch { font-size: 16px; color: var(--pink, #ff3b8a); border-color: #ff3b8a; }
+
+        /* extra-narrow phones · scale d-pad a notch down */
+        @media (max-width: 360px) {
+            .touch-controls .pad-left  { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 46px); }
+            .touch-controls .pad-right { grid-template-columns: 1fr 50px; grid-template-rows: 46px; min-width: 138px; }
+            .touch-controls .tbtn { font-size: 19px; }
+        }
     </style>
 </head>
 <body data-theme="phosphor" class="journey-only intro-done">
@@ -217,30 +287,33 @@
 
             <div class="hud" aria-hidden="true">
                 <div class="corner tl">
-                    <span id="hud-chapter">ch.0 / 5 · loading</span>
+                    <span id="hud-chapter">ch.0 / 6 · loading</span>
                 </div>
                 <div class="corner tr">
-                    <span class="dim">loot</span> <span id="hud-loot">0 / 5</span>
+                    <span class="dim">loot</span> <span id="hud-loot">0 / 6</span>
                 </div>
                 <div class="corner bl">
                     <span class="dim">fps</span> <span id="hud-fps">--</span>
                 </div>
                 <div class="corner br">
-                    <span class="dim">tip</span> stand near a sign
+                    <span class="dim">tip</span> ↑ walks forward
                 </div>
             </div>
 
             <div class="overlay" id="overlay-start">
                 <div>
                     <h1>the journey</h1>
-                    <p>a glitch-terminal side-scroller · 5 chapters · 6 years</p>
-                    <p class="dim">2015 — 2026 · college → fever 104 fm → sakha global → scripbox → now</p>
+                    <p>a glitch-terminal 3D walker · 6 chapters · 11 years</p>
+                    <p class="dim">2015 — 2026 · college → fever 104 → sakha → scripbox → the GT → now</p>
                     <div class="keys">
-                        <kbd>←</kbd><kbd>→</kbd> walk &nbsp;
-                        <kbd>↑</kbd>/<kbd>space</kbd> jump &nbsp;
+                        <kbd>↑</kbd> walk in &nbsp;
+                        <kbd>←</kbd><kbd>→</kbd> strafe &nbsp;
+                        <kbd>↓</kbd> back &nbsp;
+                        <kbd>space</kbd> jump &nbsp;
                         <kbd>Z</kbd> glitch &nbsp;
                         <kbd>R</kbd> restart
                     </div>
+                    <p class="dim" style="margin-top:10px;font-size:11px;">on mobile: tap the on-screen pad to walk + jump</p>
                     <button id="btn-start" autofocus>insert coin · press start</button>
                 </div>
             </div>
@@ -248,16 +321,32 @@
             <div class="overlay" id="overlay-end" hidden>
                 <div>
                     <h1 id="end-title">end of line</h1>
-                    <p id="end-sub">you walked through 6 years of a career.</p>
-                    <p class="dim" id="end-loot">loot: 0 / 5</p>
+                    <p id="end-sub">you walked through 11 years of a journey.</p>
+                    <p class="dim" id="end-loot">loot: 0 / 6</p>
                     <p>pranavjagadish.com · github.com/Pranavj17</p>
                     <p>medium.com/@jpranav97 · jpranav97@gmail.com</p>
                     <button id="btn-replay">replay · press R</button>
                 </div>
             </div>
         </div>
+
+        <!-- touch controls · sibling of canvas-wrap so they don't overlay the
+             game on mobile. Hidden entirely on desktop (keyboard is enough);
+             shown only when the device reports coarse pointer / no hover. -->
+        <div class="touch-controls" id="touch-controls" aria-hidden="true">
+            <div class="pad pad-left">
+                <button class="tbtn tbtn-up" data-key="arrowup"  aria-label="forward">▲</button>
+                <button class="tbtn" data-key="arrowleft"  aria-label="strafe left">◀</button>
+                <button class="tbtn" data-key="arrowdown"  aria-label="back">▼</button>
+                <button class="tbtn" data-key="arrowright" aria-label="strafe right">▶</button>
+            </div>
+            <div class="pad pad-right">
+                <button class="tbtn tbtn-jump"   data-key=" " aria-label="jump">JUMP</button>
+                <button class="tbtn tbtn-glitch" data-key="z" aria-label="glitch">Z</button>
+            </div>
+        </div>
     </main>
 
-    <script src="/journey.js?v=20260517-3" defer></script>
+    <script src="/journey.js?v=20260517-5" defer></script>
 </body>
 </html>
