@@ -698,9 +698,13 @@ status ·· NOMINAL
 ↑   walk forward
 ←/→ strafe lanes
 ↓   step back
-␣   jump
 Z   glitch.exe
-R   restart</pre>
+R   restart
+
+[ <span class="rail-key">mobile</span> ]
+auto · forward
+tap  · z = glitch
+zero-input mode</pre>
 
                 <section class="hero" role="region" aria-label="title">
                     <pre class="hero-eyebrow">// transmission &nbsp;<span class="accent">002</span>&nbsp; ··· 2015 ▸ 2026 ··· 11 yr · 6 ch · 6 lt</pre>
@@ -724,7 +728,7 @@ R   restart</pre>
                         <span class="coin-blink">▌</span>
                     </button>
 
-                    <p class="mobile-hint">on mobile · auto-walks forward · tap JUMP to leap</p>
+                    <p class="mobile-hint">on mobile · tap insert coin · watch the journey unfold</p>
                 </section>
 
                 <pre class="diag-rail rail-right" aria-hidden="true"><span class="rail-key">// 路</span>
@@ -752,12 +756,11 @@ R   restart</pre>
                 <pre class="overlay-footer" aria-hidden="true">┌── transmission 002 ───────────────────────── press start ──┐</pre>
             </div>
 
-            <!-- touch controls · just JUMP + Z. The player auto-walks forward
-                 on mobile (see autoWalk in journey.js). No d-pad — relaxes the
-                 mobile experience into a "watch the journey unfold" mode. -->
+            <!-- touch controls · ONLY Z (the manual glitch trigger). Mobile is
+                 fully passive: tap INSERT COIN → game auto-walks through all
+                 6 chapters → end screen. Z stays for fun visual chaos. -->
             <div class="touch-controls" id="touch-controls" aria-hidden="true">
                 <div class="pad pad-right">
-                    <button class="tbtn tbtn-jump"   data-key=" " aria-label="jump">JUMP</button>
                     <button class="tbtn tbtn-glitch" data-key="z" aria-label="glitch">Z</button>
                 </div>
             </div>
@@ -799,6 +802,6 @@ R   restart</pre>
         </div>
     </main>
 
-    <script src="/journey.js?v=20260517-15" defer></script>
+    <script src="/journey.js?v=20260517-16" defer></script>
 </body>
 </html>

@@ -257,22 +257,22 @@ async function mobileFlow(browser, url) {
     if (movedBy < 100) throw new Error(`auto-walk should advance player ~150+ units in 1.5s, got Δz=${movedBy.toFixed(1)}`);
     console.log('  ✓ 06-mobile-walking.png · auto-walk fires without d-pad input');
 
-    // tap the JUMP button and verify player leaves the ground
-    const jumpRect = await page.evaluate(() => {
-        const el = document.querySelector('.touch-controls .tbtn.tbtn-jump');
+    // verify the Z glitch button works (only remaining touch button on mobile)
+    const zRect = await page.evaluate(() => {
+        const el = document.querySelector('.touch-controls .tbtn.tbtn-glitch');
         const r = el.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
-    await page.touchscreen.touchStart(jumpRect.x, jumpRect.y);
-    await sleep(60);
+    const glitchBefore = await page.evaluate(() => window.__journey.state.glitchT);
+    await page.touchscreen.touchStart(zRect.x, zRect.y);
+    await sleep(40);
     await page.touchscreen.touchEnd();
-    await sleep(100);
-    const airborne = await page.evaluate(() => !window.__journey.state.player.onGround);
-    console.log('  jump button → player airborne:', airborne);
-    if (!airborne) throw new Error('touch jump button did not lift the player');
-
-    await page.screenshot({ path: path.join(OUT_DIR, '07-mobile-jump.png') });
-    console.log('  ✓ 07-mobile-jump.png');
+    await sleep(80);
+    const glitchAfter = await page.evaluate(() => window.__journey.state.glitchT);
+    console.log('  z button · glitchT:', glitchBefore, '→', glitchAfter);
+    if (glitchAfter <= glitchBefore) throw new Error('Z touch button did not trigger glitch');
+    await page.screenshot({ path: path.join(OUT_DIR, '07-mobile-glitch.png') });
+    console.log('  ✓ 07-mobile-glitch.png · Z glitch fires on tap');
 
     await page.close();
     if (errors.length) throw new Error(`mobile saw ${errors.length} console errors`);

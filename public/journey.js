@@ -1405,7 +1405,7 @@
      *  keyboard equivalents centered. */
     function drawKbHint() {
         const isMobileLike = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
-        const hint = isMobileLike ? 'AUTO-WALKING  ·  TAP JUMP TO LEAP' : 'PRESS  ↑  TO WALK FORWARD';
+        const hint = isMobileLike ? 'AUTO-WALKING · ENJOY THE RIDE' : 'PRESS  ↑  TO WALK FORWARD';
         const hintW = hint.length * 8.4;
         let sx, sy, arrowX, arrowY;
 
