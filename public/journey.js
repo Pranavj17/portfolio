@@ -154,19 +154,29 @@ function animate(now) {
                 cp.ring.userData.collected = true;
                 triggerGlitch(160);
             }
-            // ring animation
-            cp.ring.rotation.z += 0.02 * f;
+            // ring animation · the only on-canvas chapter signal now (pillars
+            // are gone). Stronger emission means the ring carries more
+            // visual weight, so the bob/rotate has more importance.
+            cp.ring.rotation.z += 0.025 * f;
             if (cp.ring.userData.collected) {
-                // cap fly-away at RING_FLOOR_Y · unbounded scale.multiplyScalar
-                // produces denormalized floats which trigger a slow path on
-                // Apple GPUs. Also hide the mesh entirely once tiny.
+                // capped fly-away · avoids denormalized-float GPU slow path
                 if (cp.ring.position.y < RING_FLOOR_Y) {
                     cp.ring.position.y += 0.12 * f;
                     cp.ring.scale.multiplyScalar(Math.pow(0.98, f));
                     if (cp.ring.scale.x < 0.02) cp.ring.visible = false;
                 }
+                // ground pool fades out alongside the ring
+                if (cp.poolMat && cp.poolMat.opacity > 0.01) {
+                    cp.poolMat.opacity *= Math.pow(0.97, f);
+                    if (cp.poolMat.opacity < 0.02) cp.pool.visible = false;
+                }
             } else {
-                cp.ring.position.y = 3 + Math.sin(state.t * 0.003 + i) * 0.2;
+                // gentle bob at the new ring height (y=2.4 in checkpoints.js)
+                cp.ring.position.y = 2.4 + Math.sin(state.t * 0.003 + i) * 0.18;
+                // pool subtly pulses (breathe effect on the ground glow)
+                if (cp.poolMat) {
+                    cp.poolMat.opacity = 0.4 + Math.sin(state.t * 0.003 + i) * 0.08;
+                }
             }
         }
 
@@ -180,11 +190,15 @@ function animate(now) {
         scene.fog.color.lerp(tmpFogTarget, 0.05 * f);
         scene.background.copy(scene.fog.color).multiplyScalar(0.7);
 
-        // camera follow · third-person rig with lookahead. Lerp factor scaled
-        // by f so 120Hz iPads don't follow 2× faster than 60Hz monitors.
-        tmpCamTarget.set(0, 5, player.position.z - 10);
+        // camera follow · tighter rig framing the player. Previous shot was
+        // looking 4 units FORWARD of player which pushed the player to the
+        // bottom of the frame (where the vehicle card was covering them).
+        // New shot: closer (z-7), lower (y=3), looks at the player's chest
+        // (player.y + 1.2) so the player + their vehicle become the focal
+        // subject. Lerp factor scaled by f for 120Hz device parity.
+        tmpCamTarget.set(0, 3, player.position.z - 7);
         camera.position.lerp(tmpCamTarget, 0.08 * f);
-        tmpLookAt.set(player.position.x, player.position.y + 1.5, player.position.z + 4);
+        tmpLookAt.set(player.position.x, player.position.y + 1.2, player.position.z + 0.5);
         camera.lookAt(tmpLookAt);
 
         // sun follows player so the shadow frustum doesn't strand them.

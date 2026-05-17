@@ -113,42 +113,41 @@
             50%      { transform: scale(1.25); box-shadow: 0 0 16px rgba(232,240,221,0.9); }
         }
 
-        /* vehicle/state card · bottom-center */
+        /* vehicle/state card · TOP-RIGHT corner, compact pill. Was previously
+           a big card at the bottom-center which was blocking the player
+           sprite (the camera framed the player low). Now it's a small status
+           indicator that doesn't compete with the 3D scene. */
         .vehicle-card {
             position: absolute;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 14px;
+            right: 14px;
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 10px 22px;
-            background: linear-gradient(180deg, rgba(20,28,32,0.78) 0%, rgba(8,12,16,0.92) 100%);
-            border: 1.5px solid var(--accent);
-            border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 0 20px rgba(109,255,166,0.08);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            min-width: 220px;
-            justify-content: center;
-            transition: border-color 320ms ease, box-shadow 320ms ease;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(8,12,16,0.78);
+            border: 1px solid var(--accent);
+            border-radius: 18px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: border-color 320ms ease;
         }
         .vehicle-card .icon {
-            font-size: 28px;
+            font-size: 20px;
             line-height: 1;
-            filter: drop-shadow(0 0 8px rgba(109,255,166,0.4));
+            filter: drop-shadow(0 0 6px rgba(109,255,166,0.35));
         }
         .vehicle-card .label {
             font-family: 'VT323', monospace;
-            font-size: 18px;
+            font-size: 14px;
             letter-spacing: 0.04em;
             color: #e8f0dd;
+            line-height: 1.1;
         }
         .vehicle-card .sub {
-            font-size: 10px;
-            opacity: 0.55;
-            margin-top: 2px;
-            letter-spacing: 0.06em;
+            /* sublabel hidden in the compact pill · only the icon + label survive */
+            display: none;
         }
 
         /* achievement · big centered "SMASH" impact (replaces small slide-in).
@@ -377,6 +376,6 @@
         </div>
     </main>
 
-    <script type="module" src="/journey.js?v=20260518-3"></script>
+    <script type="module" src="/journey.js?v=20260518-4"></script>
 </body>
 </html>
