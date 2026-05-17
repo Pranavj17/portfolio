@@ -16,13 +16,16 @@
     const canvas = document.getElementById('stage');
     const ctx    = canvas.getContext('2d', { alpha: false });
 
-    // viewport-fitting canvas · re-sized on resize, keeps DPR for crispness
+    // viewport-fitting canvas · sets EXPLICIT pixel dimensions (no "100%"
+    // dependency on parent box-sizing). Re-runs on resize.
     function fitCanvas() {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width  = Math.round(window.innerWidth  * dpr);
-        canvas.height = Math.round(window.innerHeight * dpr);
-        canvas.style.width  = '100%';
-        canvas.style.height = '100%';
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        canvas.width  = Math.max(1, Math.round(w * dpr));
+        canvas.height = Math.max(1, Math.round(h * dpr));
+        canvas.style.width  = w + 'px';
+        canvas.style.height = h + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     fitCanvas();
@@ -168,6 +171,9 @@
 
     function showAchievement(ch) {
         if (!$achStack) return;
+        // Only ONE achievement card visible at a time · clear any existing
+        // before adding the new one (was previously accumulating on rapid taps)
+        while ($achStack.firstChild) $achStack.removeChild($achStack.firstChild);
         const el = document.createElement('div');
         el.className = 'achievement';
         el.innerHTML = `
@@ -177,7 +183,7 @@
                 <span class="a-sub">${ch.achSub}</span>
             </div>`;
         $achStack.appendChild(el);
-        setTimeout(() => el.remove(), 2900);
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 2900);
     }
 
     function triggerLetterbox(ms) {
@@ -201,14 +207,12 @@
         if (e.target !== canvas) return;
         triggerInteraction();
     });
-    // keyboard input for desktop users · space + arrows all trigger the same
-    // "pause + peek next chapter" action. Up/Right = forward boost (kept
-    // inside the interaction so user feels they did something).
+    // keyboard input for desktop · ONLY Space/Enter trigger the peek.
+    // Arrow keys deliberately ignored · user wanted them to not affect the
+    // character (auto-walk is the only locomotion model).
     window.addEventListener('keydown', (e) => {
         const k = e.key;
-        if (k === ' ' || k === 'ArrowUp' || k === 'ArrowDown' ||
-            k === 'ArrowLeft' || k === 'ArrowRight' ||
-            k === 'Enter') {
+        if (k === ' ' || k === 'Enter') {
             e.preventDefault();
             triggerInteraction();
         }
@@ -717,10 +721,15 @@
         // camera · player anchored at 32% from left
         const cameraX = state.playerX - W * 0.32;
 
+        // life-progress 0..1 · drives the time-of-day sky gradient.
+        // World ends at the last chapter + 150. Clamp so we don't NaN.
+        const worldEnd = CHAPTERS[CHAPTERS.length - 1].x + 150;
+        const progress = Math.max(0, Math.min(1, state.playerX / worldEnd));
+
         // ── RENDER ──
         ctx.fillStyle = '#1f1610';
         ctx.fillRect(0, 0, W, H);
-        drawSky(W, H, horizonY);
+        drawSky(W, H, horizonY, progress);
         drawDistHills(W, horizonY, cameraX);
         drawGround(W, H, horizonY, groundY, cameraX);
         drawMidProps(W, horizonY, groundY, cameraX);

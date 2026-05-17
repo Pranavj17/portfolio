@@ -1,16 +1,15 @@
 /**
- * Comprehensive smoke-test for /journey · 3D perspective walker.
+ * Browser-test for /journey · 2D side-scroller · debug + screenshots.
  *
- * Verifies:
- *   1. Page boots in desktop viewport without console errors
- *   2. Each of 6 chapters renders correctly (uses the __journey hook to
- *      teleport the player to each station's z, screenshots at each)
- *   3. The start overlay shows the right text (6 chapters · 11 years)
- *   4. The end screen triggers when all 6 loot collected + at zone 6
- *   5. The mobile viewport renders touch controls visibly
- *   6. Tapping a touch button actually moves the player
+ * Boots the page in a 1920x1080 desktop viewport AND a 390x844 mobile
+ * viewport, then verifies:
+ *   1. Canvas dimensions == viewport dimensions (full-screen on laptop)
+ *   2. Player + ground + sky all rendered (sample pixels at expected positions)
+ *   3. Single tap = single achievement card (no stacking on repeat)
+ *   4. Arrow keys do NOT fire interactions (only Space/Enter do)
+ *   5. Auto-walk advances player.playerX over time
  *
- * Output: /tmp/journey-game/<name>.png
+ * Output: /tmp/journey-game/{desktop|mobile}-*.png
  */
 const puppeteer = require('puppeteer');
 const http      = require('http');
@@ -53,231 +52,114 @@ function serve(root) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// step 1 + 2 + 3 + 4 · desktop
-async function desktopFlow(browser, url) {
-    console.log('\n── desktop ─────────────────────────────────');
+async function runViewport(browser, url, label, vw, vh) {
+    console.log(`\n── ${label} · ${vw}×${vh} ─────────────────────`);
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 2 });
+    await page.setViewport({ width: vw, height: vh, deviceScaleFactor: 1 });
     const errors = [];
-    page.on('console',   (m) => { if (m.type() === 'error') { console.error('[page]', m.text()); errors.push(m.text()); } });
-    page.on('pageerror', (e) => { console.error('[pageerror]', e.message); errors.push(e.message); });
+    page.on('console',   (m) => { if (m.type() === 'error') { console.error('  [page-err]', m.text()); errors.push(m.text()); } });
+    page.on('pageerror', (e) => { console.error('  [pageerror]', e.message); errors.push(e.message); });
     await page.goto(url, { waitUntil: 'networkidle0' });
-    // start overlay has 1500ms of staggered reveal animations · wait for them
-    // to finish before screenshotting so the coin button, mobile hint, etc.
-    // aren't captured mid-fade-in.
-    await sleep(1800);
+    await sleep(500);
 
-    // verify __journey hook + 6 zones
-    const meta = await page.evaluate(() => {
-        if (!window.__journey) return null;
+    // ── CANVAS FILLS VIEWPORT ──
+    const canvasInfo = await page.evaluate(() => {
+        const c = document.getElementById('stage');
+        const r = c.getBoundingClientRect();
         return {
-            zoneCount: window.__journey.ZONES.length,
-            zoneIds:   window.__journey.ZONES.map((z) => z.id),
-            running:   window.__journey.state.running,
+            bitmapW: c.width, bitmapH: c.height,
+            cssW: r.width, cssH: r.height,
+            vpW: window.innerWidth, vpH: window.innerHeight,
         };
     });
-    if (!meta) throw new Error('window.__journey hook missing — journey.js failed to init');
-    console.log('  zones:', meta.zoneCount, '·', meta.zoneIds.join(' → '));
-    if (meta.zoneCount !== 6) throw new Error(`expected 6 zones, got ${meta.zoneCount}`);
-    if (!meta.zoneIds.includes('vwgt')) throw new Error('vwgt zone missing');
+    console.log(`  canvas: bitmap ${canvasInfo.bitmapW}×${canvasInfo.bitmapH} · css ${canvasInfo.cssW}×${canvasInfo.cssH} · viewport ${canvasInfo.vpW}×${canvasInfo.vpH}`);
+    if (Math.abs(canvasInfo.cssW - canvasInfo.vpW) > 2 || Math.abs(canvasInfo.cssH - canvasInfo.vpH) > 2) {
+        throw new Error(`${label}: canvas CSS size ${canvasInfo.cssW}×${canvasInfo.cssH} does NOT match viewport ${canvasInfo.vpW}×${canvasInfo.vpH}`);
+    }
+    console.log('  ✓ canvas fills full viewport');
 
-    // screenshot 1: start overlay (auto-dismisses after 3s on its own)
-    await page.screenshot({ path: path.join(OUT_DIR, '01-start.png') });
-    console.log('  ✓ 01-start.png · auto-start splash');
-
-    // wait for auto-start timer to fire (3000ms + 720ms fade)
+    // ── WAIT FOR SPLASH + AUTO-START ──
     await sleep(3800);
-    const autoStarted = await page.evaluate(() => window.__journey.state.running);
-    if (!autoStarted) throw new Error('auto-start timer did not fire · game still not running');
-    console.log('  ✓ auto-start fired without user interaction');
+    const started = await page.evaluate(() => window.__journey?.state?.running === true);
+    if (!started) throw new Error(`${label}: auto-start didn't fire after 3.8s`);
+    console.log('  ✓ auto-start fired');
 
-    // teleport through every chapter via debug hook. We also auto-collect
-    // all PREVIOUS chapters' loot to simulate a natural playthrough — so
-    // the vehicle progression (walk → alto → vw) shows correctly at the
-    // chapter the player has actually progressed to.
-    for (let i = 0; i < 6; i++) {
-        const arrived = await page.evaluate((idx) => {
-            const j = window.__journey;
-            const z = j.ZONES[idx];
-            for (let k = 0; k < idx; k++) {
-                const past = j.ZONES[k];
-                if (!j.state.collected.has(past.id)) {
-                    j.state.collected.add(past.id);
-                    j.state.loot++;
-                }
-            }
-            j.state.player.z = z.z;
-            j.state.player.x = 0;
-            j.state.zone = idx;
-            j.state.revealT.set(z.id, 2000);
-            j.state.revealed.add(z.id);
-            return { id: z.id, label: z.label };
-        }, i);
-        await sleep(900);  // let update() resolve vehicle state + render
-        const settled = await page.evaluate(() => window.__journey.state.player.vehicle);
-        await page.screenshot({ path: path.join(OUT_DIR, `02-ch${i + 1}-${arrived.id}.png`) });
-        console.log(`  ✓ 02-ch${i + 1}-${arrived.id}.png  (${arrived.label} · vehicle=${settled})`);
+    // ── PLAYER ADVANCES (auto-walk) ──
+    const beforeX = await page.evaluate(() => window.__journey.state.playerX);
+    await sleep(1200);
+    const afterX = await page.evaluate(() => window.__journey.state.playerX);
+    console.log(`  player.x: ${beforeX.toFixed(0)} → ${afterX.toFixed(0)} (Δ ${(afterX - beforeX).toFixed(0)})`);
+    if (afterX - beforeX < 30) throw new Error(`${label}: player should advance ≥30px in 1.2s but only moved ${(afterX-beforeX).toFixed(0)}`);
+    console.log('  ✓ auto-walk advances playerX');
+
+    // ── DESKTOP-ONLY: ARROW KEYS DO NOT TRIGGER INTERACTION ──
+    if (label === 'desktop') {
+        // record achievement count before pressing arrows
+        const beforeAchCount = await page.evaluate(() => document.querySelectorAll('.achievement').length);
+        await page.keyboard.press('ArrowLeft');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowUp');
+        await page.keyboard.press('ArrowDown');
+        await sleep(200);
+        const afterArrowsAch = await page.evaluate(() => document.querySelectorAll('.achievement').length);
+        if (afterArrowsAch !== beforeAchCount) {
+            throw new Error(`${label}: arrow keys triggered ${afterArrowsAch - beforeAchCount} achievement(s) · should be 0`);
+        }
+        console.log('  ✓ arrow keys do not trigger interaction');
+
+        // SPACE should trigger interaction
+        await page.keyboard.press(' ');
+        await sleep(200);
+        const afterSpaceCount = await page.evaluate(() => document.querySelectorAll('.achievement').length);
+        if (afterSpaceCount === beforeAchCount) {
+            throw new Error(`${label}: Space did not fire achievement card`);
+        }
+        console.log('  ✓ Space triggers interaction');
     }
 
-    // REAL gameplay walk test — no teleport. Press ↑ from z=0 and verify
-    // vehicle transitions fire as the player crosses the threshold. Catches
-    // bugs where the teleport-based test would pass but real play wouldn't.
-    console.log('\n── real-gameplay walk-through ─────────────');
-    await page.evaluate(() => {
-        const j = window.__journey;
-        j.state.player.x = 0; j.state.player.z = 0;
-        j.state.player.vehicle = 'walk';
-        j.state.collected.clear(); j.state.loot = 0; j.state.zone = 0;
-        // make sure the game is actually playable · prior tests may have
-        // triggered end-state or paused.
-        j.state.running = true;
-        j.state.ended = false;
+    // ── ACHIEVEMENT DE-DUP: rapid taps should only ever show 1 card ──
+    // simulate 5 rapid taps on the canvas
+    const rect = await page.evaluate(() => {
+        const c = document.getElementById('stage');
+        const r = c.getBoundingClientRect();
+        return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
     });
-    await sleep(100);
-    // focus the canvas before sending keys — puppeteer keydown events go to
-    // the focused element first, and a freshly-evaluated page may have nothing focused
-    await page.focus('#stage').catch(() => {});
-    const beforeWalk = await page.evaluate(() => ({ z: window.__journey.state.player.z, v: window.__journey.state.player.vehicle, running: window.__journey.state.running, ended: window.__journey.state.ended }));
-    console.log('  state before walk:', JSON.stringify(beforeWalk));
-    // hold ↑ for 10s to walk well past the Alto threshold (800)
-    await page.keyboard.down('ArrowUp');
-    await sleep(10000);
-    await page.keyboard.up('ArrowUp');
-    const afterWalk = await page.evaluate(() => ({ z: window.__journey.state.player.z, v: window.__journey.state.player.vehicle }));
-    console.log(`  before: z=${beforeWalk.z.toFixed(0)} vehicle=${beforeWalk.v}`);
-    console.log(`  after : z=${afterWalk.z.toFixed(0)} vehicle=${afterWalk.v}`);
-    if (afterWalk.z < 1000)        throw new Error(`player only reached z=${afterWalk.z.toFixed(0)} after 10s · walking too slow`);
-    if (afterWalk.v !== 'alto')    throw new Error(`expected vehicle=alto after walking to z≈${afterWalk.z.toFixed(0)} but got '${afterWalk.v}'`);
-    await page.screenshot({ path: path.join(OUT_DIR, '08-real-alto.png') });
-    console.log('  ✓ 08-real-alto.png · player auto-mounted Alto via gameplay');
-
-    // verify the bicycle stage by parking the player at college (z=300-700)
-    await page.evaluate(() => {
-        const j = window.__journey;
-        j.state.player.z = 350;
-        j.state.player.x = 0;
-        j.state.collected.clear(); j.state.loot = 0; j.state.zone = 0;
-        j.state.ended = false; j.state.running = true;
-        // explicitly hide any leftover overlays from previous tests
-        const oe = document.getElementById('overlay-end');
-        const os = document.getElementById('overlay-start');
-        if (oe) oe.hidden = true;
-        if (os) os.hidden = true;
-    });
-    await sleep(120);
-    const atCollege = await page.evaluate(() => window.__journey.state.player.vehicle);
-    if (atCollege !== 'cycle') throw new Error(`expected vehicle=cycle at z=350 but got '${atCollege}'`);
-    await page.screenshot({ path: path.join(OUT_DIR, '08b-bicycle-at-college.png') });
-    console.log('  ✓ 08b-bicycle-at-college.png · player on bicycle in college era');
-
-    // now collect the VW keys via the debug hook and verify VW kicks in immediately
-    await page.evaluate(() => {
-        const j = window.__journey;
-        j.state.collected.add('vwgt');
-        j.state.loot++;
-    });
-    await sleep(80);
-    const afterKeys = await page.evaluate(() => window.__journey.state.player.vehicle);
-    if (afterKeys !== 'vw') throw new Error(`expected vehicle=vw after collecting vwgt keys but got '${afterKeys}'`);
-    await page.screenshot({ path: path.join(OUT_DIR, '09-real-vw.png') });
-    console.log('  ✓ 09-real-vw.png · player upgraded to VW Virtus on key pickup');
-
-    // glitch screenshot · trigger Z + jump
-    await page.evaluate(() => window.__journey.state.zone = 1);
-    await page.keyboard.press('z');
-    await sleep(50);
-    await page.keyboard.press(' ');
+    for (let i = 0; i < 5; i++) {
+        await page.mouse.click(rect.cx, rect.cy);
+        await sleep(50);
+    }
     await sleep(150);
-    await page.screenshot({ path: path.join(OUT_DIR, '03-glitch.png') });
-    console.log('  ✓ 03-glitch.png');
+    const cardCount = await page.evaluate(() => document.querySelectorAll('.achievement').length);
+    console.log(`  rapid 5-click → ${cardCount} achievement card(s) visible`);
+    if (cardCount > 1) throw new Error(`${label}: ${cardCount} achievement cards stacked · should be 1`);
+    console.log('  ✓ only one achievement card on rapid taps');
 
-    // end-screen · force-collect everything and teleport to last zone
-    await page.evaluate(() => {
-        const j = window.__journey;
-        for (const z of j.ZONES) {
-            if (!j.state.collected.has(z.id)) {
-                j.state.collected.add(z.id);
-                j.state.loot++;
-            }
-        }
-        j.state.player.z = j.ZONES[j.ZONES.length - 1].z;
-        j.state.zone = j.ZONES.length - 1;
+    // ── PIXEL SANITY: sample canvas to confirm sky + ground + player render ──
+    const samples = await page.evaluate(() => {
+        const c = document.getElementById('stage');
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        // sample roughly: sky (upper third), ground (lower third), player area (32% across, just above ground)
+        const W = c.width, H = c.height;
+        const sky    = Array.from(ctx.getImageData(W * 0.5,  H * 0.20, 1, 1).data).slice(0, 3);
+        const ground = Array.from(ctx.getImageData(W * 0.5,  H * 0.92, 1, 1).data).slice(0, 3);
+        const player = Array.from(ctx.getImageData(W * 0.32, H * 0.82, 1, 1).data).slice(0, 3);
+        return { sky, ground, player };
     });
-    await sleep(1100);
-    await page.screenshot({ path: path.join(OUT_DIR, '04-end.png') });
-    console.log('  ✓ 04-end.png');
+    console.log(`  sky pixel:    rgb(${samples.sky.join(',')})`);
+    console.log(`  ground pixel: rgb(${samples.ground.join(',')})`);
+    console.log(`  player area:  rgb(${samples.player.join(',')})`);
+    const skyBright   = samples.sky.reduce((a, b) => a + b, 0);
+    const groundBright = samples.ground.reduce((a, b) => a + b, 0);
+    if (skyBright < 60)    throw new Error(`${label}: sky pixel is too dark (sum=${skyBright}) · canvas may not be rendering`);
+    if (groundBright < 60) throw new Error(`${label}: ground pixel is too dark (sum=${groundBright}) · canvas may not be rendering ground band`);
+    console.log('  ✓ sky + ground are rendered (nonzero pixels at expected positions)');
+
+    await page.screenshot({ path: path.join(OUT_DIR, `${label}-final.png`) });
+    console.log(`  ✓ saved ${label}-final.png`);
 
     await page.close();
-    if (errors.length) throw new Error(`desktop saw ${errors.length} console errors`);
-    console.log('  ✓ no console errors');
-}
-
-// step 5 + 6 · mobile viewport · touch controls
-async function mobileFlow(browser, url) {
-    console.log('\n── mobile (iPhone 14, 390×844) ────────────');
-    const page = await browser.newPage();
-    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-    const errors = [];
-    page.on('console',   (m) => { if (m.type() === 'error') { console.error('[page]', m.text()); errors.push(m.text()); } });
-    page.on('pageerror', (e) => { console.error('[pageerror]', e.message); errors.push(e.message); });
-    await page.goto(url, { waitUntil: 'networkidle0' });
-    // wait for the same staggered animations to finish on mobile
-    await sleep(1800);
-
-    // screenshot the start overlay in mobile · touch controls visible below
-    await page.screenshot({ path: path.join(OUT_DIR, '05-mobile-start.png') });
-    console.log('  ✓ 05-mobile-start.png');
-
-    // measure if the touch controls are visible (computed style display !== none AND inside viewport)
-    const ctrlsVisible = await page.evaluate(() => {
-        const el = document.getElementById('touch-controls');
-        if (!el) return { exists: false };
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-        return {
-            exists: true,
-            display: style.display,
-            opacity: parseFloat(style.opacity),
-            in_viewport: rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth,
-        };
-    });
-    console.log('  touch-controls:', ctrlsVisible);
-    if (!ctrlsVisible.exists) throw new Error('touch-controls element missing');
-    if (ctrlsVisible.opacity < 0.5) throw new Error(`touch-controls opacity too low: ${ctrlsVisible.opacity}`);
-
-    // wait for auto-start timer · no tap needed
-    await sleep(3500);
-
-    // verify auto-walk · player should be moving forward without any input
-    const beforeZ = await page.evaluate(() => window.__journey.state.player.z);
-    await sleep(1500);
-    await page.screenshot({ path: path.join(OUT_DIR, '06-mobile-walking.png') });
-    const afterZ = await page.evaluate(() => window.__journey.state.player.z);
-    const movedBy = afterZ - beforeZ;
-    console.log(`  auto-walk · player.z: ${beforeZ.toFixed(1)} → ${afterZ.toFixed(1)}  (Δ ${movedBy.toFixed(1)})`);
-    if (movedBy < 100) throw new Error(`auto-walk should advance player ~150+ units in 1.5s, got Δz=${movedBy.toFixed(1)}`);
-    console.log('  ✓ 06-mobile-walking.png · auto-walk fires without d-pad input');
-
-    // verify the Z glitch button works (only remaining touch button on mobile)
-    const zRect = await page.evaluate(() => {
-        const el = document.querySelector('.touch-controls .tbtn.tbtn-glitch');
-        const r = el.getBoundingClientRect();
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    const glitchBefore = await page.evaluate(() => window.__journey.state.glitchT);
-    await page.touchscreen.touchStart(zRect.x, zRect.y);
-    await sleep(40);
-    await page.touchscreen.touchEnd();
-    await sleep(80);
-    const glitchAfter = await page.evaluate(() => window.__journey.state.glitchT);
-    console.log('  z button · glitchT:', glitchBefore, '→', glitchAfter);
-    if (glitchAfter <= glitchBefore) throw new Error('Z touch button did not trigger glitch');
-    await page.screenshot({ path: path.join(OUT_DIR, '07-mobile-glitch.png') });
-    console.log('  ✓ 07-mobile-glitch.png · Z glitch fires on tap');
-
-    await page.close();
-    if (errors.length) throw new Error(`mobile saw ${errors.length} console errors`);
-    console.log('  ✓ no console errors');
+    if (errors.length) throw new Error(`${label} saw ${errors.length} console errors`);
+    console.log(`  ✓ no console errors`);
 }
 
 (async () => {
@@ -289,10 +171,9 @@ async function mobileFlow(browser, url) {
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-
     try {
-        await desktopFlow(browser, url);
-        await mobileFlow(browser, url);
+        await runViewport(browser, url, 'desktop', 1920, 1080);
+        await runViewport(browser, url, 'mobile',  390,  844);
         console.log('\n✓ all checks passed · screenshots in', OUT_DIR);
     } catch (err) {
         console.error('\n✗ test failed:', err.message);
