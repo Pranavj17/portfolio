@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teaching the Statusline to Think — Pranav Jagadish</title>
+  <meta name="description" content="A case study on building an AI-driven status chip — what worked, what got killed, and why redundancy is louder than silence." />
+  <link rel="canonical" href="https://pranavjagadish.com/statusline.html" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,200..900,0..100,0..1&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --paper:        #F2EBDC;
+      --paper-deep:   #ECE3CF;
+      --hairline:     #D9CFB6;
+      --ink:          #1A1611;
+      --ink-soft:     #2E2820;
+      --mute:         #8B7E68;
+      --oxblood:      #5A1A1A;
+      --signal:       #C24A2D;
+      --highlight:    rgba(194, 74, 45, 0.10);
+
+      --serif-display: "Fraunces", "Cormorant Garamond", Georgia, serif;
+      --serif-body:    "Newsreader", "Source Serif Pro", Georgia, serif;
+      --mono:          "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+      --grid-rule:     1px solid var(--hairline);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif-body);
+      font-weight: 380;
+      font-size: 18px;
+      line-height: 1.62;
+      letter-spacing: 0.005em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* paper grain — subtle multiply-blend noise via SVG */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.07  0 0 0 0.08 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+      opacity: 0.55;
+      mix-blend-mode: multiply;
+      z-index: 1;
+    }
+
+    /* hairline grid backplate */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, var(--hairline) 1px, transparent 1px);
+      background-size: calc(100% / 12) 100%;
+      opacity: 0.18;
+      z-index: 0;
+    }
+
+    main, header, footer {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ─────────  header / masthead ───────── */
+
+    .masthead {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px 56px 22px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 24px;
+      border-bottom: var(--grid-rule);
+    }
+
+    .masthead-l, .masthead-r {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+    }
+    .masthead-r { text-align: right; }
+    .masthead-r a {
+      color: var(--mute);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: color .25s, border-color .25s;
+    }
+    .masthead-r a:hover { color: var(--oxblood); border-color: currentColor; }
+
+    .masthead-c {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 144, "wght" 420, "SOFT" 100, "WONK" 0;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+    }
+
+    /* ─────────  hero ───────── */
+
+    .hero {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 88px 56px 56px;
+      display: grid;
+      grid-template-columns: 1fr 9fr 2fr;
+      gap: 32px;
+      position: relative;
+    }
+
+    .vertical-meta {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--mute);
+      align-self: end;
+      padding-bottom: 8px;
+    }
+    .vertical-meta span { color: var(--oxblood); }
+
+    .hero-title {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 144, "wght" 380, "SOFT" 60, "WONK" 1;
+      font-size: clamp(56px, 9.2vw, 152px);
+      line-height: 0.92;
+      letter-spacing: -0.035em;
+      color: var(--ink);
+      margin: 0 0 12px;
+      animation: rise 1.1s cubic-bezier(.2,.7,.2,1) both;
+    }
+    .hero-title .think {
+      font-style: italic;
+      font-variation-settings: "opsz" 144, "wght" 320, "SOFT" 100, "WONK" 1;
+      color: var(--oxblood);
+    }
+    .hero-title .think::after {
+      content: "";
+      display: inline-block;
+      width: 0.32em;
+      height: 0.32em;
+      background: var(--signal);
+      margin-left: 0.12em;
+      transform: translateY(-0.55em);
+      border-radius: 999px;
+    }
+
+    .hero-sub {
+      font-family: var(--serif-body);
+      font-style: italic;
+      font-weight: 320;
+      font-size: 22px;
+      line-height: 1.42;
+      color: var(--ink-soft);
+      max-width: 580px;
+      margin: 18px 0 36px;
+      animation: rise 1.3s .15s cubic-bezier(.2,.7,.2,1) both;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, max-content);
+      gap: 48px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+      padding-top: 18px;
+      border-top: var(--grid-rule);
+      animation: rise 1.5s .3s cubic-bezier(.2,.7,.2,1) both;
+    }
+    .hero-meta dt { color: var(--ink); margin-bottom: 4px; }
+    .hero-meta dd { margin: 0; color: var(--mute); }
+
+    .hero-side {
+      align-self: end;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+      text-align: right;
+      padding-bottom: 18px;
+    }
+    .hero-side strong {
+      display: block;
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 36, "wght" 320, "WONK" 1;
+      font-style: italic;
+      font-size: 64px;
+      font-weight: 320;
+      letter-spacing: -0.02em;
+      color: var(--oxblood);
+      margin-bottom: 6px;
+      text-transform: none;
+    }
+
+    /* ─────────  inline live terminal ───────── */
+
+    .stage {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 56px 88px;
+    }
+    .terminal {
+      background: #14110D;
+      color: #E8DFCB;
+      border-radius: 6px;
+      padding: 18px 22px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.04) inset,
+        0 22px 60px -28px rgba(20,17,13,0.45),
+        0 8px 22px -16px rgba(20,17,13,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .terminal::before {
+      content: "● ● ●";
+      position: absolute;
+      top: 14px; left: 18px;
+      color: #3B3328;
+      letter-spacing: 6px;
+      font-size: 11px;
+    }
+    .terminal-body {
+      margin-top: 28px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    .terminal-body::-webkit-scrollbar { height: 0; }
+
+    .chip { opacity: 0; display: inline-block; transition: opacity .42s; }
+    .chip.show { opacity: 1; }
+    .chip + .chip { margin-left: 14px; }
+    .c-cwd       { color: #DA7756; }
+    .c-model     { color: #6B9BD1; }
+    .c-ctx-ok    { color: #88AB75; }
+    .c-git       { color: #E9B872; }
+    .c-git-dirty { color: #DA7756; }
+    .c-git-up    { color: #88AB75; }
+    .c-mini      { color: #88AB75; }
+    .c-greeter   { color: #6B9BD1; font-style: italic; }
+    .c-slot      { color: #88AB75; }
+    .c-triage-y  { color: #E9B872; }
+    .c-triage-r  { color: #DA7756; }
+    .c-stale     { color: #E9B872; }
+    .c-session   { color: #6B9BD1; }
+    .c-style     { color: #88AB75; }
+    .c-cost      { color: #E9B872; }
+    .cursor {
+      display: inline-block;
+      width: 0.62ch;
+      background: #E8DFCB;
+      animation: blink 1s steps(2) infinite;
+      margin-left: 6px;
+      vertical-align: text-bottom;
+      height: 1.05em;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .stage-caption {
+      margin-top: 18px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+      text-align: right;
+    }
+    .stage-caption b { color: var(--ink); font-weight: 600; }
+
+    /* ─────────  article body ───────── */
+
+    /* article is a vertical stack; each .row is its own 3-col grid */
+    .article {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 56px 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 72px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 110px 1fr 320px;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--mute);
+      padding-top: 12px;
+    }
+    .section-num em {
+      font-style: normal;
+      color: var(--oxblood);
+    }
+    .section-num small {
+      display: block;
+      margin-top: 6px;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--mute);
+    }
+
+    .section { min-width: 0; }
+
+    .marginalia {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--mute);
+      padding-top: 14px;
+      border-top: var(--grid-rule);
+    }
+    .marginalia strong {
+      display: block;
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 36, "wght" 380, "WONK" 1;
+      font-style: italic;
+      font-weight: 380;
+      font-size: 22px;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+      text-transform: none;
+    }
+
+    h2 {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 96, "wght" 360, "WONK" 1;
+      font-size: clamp(36px, 4.8vw, 60px);
+      line-height: 1.02;
+      letter-spacing: -0.022em;
+      margin: 56px 0 24px;
+      color: var(--ink);
+      font-weight: 360;
+    }
+    h2 .italic {
+      font-style: italic;
+      font-variation-settings: "opsz" 96, "wght" 320, "SOFT" 100, "WONK" 1;
+      color: var(--oxblood);
+    }
+
+    .section p {
+      margin: 0 0 22px;
+      max-width: 64ch;
+    }
+
+    /* fancy drop cap on first paragraph of section 01 */
+    #s-01 p.lede::first-letter {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 144, "wght" 320, "SOFT" 100, "WONK" 1;
+      font-size: 5.2em;
+      float: left;
+      line-height: 0.88;
+      padding: 6px 12px 0 0;
+      color: var(--oxblood);
+      font-style: italic;
+    }
+
+    .section p em.h {
+      background: var(--highlight);
+      font-style: normal;
+      padding: 0 0.18em;
+      border-radius: 2px;
+    }
+
+    /* pull quote — full-width block in the article flex flow */
+    .pull {
+      margin: 16px 0;
+      padding: 56px 0;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      text-align: center;
+    }
+    .pull blockquote {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 144, "wght" 320, "SOFT" 60, "WONK" 1;
+      font-style: italic;
+      font-size: clamp(36px, 5.6vw, 72px);
+      line-height: 1.06;
+      letter-spacing: -0.025em;
+      max-width: 22ch;
+      margin: 0 auto;
+      color: var(--ink);
+      position: relative;
+    }
+    .pull blockquote::before {
+      content: "“";
+      position: absolute;
+      left: -0.7em;
+      top: -0.2em;
+      color: var(--signal);
+      font-family: var(--serif-display);
+      font-variation-settings: "wght" 320;
+    }
+    .pull cite {
+      display: block;
+      margin-top: 28px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--mute);
+      font-style: normal;
+    }
+
+    /* code */
+    .code {
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.62;
+      background: #F8F1DD;
+      color: var(--ink);
+      border-left: 3px solid var(--oxblood);
+      padding: 22px 26px;
+      margin: 28px 0 36px;
+      overflow-x: auto;
+      box-shadow: 0 1px 0 var(--hairline);
+    }
+    .code .kw { color: var(--oxblood); font-weight: 500; }
+    .code .str { color: #6B5A36; }
+    .code .cmt { color: var(--mute); font-style: italic; }
+    .code .var { color: #4A4032; }
+
+    .code-caption {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-top: -22px;
+      margin-bottom: 36px;
+    }
+    .code-caption b { color: var(--ink); font-weight: 600; }
+
+    /* anatomy table */
+    .anatomy {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 32px 0 8px;
+      font-size: 14px;
+    }
+    .anatomy th, .anatomy td {
+      text-align: left;
+      padding: 14px 14px;
+      border-bottom: var(--grid-rule);
+      vertical-align: top;
+    }
+    .anatomy th {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--mute);
+      font-weight: 500;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink);
+    }
+    .anatomy td.chip-cell {
+      font-family: var(--mono);
+      font-weight: 500;
+      white-space: nowrap;
+      color: var(--ink);
+    }
+    .anatomy td.chip-cell .ink-red { color: var(--oxblood); }
+    .anatomy td.role {
+      font-family: var(--serif-body);
+      color: var(--ink-soft);
+    }
+    .anatomy tr.killed td.chip-cell { color: var(--mute); text-decoration: line-through; }
+    .anatomy tr.killed td.role { color: var(--mute); font-style: italic; }
+    .anatomy tr.killed::after { content: ""; }
+
+    /* before/after */
+    .ba {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 24px 0 32px;
+    }
+    .ba > div {
+      background: #14110D;
+      color: #E8DFCB;
+      padding: 16px 22px 18px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.65;
+      overflow-x: auto;
+    }
+    .ba > div::before {
+      content: attr(data-label);
+      display: block;
+      text-align: right;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #6B5A36;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #2A2419;
+    }
+    .ba .strike { text-decoration: line-through; color: #6B5A36; }
+    .ba .signal-r { color: #DA7756; }
+    .ba .signal-y { color: #E9B872; }
+    .ba .signal-g { color: #88AB75; }
+    .ba .signal-b { color: #6B9BD1; font-style: italic; }
+    .ba .signal-d { color: #DA7756; }
+
+    /* ascii diagram */
+    .ascii {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      white-space: pre;
+      color: var(--ink-soft);
+      background: var(--paper-deep);
+      padding: 28px 28px;
+      border-radius: 4px;
+      margin: 28px 0 36px;
+      overflow-x: auto;
+      box-shadow: inset 0 0 0 1px var(--hairline);
+    }
+    .ascii b { color: var(--oxblood); font-weight: 600; }
+    .ascii i { color: var(--mute); font-style: normal; }
+
+    /* footer */
+    footer {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 56px 56px 96px;
+      border-top: 1px solid var(--ink);
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 48px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--mute);
+    }
+    footer h4 {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin: 0 0 14px;
+      font-weight: 500;
+    }
+    footer ul { list-style: none; padding: 0; margin: 0; }
+    footer li { margin: 6px 0; }
+    footer a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      border-bottom: 1px solid var(--hairline);
+      transition: color .25s, border-color .25s;
+    }
+    footer a:hover { color: var(--oxblood); border-color: currentColor; }
+    .colophon {
+      max-width: 38ch;
+      font-style: italic;
+      font-family: var(--serif-body);
+      font-size: 15px;
+      line-height: 1.62;
+      color: var(--ink-soft);
+    }
+    .colophon strong {
+      font-family: var(--serif-display);
+      font-variation-settings: "opsz" 36, "wght" 380, "WONK" 1;
+      font-style: italic;
+      color: var(--oxblood);
+      font-weight: 380;
+      letter-spacing: -0.01em;
+    }
+
+    /* reveal on scroll */
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .8s, transform .8s; }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* mobile */
+    @media (max-width: 900px) {
+      body { font-size: 17px; }
+      .masthead { grid-template-columns: 1fr; padding: 22px 24px; gap: 8px; }
+      .masthead-r { text-align: left; }
+      .hero { grid-template-columns: 1fr; padding: 56px 24px 32px; gap: 24px; }
+      .vertical-meta { writing-mode: horizontal-tb; transform: none; }
+      .hero-side { text-align: left; padding-bottom: 0; }
+      .hero-meta { grid-template-columns: 1fr; gap: 18px; }
+      .stage, .article, footer { padding-left: 24px; padding-right: 24px; }
+      .article { gap: 56px; }
+      .row { grid-template-columns: 1fr; gap: 18px; }
+      .section-num { padding-top: 0; }
+      .marginalia { padding-top: 18px; }
+      .ba { grid-template-columns: 1fr; }
+      footer { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="masthead">
+    <div class="masthead-l">PRJ–07 · CASE STUDY</div>
+    <div class="masthead-c">Pranav&nbsp;Jagadish</div>
+    <nav class="masthead-r">
+      <a href="/">← all work</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ─────────── HERO ─────────── -->
+
+    <section class="hero">
+      <div class="vertical-meta">
+        № 07 · <span>2026.05</span> · BUILD LOG
+      </div>
+
+      <div>
+        <h1 class="hero-title">
+          Teaching<br />the statusline<br />to <span class="think">think</span>
+        </h1>
+        <p class="hero-sub">
+          A case study on giving the statusline a small, private mind — what it learned to say, what it kept restating, what got killed, and what came back smarter when the constraints were drawn properly.
+        </p>
+
+        <dl class="hero-meta">
+          <div>
+            <dt>BUILT IN</dt>
+            <dd>~6 hrs · bash, jq, ssh</dd>
+          </div>
+          <div>
+            <dt>STACK</dt>
+            <dd>Claude haiku · ssh · Mac Mini</dd>
+          </div>
+          <div>
+            <dt>STATUS</dt>
+            <dd>12 chips ship · 1 chip resurrected</dd>
+          </div>
+        </dl>
+      </div>
+
+      <aside class="hero-side">
+        <strong>twelve</strong>
+        chips earning<br />
+        their pixels
+      </aside>
+    </section>
+
+    <!-- ─────────── INLINE TERMINAL ─────────── -->
+
+    <section class="stage">
+      <div class="terminal" id="stage">
+        <div class="terminal-body" id="stage-line">
+          <span class="chip c-cwd"      data-step="1">~/Documents/memory</span>
+          <span class="chip c-model"    data-step="2">opus-4.7</span>
+          <span class="chip c-ctx-ok"   data-step="3">ctx:38%</span>
+          <span class="chip c-git"      data-step="4">(main<span class="c-git-dirty">*</span> <span class="c-git-up">↑4</span>)</span>
+          <span class="chip c-mini"     data-step="5">mini</span>
+          <span class="chip c-greeter"  data-step="6">⇺ memory MCP ready · helixa/customer360 next?</span>
+          <span class="chip c-slot"     data-step="7">💡 helixa idle 44h · still on?</span>
+          <span class="chip c-triage-y" data-step="8">🚦 1 · 1c</span>
+          <span class="chip c-stale"    data-step="9">⟳ 1</span>
+          <span class="chip c-session"  data-step="10">"work"</span>
+          <span class="chip c-style"    data-step="11">expl</span>
+          <span class="chip c-cost"     data-step="12">$18.47</span>
+          <span class="cursor"></span>
+        </div>
+      </div>
+      <div class="stage-caption">
+        Fig. 01 — <b>live render</b> · twelve chips, two AI-driven, two remote-sourced, eight deterministic. Each clause in a sentence read left to right.
+      </div>
+    </section>
+
+    <!-- ─────────── ARTICLE BODY ─────────── -->
+
+    <article class="article">
+
+      <!-- ─── 01 PREMISE ─── -->
+      <div class="row reveal">
+        <aside class="section-num" id="s-01"><em>01</em><br />Premise<small>why give a chip a mind</small></aside>
+        <div class="section">
+          <h2>The statusline has spent <span class="italic">forty years</span> displaying state. What if one started having opinions?</h2>
+          <p class="lede">
+            A statusline is the most honest piece of UI a developer owns. It earns its row of pixels by surfacing the things you actually need to glance at — branch, dirty tree, model, context percentage, ssh tunnel up or down — and it gets out of the way. Every chip is an <em class="h">if/else</em> away from a number, and the whole line is auditable in a thousand-line bash script.
+          </p>
+          <p>
+            The premise here was small: what happens if one of those chips stops being deterministic and starts having a small, local opinion? Not an LLM in the render path — that would be slow and stupid — but an LLM running quietly in the background, watching the same signals the deterministic chips watch, and choosing one thing worth saying.
+          </p>
+          <p>
+            Two chips were built. One — a <em class="h">greeter</em> — would speak once at session start, synthesizing the last session's wrap-up with the current directory into one sentence. The other — an <em class="h">adaptive slot</em> — would refresh every five minutes on a launchd timer, picking one actionable insight from a handful of local signals.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>The unit cost</strong>
+          One haiku call per session is one tenth of one cent. One qwen2.5 call every five minutes is electricity. The whole experiment cost less than the coffee that started it.
+        </aside>
+      </div>
+
+      <!-- ─── 02 ANATOMY ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>02</em><br />Anatomy<small>the line, annotated</small></aside>
+        <div class="section">
+          <h2>A statusline reads <span class="italic">left to right</span> like a sentence — every chip is a clause.</h2>
+          <p>
+            The line above is the production version, rendered live every turn from <span style="font-family:var(--mono);font-size:0.92em">~/.claude/statusline-command.sh</span>. Each chip earns its place by tracking persistent state that matters every turn. The mix is intentional: eight deterministic chips that the eye trusts, two AI-driven chips that surface what deterministic chips can't, and two remote-sourced chips that pull state across the network from Mac Mini.
+          </p>
+
+          <table class="anatomy">
+            <thead>
+              <tr><th>Chip</th><th>Role</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="chip-cell">~/path</td><td class="role">Working directory</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">opus-4.7</td><td class="role">Current model</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">ctx:38%</td><td class="role">Context window used, color-graded</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">(main<span class="ink-red">*</span> ↑4)</td><td class="role">Branch · dirty · ahead</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">mini</td><td class="role">Mac Mini Ollama reachability (VPN canary)</td><td>nc probe, 30s cache</td></tr>
+              <tr><td class="chip-cell">⇺ greeter</td><td class="role">One-line orientation, fades 5min</td><td><b>Claude haiku</b> · SessionStart hook</td></tr>
+              <tr><td class="chip-cell">💡 slot</td><td class="role">Cross-signal insight, refresh 45min</td><td><b>Claude haiku</b> · opportunistic fork</td></tr>
+              <tr><td class="chip-cell">🚦 N · breakdown</td><td class="role">Triage queue: Asana + Sentry + cron errors</td><td><b>ssh → Mac Mini APIs</b> · 10min cache</td></tr>
+              <tr><td class="chip-cell">⟳ 1</td><td class="role">Context files needing <code>mix import_contexts</code></td><td>deterministic, 60s cache</td></tr>
+              <tr><td class="chip-cell">"session"</td><td class="role">Session name</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">expl</td><td class="role">Output style chip, hidden when default</td><td>deterministic</td></tr>
+              <tr><td class="chip-cell">$18.47</td><td class="role">Session cost</td><td>deterministic</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="marginalia">
+          <strong>Render budget</strong>
+          ~100ms warm, ~200ms cold. The transcript parse for the load-context state chip is the floor. AI and remote chips never block the render — they read pre-written files from /tmp and fork their own refresh in the background.
+        </aside>
+      </div>
+
+      <!-- ─── 03 PIPELINE ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>03</em><br />Pipeline<small>the moving parts</small></aside>
+        <div class="section">
+          <h2>The render is fast because the <span class="italic">thinking</span> happens elsewhere.</h2>
+          <p>
+            The trick to putting an LLM in a statusline is not putting it in the statusline. The render path stays a pure bash script that reads files from <span style="font-family:var(--mono);font-size:0.92em">/tmp</span>; everything intelligent runs out-of-band, on a schedule that has nothing to do with the user's next keystroke.
+          </p>
+
+<div class="ascii">                                <b>render path · every turn · ~100ms</b>
+                                ────────────────────────────────
+                                statusline-command.sh
+                                reads /tmp files, renders chips,
+                                forks stale refreshes
+                                            ▲
+                                            │
+        ┌───────────────────────────────────┼───────────────────────────────────┐
+        │                                   │                                   │
+        ▼                                   ▼                                   ▼
+<b>SessionStart hook</b>             <b>opportunistic fork (45min)</b>          <b>opportunistic fork (10min)</b>
+session-start-greeter.sh        adaptive-slot-haiku.sh              triage-poller.sh
+(forks, returns in 36ms)        (forks, lock prevents dups)         (forks, ~2s ssh round trip)
+        │                                   │                                   │
+        ▼                                   ▼                                   ▼
+<b>claude haiku</b>                     <b>claude haiku</b>                          <b>ssh → Mac Mini</b>
+session last_ended +              cross-signal signals +              Asana + Sentry + cron
+MEMORY.md top + cwd               anti-duplication rules              (tokens live remotely)
+        │                                   │                                   │
+        ▼                                   ▼                                   ▼
+/tmp/.claude-greeter-${sid}       /tmp/.claude-slot                   /tmp/.claude-triage.json
+<i>fades after 5 min</i>                <i>fresh for 75 min</i>                    <i>fresh for 15 min</i>
+</div>
+
+          <p>
+            Two design choices made this cheap. The first: <em class="h">fork the slow work</em>. The SessionStart hook returns in 36 milliseconds; the haiku call runs in a detached subshell and writes its result whenever it arrives. The session doesn't wait for the model. The greeter is simply missing for the first few turns, then appears.
+          </p>
+          <p>
+            The second: <em class="h">file-as-state</em>. The render loop never makes a network call. It reads a file. The file may be empty (the LLM chose silence), stale (the scheduler stopped), or missing (the hook never fired). All three cases collapse to "show no chip" — a single line of bash.
+          </p>
+
+<div class="code"><span class="cmt"># the slot chip's render block — 8 lines, all conditional, never blocks</span>
+<span class="kw">slot_info</span>=<span class="str">""</span>
+slot_file=<span class="str">"/tmp/.claude-slot"</span>
+<span class="kw">if</span> [ -r <span class="str">"$slot_file"</span> ]; <span class="kw">then</span>
+  s_mtime=<span class="var">$(stat -c %Y "$slot_file" 2&gt;/dev/null)</span>
+  [ -z <span class="str">"$s_mtime"</span> ] &amp;&amp; s_mtime=<span class="var">$(stat -f %m "$slot_file" 2&gt;/dev/null)</span>
+  <span class="kw">if</span> [ $((now - s_mtime)) -lt 600 ]; <span class="kw">then</span>
+    slot_text=<span class="var">$(head -c 60 "$slot_file" | tr -d '\n')</span>
+    [ -n <span class="str">"$slot_text"</span> ] &amp;&amp; slot_info=<span class="str">" 💡 $slot_text"</span>
+  <span class="kw">fi</span>
+<span class="kw">fi</span></div>
+        </div>
+        <aside class="marginalia">
+          <strong>Bash 3.2 trap</strong>
+          macOS still ships bash 3.2 — Apple stopped at the last GPLv2 release. Launchd uses /bin/bash, so all the modern conveniences (nested $() with quoted args, empty-pattern case branches) silently fail. The script's heredoc had to be rewritten with single-quoted EOF + sed substitution. Every script that crosses the launchd boundary deserves a 3.2 compatibility pass.
+        </aside>
+      </div>
+
+      <!-- pull quote -->
+      <div class="pull reveal">
+        <blockquote>
+          The render path stays&nbsp;dumb. The thinking happens&nbsp;elsewhere, on a schedule, in a&nbsp;file.
+        </blockquote>
+        <cite>Design rule · written down after the second debugging session</cite>
+      </div>
+
+      <!-- ─── 04 THE MISTAKE ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>04</em><br />The mistake<small>what the AI kept saying</small></aside>
+        <div class="section">
+          <h2>The slot picked the loudest signal — which was <span class="italic">already on screen</span>.</h2>
+          <p>
+            The adaptive slot was prompted with six signals: stale context count, Mac Mini reachability, dirty files in two projects, unpushed commits, memories added today, and time of day. Its job was to pick one and turn it into a chip text of thirty characters or fewer.
+          </p>
+          <p>
+            What it picked, almost every time, was the stale context count. The number was small and integer, the verb was obvious — "import" — and the chip wrote itself: <em class="h">import 1 stale contexts</em>. Useful, technically actionable, easy to evaluate.
+          </p>
+          <p>
+            The problem was that the chip immediately to its right, <em class="h">⟳ 1</em>, was the deterministic freshness chip. It already said the same thing. Less verbosely, in two characters and a number, in a color the eye reads in eighty milliseconds. The slot was rephrasing what was already on the line.
+          </p>
+
+          <div class="ba">
+            <div data-label="ON SCREEN">
+              <span class="signal-d">mini</span> <span class="signal-b">💡 import 1 stale contexts</span> <span class="signal-y">⟳ 1</span> <span class="signal-b">"work"</span>
+            </div>
+            <div data-label="WHAT IT MEANS">
+              <span class="strike">redundant chip</span>
+              <span class="signal-y">redundant chip</span> · same info, twice
+            </div>
+          </div>
+
+          <p>
+            The lesson is brutal and small. An AI-generated chip has to surface what the deterministic chips cannot — cross-signal synthesis, time-of-day patterns, the absence of an event, the soft judgment that a branch has been idle long enough that you may have forgotten about it. If the model can only restate one number that's already on screen, the chip is noise, not signal.
+          </p>
+          <p>
+            So the slot was removed. Launchd unloaded, plist deleted, the chip's render block stripped from the script, the <span style="font-family:var(--mono);font-size:0.92em">/tmp/.claude-slot</span> file cleaned. The script that wrote it still lives on disk — not running — in case a smarter prompt ever wants the territory.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>What a useful slot would have said</strong>
+          "helixa idle 9d · still relevant?" — pulled from MEMORY.md, cross-referenced with last commit on the helixa branch, surfacing an absence. That's the kind of judgment a deterministic chip can't produce. The current prompt didn't ask for it.
+        </aside>
+      </div>
+
+      <!-- ─── 05 WHAT SURVIVED ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>05</em><br />What survived<small>the one sentence worth keeping</small></aside>
+        <div class="section">
+          <h2>The greeter said one thing, <span class="italic">and meant it</span>.</h2>
+          <p>
+            On a fresh session in the memory project, the greeter rendered:
+          </p>
+          <div class="code" style="border-left-color: var(--signal); background: #FCF6E6;">
+<span class="cmt">// SessionStart greeter · Claude haiku · ~$0.001 per call</span>
+
+<span style="color: var(--oxblood); font-style: italic;">memory MCP ready · helixa/customer360 next?</span>
+          </div>
+          <p>
+            One sentence. It picked up two facts from inputs that the deterministic chips never see: that the current directory was the memory MCP server's source tree, and that <em class="h">customer360</em> appeared near the top of MEMORY.md — meaning it was recent active work. It bridged them with a question mark — soft suggestion, not an instruction.
+          </p>
+          <p>
+            No deterministic chip can produce that line. No <em class="h">if/else</em> over six signals composes "helixa/customer360" as a phrase. The synthesis is the entire value. That's the only thing the greeter has to do, and it does it for a fraction of a cent.
+          </p>
+          <p>
+            The other lesson was about fading. The greeter holds the chip for five minutes after session start, then disappears. Its job is orientation, not residence. A chip that survives forever stops earning its row of pixels.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>Why haiku, not local</strong>
+          A 14B local model could have written that sentence, technically. But the synthesis quality of haiku on small prompts is meaningfully better, and the per-session cost — one tenth of one cent — is rounding error. Use the smarter model where the output is precious and runs once. Use local where the output is throwaway and runs constantly.
+        </aside>
+      </div>
+
+      <!-- ─── 06 RESURRECTION ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>06</em><br />Resurrection<small>the chip came back smarter</small></aside>
+        <div class="section">
+          <h2>The slot returned — <span class="italic">different model, different scheduler, different rules</span>.</h2>
+          <p>
+            Killing the slot was correct. Leaving it killed wasn't. The territory the slot occupied — one chip slot reserved for cross-signal AI insight — was still valuable; only the V1 implementation was wrong. So a V2 was designed with three constraints carved in at the prompt level.
+          </p>
+          <p>
+            <em class="h">Constraint one</em>: the prompt now explicitly enumerates which signals the user already sees deterministically and forbids any rephrase. The chip's only job is what's <em>not</em> on screen — idle days, time-of-day patterns, soft suggestions. <em class="h">Constraint two</em>: synthesis quality matters more than refresh frequency. Use Claude haiku, not a 14B local model. The output is precious; spend on it. <em class="h">Constraint three</em>: refresh slowly enough to stay in subscription budget. Every 45 minutes, not every 5.
+          </p>
+          <p>
+            That third constraint surfaced a problem. Launchd was the obvious scheduler for "every 45 minutes," but launchd processes can't read the macOS Keychain entry holding Claude's OAuth credentials. <em class="h">claude -p</em> from a launchd-spawned bash returns <em>Not logged in</em>. The greeter dodges this because Claude Code itself invokes the SessionStart hook, so the greeter inherits auth. The slot, refreshing on a schedule independent of any session, had no parent to inherit from.
+          </p>
+
+<div class="code"><span class="cmt"># the diagnostic that revealed it — five lines of bash, twenty seconds of confusion</span>
+$ env -i HOME=$HOME PATH=<span class="str">"/opt/homebrew/bin:/usr/bin:/bin"</span> bash -c <span class="str">'claude -p "say ok"'</span>
+Not logged in · Please run /login
+
+$ claude auth status
+{ <span class="str">"loggedIn"</span>: true, <span class="str">"authMethod"</span>: <span class="str">"claude.ai"</span> }  <span class="cmt"># auth IS present, just unreachable</span></div>
+
+          <p>
+            The fix was a pattern, not a tool. Instead of launchd, the slot refreshes <em class="h">opportunistically from inside the statusline itself</em>. The statusline runs every turn — inside Claude Code's auth context. It checks whether the slot file is older than 45 minutes; if so, it forks a subshell that calls <em class="h">claude -p</em>, which inherits the parent's auth. A lock file prevents duplicate forks during the ~20-second LLM call. The render path stays under 100ms because forking is microseconds.
+          </p>
+          <p>
+            The byproduct: refresh cadence now follows <em>your</em> activity. When you're actively working, the slot refreshes every 45 minutes. When you're idle, it stops refreshing — which is fine, because nobody is looking at it. The scheduler became the user, in the sense Unix has always intended.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>Auth inheritance, the pattern</strong>
+          Any process Claude Code invokes — hooks, statusline command, MCP servers — gets credentials for free. Any process scheduled outside Claude Code's tree — launchd, system cron, login items — does not. Design your background refreshes to fire <em>through</em> Claude Code's tree, not parallel to it.
+        </aside>
+      </div>
+
+      <!-- pull quote 2 -->
+      <div class="pull reveal">
+        <blockquote>
+          The scheduler became the user, in the sense Unix has always intended.
+        </blockquote>
+        <cite>Why launchd lost · 2026.05</cite>
+      </div>
+
+      <!-- ─── 07 CROSS-MACHINE ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>07</em><br />Cross&#8209;machine<small>tokens stayed home</small></aside>
+        <div class="section">
+          <h2>The triage chip pulls state from a machine the local Mac <span class="italic">has never seen credentials</span> for.</h2>
+          <p>
+            The triage chip aggregates three sources of "things waiting on you": open Asana tasks in the triage queue, unresolved Sentry issues in the last 24 hours, and Mac Mini cron jobs in an error state. The naive approach is to put all three API tokens on the local Mac and call out. The right approach is to recognize that all three tokens already exist somewhere else — on Mac Mini, where the existing cron-based triager runs them every few minutes — and to never copy them.
+          </p>
+          <p>
+            The poller is fifty lines of bash. It opens an ssh connection to a remote worker box via a Host alias and ed25519 key, ships a remote bash payload that reads its own environment for <em class="h">ASANA_ACCESS_TOKEN</em> and <em class="h">SENTRY_AUTH</em>, runs three curls in parallel, aggregates the counts into a single line of JSON, and writes it to stdout. The local Mac sees only the JSON. Tokens never crossed the network as values, only as references inside a remote process's env. SSH key auth means no password ever lives in any script.
+          </p>
+
+<div class="code"><span class="cmt"># the architectural choice in one ssh invocation</span>
+ssh -o BatchMode=yes worker bash -s <span class="str">'&lt;&lt;REMOTE'</span>
+  <span class="cmt"># this entire block executes on the remote worker, with its env</span>
+  <span class="cmt"># `worker` is a ~/.ssh/config Host alias bound to an ed25519 key</span>
+  ASANA_COUNT=$(curl -s -H <span class="str">"Authorization: Bearer $ASANA_ACCESS_TOKEN"</span> ...)
+  SENTRY_COUNT=$(curl -s -H <span class="str">"Authorization: Bearer $SENTRY_AUTH"</span> ...)
+  CRON_ERR_COUNT=$(jq <span class="str">'.jobs | map(select(...)) | length'</span> ~/.openclaw/cron/jobs.json)
+  printf <span class="str">'{"asana":%d,"sentry":%d,"cron_errs":%d,"total":%d}'</span> ...
+REMOTE</div>
+
+          <p>
+            The chip color-grades by total backlog: green when clear, yellow when 1 to 3 items, terra cotta at 4 or more. When Mac Mini is unreachable — VPN dropped, machine asleep — the JSON returns <em class="h">reachable: false</em> and the chip hides honestly rather than going stale. The breakdown after the total shows which source contributed: <em class="h">3a 2s 1c</em> means three Asana, two Sentry, one cron error. Six characters of forensics.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>The blast-radius argument</strong>
+          Rotating an Asana PAT or a Sentry token now requires changing one machine, not two. Same security-blast-radius as the existing cron-based triager. The triage chip added zero new attack surface to the local Mac, because the local Mac has nothing new to attack.
+        </aside>
+      </div>
+
+      <!-- ─── 08 TWO MINDS ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>08</em><br />Two&nbsp;minds<small>when the chip is right and wrong</small></aside>
+        <div class="section">
+          <h2>The slot once said <span class="italic">"memory idle 101 days"</span> — and was completely correct, and completely wrong.</h2>
+          <p>
+            The slot's prompt included a signal called <em class="h">hours since last memory write</em>, computed by querying <em class="h">SELECT MAX(inserted_at) FROM memories</em> against the Memory MCP server's PostgreSQL database. The query returned a timestamp from 101 days ago. The slot duly synthesized: <em class="h">memory idle 101d · sync?</em>
+          </p>
+          <p>
+            And the chip was, strictly, right. The MCP server's database has not seen a new row in 101 days — because the user stopped writing memories through the MCP protocol months ago. But the user is also writing memory files <em>constantly</em>, just to a different system: the file-based <em class="h">auto-memory</em> layer at <em class="h">~/.claude/projects/.../memory/*.md</em>, which had been updated thirty seconds before the chip rendered.
+          </p>
+          <p>
+            Two memory systems. The chip looked at one. The user thinks of the other when they read the word "memory." So the chip was honest but unaligned with the user's mental model — which is the same as wrong, in UI.
+          </p>
+
+          <div class="ba">
+            <div data-label="WHAT THE CHIP SAW">
+              memory_dev.memories: last write 101d ago
+              <span class="strike">→ memory is idle</span>
+            </div>
+            <div data-label="WHAT THE USER MEANT">
+              auto-memory MEMORY.md: last write 30s ago
+              <span class="signal-g">→ memory is very much alive</span>
+            </div>
+          </div>
+
+          <p>
+            The fix was a one-line change in the signal-gathering code: replace the psql query with a <em class="h">find -mtime</em> against the auto-memory directory. The slot now says, accurately and usefully, <em class="h">helixa idle 44h · still on?</em> — picking the synthesis the user can actually act on.
+          </p>
+          <p>
+            The lesson is structural. An AI chip can read a perfectly truthful signal and still be wrong, because "truthful" is a property of the world and "useful" is a property of the reader. When the chip and the reader disagree on which world the chip is describing, the reader is always right.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>The user's first reaction</strong>
+          A two-word question typed into the terminal: <em class="h">memory idle?</em> — which was enough to find and fix the bug in one round. The chip had become a thing worth questioning. That's its own win.
+        </aside>
+      </div>
+
+      <!-- ─── 09 THE LEDGER ─── -->
+      <div class="row reveal">
+        <aside class="section-num"><em>09</em><br />Ledger<small>kept, killed, resurrected</small></aside>
+        <div class="section">
+          <h2>Everything from this build, <span class="italic">honestly tallied</span>.</h2>
+
+          <table class="anatomy">
+            <thead>
+              <tr><th>Component</th><th>Verdict</th><th>Note</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="chip-cell">⇺ greeter · session-start-greeter.sh</td>
+                <td class="role"><b style="color:var(--oxblood)">KEPT</b></td>
+                <td class="role">Survived V1 unchanged. Earns its haiku call by synthesizing signals deterministic chips can't see.</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">💡 slot · adaptive-slot-haiku.sh</td>
+                <td class="role"><b style="color:var(--oxblood)">RESURRECTED</b></td>
+                <td class="role">V1 killed for duplicating the freshness chip. V2 uses Claude haiku, opportunistic refresh inside Claude Code's auth context, and a prompt that explicitly forbids restating visible chips.</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">🚦 triage · triage-poller.sh</td>
+                <td class="role"><b style="color:var(--oxblood)">SHIPPED</b></td>
+                <td class="role">ssh-driven aggregate of Asana + Sentry + Mac Mini cron. Credentials live remotely, never copied to local Mac.</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">expl · output style chip</td>
+                <td class="role"><b style="color:var(--oxblood)">SHIPPED</b></td>
+                <td class="role">Trivial JSON parse. Confirms current style at a glance when toggling between Default and Explanatory.</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">User-level SessionStart hook</td>
+                <td class="role"><b style="color:var(--oxblood)">KEPT</b></td>
+                <td class="role">First user-level hook on the machine. Hosts the greeter; will host future cross-session machinery.</td>
+              </tr>
+              <tr class="killed">
+                <td class="chip-cell">launchd plist · com.user.claude-adaptive-slot</td>
+                <td class="role">deleted</td>
+                <td class="role">Tried twice (local qwen2.5, then haiku). Second attempt revealed the Keychain ACL blocker. Replaced by opportunistic fork pattern.</td>
+              </tr>
+              <tr class="killed">
+                <td class="chip-cell">~/.claude/adaptive-slot.sh · V1 (local qwen2.5)</td>
+                <td class="role">archived</td>
+                <td class="role">On disk, not running. Superseded by the haiku-based V2.</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">feedback_ai_chip_design.md</td>
+                <td class="role"><b style="color:var(--oxblood)">SAVED</b></td>
+                <td class="role">"If the AI can only restate one number already on screen, kill the chip."</td>
+              </tr>
+              <tr>
+                <td class="chip-cell">local_statusline.md (updated 3×)</td>
+                <td class="role"><b style="color:var(--oxblood)">SAVED</b></td>
+                <td class="role">Living inventory of chips + bash 3.2 gotchas + the auth-inheritance pattern, so future sessions don't re-propose what's already wired.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="margin-top: 36px;">
+            Net: twelve chips ship. Two are AI-driven, two are remote-sourced, eight are deterministic. One chip was killed once and resurrected smarter. Three design rules got written down. Six hours from premise to production, mostly spent learning what AI <em>shouldn't</em> say in UI you stare at twelve thousand times a day.
+          </p>
+        </div>
+        <aside class="marginalia">
+          <strong>The rule, posted</strong>
+          AI status chips must surface what the deterministic chips cannot. Cross-signal synthesis, time-of-day patterns, the absence of an event, or non-numeric judgment. Anything else is noise wearing a hat.
+        </aside>
+      </div>
+
+    </article>
+
+  </main>
+
+  <footer>
+    <div class="colophon">
+      Set in <strong>Fraunces</strong> &amp; <strong>Newsreader</strong>. Code in IBM Plex Mono. Paper grain rendered live in SVG. Built with no framework, no build step, and a great deal of restraint.
+    </div>
+    <div>
+      <h4>Read next</h4>
+      <ul>
+        <li><a href="/">/ — index</a></li>
+        <li><a href="/journey.html">/journey</a></li>
+        <li><a href="/mcp.html">/mcp</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Elsewhere</h4>
+      <ul>
+        <li><a href="https://github.com/Pranavj17">github</a></li>
+        <li><a href="https://pranavjagadish.com">pranavjagadish.com</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script>
+    // ─── inline terminal: chips appear in sequence ───
+    (function () {
+      var chips = document.querySelectorAll('#stage-line .chip');
+      function play() {
+        chips.forEach(function (c) { c.classList.remove('show'); });
+        chips.forEach(function (c, i) {
+          setTimeout(function () { c.classList.add('show'); }, 240 + i * 180);
+        });
+      }
+      play();
+      // replay when the stage scrolls back into view
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) play();
+        });
+      }, { threshold: 0.6 });
+      io.observe(document.getElementById('stage'));
+    })();
+
+    // ─── reveal on scroll for article rows ───
+    (function () {
+      var rows = document.querySelectorAll('.reveal');
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -10% 0px' });
+      rows.forEach(function (r) { io.observe(r); });
+    })();
+  </script>
+
+</body>
+</html>
