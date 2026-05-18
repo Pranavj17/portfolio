@@ -3681,7 +3681,14 @@
         for (let i = 0; i < CHAPTERS.length; i++) {
             const ch = CHAPTERS[i];
             const px = ch.x - cameraX;
-            if (px < -200 || px > W + 200) continue;
+            // Cull bounds widened: beats now extend to x-offset -540 (far
+            // left of chapter center) and content can extend +220 right.
+            // The old ±200 cull caused beats to POP IN late (when chapter
+            // center crossed W+200, beats that should have already slid
+            // in from the right edge materialized abruptly). New bounds
+            // (-700 left, +800 right) give beats room to slide in/out
+            // smoothly.
+            if (px < -700 || px > W + 800) continue;
             const collected = state.collected.has(ch.id);
 
             // pulsing aura under uncollected chapters
