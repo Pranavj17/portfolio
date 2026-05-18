@@ -122,6 +122,8 @@
         { ch:'scripbox', id:'anthropic-talk', dx:-490, dy:-25, w:54, h:48, title:'Anthropic talk',   lore:'Success.' },
         { ch:'scripbox', id:'coffee-setup',   dx:-440, dy:-15, w:64, h:36, title:'Coffee setup',     lore:'Timepass.' },
         { ch:'scripbox', id:'bangalore-traffic',dx:-390,dy:-15,w:54, h:40, title:'Bangalore traffic',lore:'Okay sometimes.' },
+        { ch:'scripbox', id:'thailand-trip',  dx:-220, dy:-30, w:48, h:40, title:'Thailand · NYE 2024', lore:'Bangkok + beaches for the New Year. First international vacation. Pad thai every meal.', chatter:['sawasdee','beach time','street food','📸'] },
+        { ch:'scripbox', id:'dubai-trip',     dx:-170, dy:-30, w:48, h:40, title:'Dubai · NYE 2025',     lore:'Marina, Burj, Global Village. Met up with cousins. Came home thinking 2026 is mine.', chatter:['shukran','skyline','desert safari','✈️'] },
 
         // ── THE GT (Nov 16 2025) ──
         { ch:'vwgt', id:'test-drive',       dx:-380, dy:-12, w:54, h:32, title:'Test drive',       lore:'Yes.' },
@@ -887,6 +889,8 @@
         'anthropic-talk':  'office_meeting',
         'coffee-setup':    'morning_ambient',
         'bangalore-traffic': 'bike_engine',
+        'thailand-trip':   'morning_ambient',  // tropical bird chirp + chime
+        'dubai-trip':      'ai_shimmer',        // skyline shimmer feel
         // VWGT · car
         'test-drive':      'car_engine',
         'documents-signing': 'paycheck_chime',
