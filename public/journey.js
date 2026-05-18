@@ -2385,8 +2385,61 @@
             ctx.font = 'italic 10px "IM Fell English", serif';
             ctx.fillStyle = collected ? 'rgba(201,181,140,0.4)' : 'rgba(201,181,140,0.75)';
             ctx.fillText(ch.period, px, groundY + 44);
+
+            // OBJECTIVE COMPLETE celebration · in-world golden stamp +
+            // sparkle ring over collected chapters. The HUD card fires once
+            // on collection; this is the PERSISTENT in-world celebration
+            // that says "you achieved this — it remains earned."
+            if (collected) drawObjectiveComplete(px, groundY, ch.color, i);
         }
         ctx.textAlign = 'start';
+    }
+
+    /** In-world celebration ring + stamp above a collected chapter.
+     *  Sparkles orbit the landmark, golden ring pulses, "✓" stamp tilts in. */
+    function drawObjectiveComplete(px, gY, color, idx) {
+        const t = state.elapsedMs;
+        // sparkle ring around the chapter
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let k = 0; k < 6; k++) {
+            const ang = (t * 0.001 + idx * 0.7 + k * Math.PI / 3) % (Math.PI * 2);
+            const r   = 70 + Math.sin(t * 0.003 + k) * 6;
+            const sx  = px + Math.cos(ang) * r;
+            const sy  = gY - 50 + Math.sin(ang) * r * 0.6;
+            const sparklePulse = 0.5 + 0.5 * Math.sin(t * 0.005 + k * 1.7);
+            ctx.fillStyle = `rgba(255, 220, 130, ${sparklePulse * 0.7})`;
+            ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = `rgba(255, 255, 200, ${sparklePulse * 0.4})`;
+            ctx.fillRect(sx - 0.5, sy - 3, 1, 6);
+            ctx.fillRect(sx - 3, sy - 0.5, 6, 1);
+        }
+        ctx.restore();
+        // golden stamp · tilted, sits high above the landmark
+        const stampY = gY - 150 + Math.sin(t * 0.002 + idx) * 2;
+        ctx.save();
+        ctx.translate(px, stampY);
+        ctx.rotate(-0.1);
+        // outer ring · brass
+        ctx.strokeStyle = '#d4a653'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(233, 216, 176, 0.92)';
+        ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
+        // checkmark · drawn as 2 strokes for thickness
+        ctx.strokeStyle = '#5a3a22'; ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(-2, 5); ctx.lineTo(8, -6); ctx.stroke();
+        // ribbon label below ring
+        ctx.fillStyle = '#a4332e';
+        ctx.beginPath();
+        ctx.moveTo(-22, 13); ctx.lineTo(22, 13); ctx.lineTo(18, 22); ctx.lineTo(-18, 22);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e9d8b0';
+        ctx.font = 'bold 8px "Cinzel", serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('ACHIEVED', 0, 18);
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
     }
 
     // ── procedural player · stick-figure character + per-vehicle drawers ──
@@ -2857,10 +2910,22 @@
             else if (movingBack) dir = -0.6;        // back is slower (half-step)
 
             const v = VEHICLES[state.vehicle];
-            state.playerX += v.speed * (dt / 1000) * dir;
-            // CLAMP to non-negative · walking left from spawn previously let
-            // playerX go negative (HUD showed "-12 m", camera entered
-            // pre-world space). Now the start of the journey is a hard wall.
+            // CHAPTER-PROXIMITY DECELERATION · when within ±400px of any
+            // chapter, slow walk speed to 50% so the story beats actually
+            // get time to read. User asked to "drop into story" — this is
+            // the mechanic that makes the world feel like a paced narrative
+            // instead of a flat run.
+            let speedMul = 1.0;
+            for (const ch of CHAPTERS) {
+                const dist = Math.abs(state.playerX - ch.x);
+                if (dist < 400) {
+                    // Smoothly interpolate: 0.45 at chapter, 1.0 at 400px out
+                    const factor = dist / 400;            // 0 at chapter, 1 at edge
+                    speedMul = 0.45 + 0.55 * factor;
+                    break;
+                }
+            }
+            state.playerX += v.speed * (dt / 1000) * dir * speedMul;
             if (state.playerX < 0) state.playerX = 0;
 
             // walking leg-phase only advances when actually walking/running
