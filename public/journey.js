@@ -83,9 +83,9 @@
 
         // ── CMR NATIONAL (PU, 2013–2015) ──
         { ch:'cmr', id:'tuition-rush',      dx:-380, dy:-13, w:44, h:40, title:'Tuition rush',     lore:'Went for IIT JEE.', chatter:['fast!','late again','physics first','JEE in 8 months'] },
-        { ch:'cmr', id:'mock-test',         dx:-340, dy:-24, w:44, h:40, title:'Mock test',        lore:'Didn\'t study.' },
+        { ch:'cmr', id:'mock-test',         dx:-340, dy:-24, w:44, h:40, title:'Mock test',        lore:'Didn\'t study. Walked in, did what I could, walked out. The rank list came back unkind. Useful data.' },
         { ch:'cmr', id:'study-lamp',        dx:-300, dy:-22, w:44, h:48, title:'Study lamp',       lore:'Had room lights. Late nights.' },
-        { ch:'cmr', id:'pu-graduation',     dx:-260, dy:-8,  w:44, h:32, title:'PU graduation',    lore:'Fun.' },
+        { ch:'cmr', id:'pu-graduation',     dx:-260, dy:-8,  w:44, h:32, title:'PU graduation',    lore:'Two years of pressure-cooker · finally vented. Took the certificate, the photos, the relief. Felt the actual weight of "what next."', chatter:['woohoo','finally','what now?','college time'] },
         { ch:'cmr', id:'group-study',       dx:-540, dy:-12, w:54, h:44, title:'Group study',      lore:'Did do it during exam times.', chatter:['ch 12 done?','ya','this one?','ugh','5 more chapters'] },
         { ch:'cmr', id:'movie-night',       dx:-490, dy:-30, w:54, h:60, title:'Movie night',      lore:'Watched Bahubali with girlfriend.', chatter:['bahubali wild','best fight','one more sat?','popcorn?'] },
         { ch:'cmr', id:'cricket-weekend',   dx:-440, dy:-10, w:54, h:40, title:'Cricket weekend',  lore:'Yes — every weekend at the ITI pavilion.' },
@@ -95,18 +95,18 @@
         { ch:'college', id:'hostel-room',   dx:-380, dy:-30, w:48, h:64, title:'Hostel room',      lore:'Didn\'t go to hostel. Travelled every day — walking to 3 bus changes to college walk.', chatter:['zzz...','light off','4am bro','let me sleep'] },
         { ch:'college', id:'fest-stage',    dx:-340, dy:-25, w:54, h:54, title:'Fest stage',       lore:'Great fun. Did a dance in the fest.', chatter:['LETS GOOO','encore!','one more!','hands up!'] },
         { ch:'college', id:'group-ride',    dx:-300, dy:-12, w:54, h:36, title:'Group ride',       lore:'Yes — every day, triples.', chatter:['race u to mess!','too late','wait up','catch me'] },
-        { ch:'college', id:'convocation',   dx:-260, dy:-30, w:54, h:64, title:'Convocation',      lore:'Attended with parents.' },
+        { ch:'college', id:'convocation',   dx:-260, dy:-30, w:54, h:64, title:'Convocation',      lore:'Black robes, mortarboard, four years compressed into one walk across the stage. Parents in the front row · the only audience that mattered.', chatter:['congrats!','engineer now','your turn next','smile big!'] },
 
         // ── FEVER 104 FM (Mar–May 2019) ──
-        { ch:'fever104', id:'headphones',   dx:-380, dy:-15, w:36, h:36, title:'Headphones',       lore:'Did.' },
-        { ch:'fever104', id:'script-binder',dx:-340, dy:-5,  w:36, h:24, title:'Script binder',    lore:'Did.' },
-        { ch:'fever104', id:'sound-engineer',dx:-300,dy:-10, w:36, h:28, title:'Sound engineer',   lore:'Did.' },
-        { ch:'fever104', id:'trainee-cert', dx:-260, dy:-5,  w:36, h:28, title:'Trainee cert',     lore:'Did.' },
+        { ch:'fever104', id:'headphones',   dx:-380, dy:-15, w:36, h:36, title:'Headphones',       lore:'Heavy Shure SM7B-style cans. First time wearing them felt like the city had been turned down. The booth went quiet; the script got louder.', chatter:['rolling','live in 5','levels good','quiet on set'] },
+        { ch:'fever104', id:'script-binder',dx:-340, dy:-5,  w:36, h:24, title:'Script binder',    lore:'Spiral-bound, half-typed, half-marked-up in pen. Every shift you took notes for the next person. Whoever came after you was your future self.' },
+        { ch:'fever104', id:'sound-engineer',dx:-300,dy:-10, w:36, h:28, title:'Sound engineer',   lore:'Fader by fader. Three months learning what dB ducking actually feels like. Started calling commercials by their cue numbers.' },
+        { ch:'fever104', id:'trainee-cert', dx:-260, dy:-5,  w:36, h:28, title:'Trainee cert',     lore:'FEVER 104 FM · Trainee Producer · Mar–May 2019. Framed. On the bookshelf. Still there.', chatter:['certified!','📜','keepsake','wall worthy'] },
 
         // ── SAKHA GLOBAL (first job, Jul 2019 – Sep 2022) ──
         { ch:'sakha', id:'interview-day',   dx:-380, dy:-25, w:48, h:48, title:'Interview day',    lore:'Crazy feeling — first interview cracked, after 5 failed attempts.' },
-        { ch:'sakha', id:'first-day-badge', dx:-340, dy:-22, w:32, h:40, title:'First day badge',  lore:'Liked it.' },
-        { ch:'sakha', id:'team-lunch',      dx:-300, dy:-20, w:48, h:40, title:'Team lunch',       lore:'Lunches with the team.' },
+        { ch:'sakha', id:'first-day-badge', dx:-340, dy:-22, w:32, h:40, title:'First day badge',  lore:'Plastic ID, lanyard, name spelled right. Spent the first hour just looking at it. Saved a photo · sent to mom.', chatter:['employee!','official','first job','📸'] },
+        { ch:'sakha', id:'team-lunch',      dx:-300, dy:-20, w:48, h:40, title:'Team lunch',       lore:'Indiranagar lunches, two-floor cafés, monthly biryani Fridays. The team was the job · code came second.', chatter:['biryani?','5 minutes','same place?','let\'s go'] },
         { ch:'sakha', id:'first-paycheck',  dx:-260, dy:-8,  w:48, h:32, title:'First paycheck',   lore:'Bought a watch and a saree — for dad and mum.' },
         { ch:'sakha', id:'wfh-covid',       dx:-540, dy:-30, w:60, h:56, title:'WFH · COVID',      lore:'Changed my life. Got bored eventually.' },
         { ch:'sakha', id:'office-standup',  dx:-490, dy:-25, w:48, h:48, title:'Office standup',   lore:'New experience.', chatter:['blockers?','shipping today','merge ready','done by EOD'] },
@@ -115,7 +115,7 @@
 
         // ── SCRIPBOX (AI/MCP era, Sep 2022 – present) ──
         { ch:'scripbox', id:'onboarding',     dx:-380, dy:-15, w:48, h:36, title:'Onboarding',       lore:'Great fun. Met a lot of friends.' },
-        { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Did.', chatter:['lgtm','hmm wait','edge case?','good catch'] },
+        { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Reading other people\'s code became the fastest way to read other people\'s minds. Approve, comment, request changes · all forms of "I see you."', chatter:['lgtm','hmm wait','edge case?','good catch'] },
         { ch:'scripbox', id:'anthropic-catalog',dx:-300,dy:-30,w:48, h:48, title:'Anthropic catalog',lore:'Was excited. Did show off after.' },
         { ch:'scripbox', id:'whiteboard',     dx:-260, dy:-30, w:54, h:48, title:'Whiteboard',       lore:'Gave knowledge transfer on things I learn — with my peers.', chatter:['MCP → SRV','see?','questions?','any blockers?'] },
         { ch:'scripbox', id:'claude-code',    dx:-540, dy:-25, w:54, h:48, title:'Claude Code',      lore:'Best AI skill I\'ve learnt as of now — for me.', chatter:['> claude','thinking...','done','one more pass'] },
@@ -126,10 +126,10 @@
         { ch:'scripbox', id:'dubai-trip',     dx:-170, dy:-30, w:48, h:40, title:'Dubai · NYE 2025',     lore:'Marina, Burj, Global Village. Met up with cousins. Came home thinking 2026 is mine.', chatter:['shukran','skyline','desert safari','✈️'] },
 
         // ── THE GT (Nov 16 2025) ──
-        { ch:'vwgt', id:'test-drive',       dx:-380, dy:-12, w:54, h:32, title:'Test drive',       lore:'Yes.' },
-        { ch:'vwgt', id:'documents-signing',dx:-340, dy:-12, w:36, h:28, title:'Documents',        lore:'Yes.' },
-        { ch:'vwgt', id:'keys-handover',    dx:-300, dy:-20, w:40, h:40, title:'Keys handover',    lore:'Yes.', chatter:['congrats!','thanks!','enjoy!','drive safe'] },
-        { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Yes.', chatter:['VROOM','finally','home wait','GT!'] },
+        { ch:'vwgt', id:'test-drive',       dx:-380, dy:-12, w:54, h:32, title:'Test drive',       lore:'1.5 TSI turbo on the Outer Ring Road · 35 minutes that decided the next five years of EMIs. The salesperson knew before I did.', chatter:['floor it!','turbo!','smooth','sold'] },
+        { ch:'vwgt', id:'documents-signing',dx:-340, dy:-12, w:36, h:28, title:'Documents',        lore:'Loan papers, RC application, insurance form, accessory list · all signed in 40 minutes. Ten years of saving became one signature.', chatter:['sign here','one more','almost done','finished'] },
+        { ch:'vwgt', id:'keys-handover',    dx:-300, dy:-20, w:40, h:40, title:'Keys handover',    lore:'Wooden tray, rose petals, metallic key. November 16, 2025. Garland on the bonnet. The salesperson actually clapped.', chatter:['congrats!','thanks!','enjoy!','drive safe'] },
+        { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Out of the showroom, garland still on. Three lefts and onto the open road. The car was lighter than the moment.', chatter:['VROOM','finally','home wait','GT!'] },
 
         // ── NOW (2026 – present) ──
         { ch:'now', id:'morning-routine',   dx:-380, dy:-25, w:48, h:56, title:'Morning routine',  lore:'Coffee, phone, sunrise. The new day.' },
@@ -1392,6 +1392,7 @@
     const $achStack     = document.getElementById('achievement-stack');
     const $scoreDist    = document.getElementById('score-dist');
     const $scoreChap    = document.getElementById('score-chap');
+    const $scoreBeats   = document.getElementById('score-beats');
     const $scoreTime    = document.getElementById('score-time');
     const $missionIcon  = document.getElementById('mission-icon');
     const $missionText  = document.getElementById('mission-text');
@@ -8114,6 +8115,7 @@
             // HUD score
             if ($scoreDist) $scoreDist.textContent = Math.round(state.playerX) + ' m';
             if ($scoreChap) $scoreChap.textContent = state.collected.size + ' / ' + CHAPTERS.length;
+            if ($scoreBeats) $scoreBeats.textContent = state.discoveredBeats.size + ' / ' + BEATS.length;
             if ($scoreTime) {
                 const s = Math.floor(state.elapsedMs / 1000);
                 $scoreTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
