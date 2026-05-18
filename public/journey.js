@@ -220,6 +220,17 @@
         { kind: 'glass_cluster',  x: 5900, minChapterIdx: 5 },
     ];
 
+    // Bangalore bridges · varied infrastructure across the timeline
+    //   hebbal_flyover : multi-deck curved road flyover · always (built 2003)
+    //   cable_stay     : KR Puram-style A-frame cable-stayed bridge · Sakha+ (2019)
+    //   arch_bridge    : small ornate 2-arch bridge over a stream gap · always
+    const BRIDGES = [
+        { kind: 'hebbal_flyover', x: 1800, minChapterIdx: 0 },
+        { kind: 'arch_bridge',    x: 2650, minChapterIdx: 0 },
+        { kind: 'cable_stay',     x: 4700, minChapterIdx: 4 },
+        { kind: 'hebbal_flyover', x: 5800, minChapterIdx: 0 },
+    ];
+
     // Kites · only chapter 0-1 (school nostalgia, Sankranti coding)
     const kites = [
         { x:  300, baseY: 130, color: '#c89a5a' },
@@ -1388,6 +1399,126 @@
         }
     }
 
+    /** Bangalore road bridges · 0.40× parallax · sits just below metro band.
+     *  Three kinds: Hebbal-style multi-deck flyover, KR Puram cable-stayed
+     *  (Sakha+ era only), small arch bridge over a stream gap. */
+    function drawBridges(W, horizonY, cameraX) {
+        const parallax = 0.40;
+        const offset = -(cameraX * parallax);
+        const playerChapter = chapterIdxAt(state.playerX);
+        for (const br of BRIDGES) {
+            if (playerChapter < br.minChapterIdx) continue;
+            const sx = br.x + offset;
+            if (sx < -180 || sx > W + 180) continue;
+            if (br.kind === 'hebbal_flyover') {
+                // Hebbal-style curved 4-lane elevated road · trapezoidal supports
+                const deckY = horizonY - 14;
+                // Approach ramps · gently rise from ground level up to deck
+                ctx.fillStyle = '#5a3a22';
+                ctx.beginPath();
+                ctx.moveTo(sx - 110, horizonY);
+                ctx.lineTo(sx - 60,  deckY);
+                ctx.lineTo(sx - 60,  deckY + 4);
+                ctx.lineTo(sx - 110, horizonY + 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(sx + 60,  deckY);
+                ctx.lineTo(sx + 110, horizonY);
+                ctx.lineTo(sx + 110, horizonY + 4);
+                ctx.lineTo(sx + 60,  deckY + 4);
+                ctx.closePath();
+                ctx.fill();
+                // Main deck · 120px continuous span
+                ctx.fillRect(sx - 60, deckY, 120, 5);
+                // Underside shadow
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sx - 60, deckY + 4, 120, 1);
+                ctx.fillRect(sx - 110, horizonY + 3, 220, 1);
+                // Support columns (4 piers under main deck)
+                ctx.fillStyle = '#5a3a22';
+                for (let i = 0; i < 4; i++) {
+                    const px = sx - 50 + i * 30;
+                    ctx.fillRect(px - 2, deckY + 5, 4, horizonY - deckY - 5);
+                }
+                // Road dashes · centerline marks on deck
+                ctx.fillStyle = '#c89a5a';
+                for (let i = 0; i < 6; i++) {
+                    ctx.fillRect(sx - 54 + i * 20, deckY + 1, 8, 1);
+                }
+                // Parapet curb · top edge
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(sx - 60, deckY - 1, 120, 1);
+            } else if (br.kind === 'cable_stay') {
+                // KR Puram-style · single A-frame pylon + fan of cables
+                const deckY = horizonY - 12;
+                const pylonTop = deckY - 60;
+                // Deck · 160-px horizontal span
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 80, deckY, 160, 4);
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sx - 80, deckY + 3, 160, 1);   // underside
+                // A-frame pylon · two angled lines meeting at top
+                ctx.strokeStyle = '#5a3a22';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(sx - 5, deckY);
+                ctx.lineTo(sx,     pylonTop);
+                ctx.lineTo(sx + 5, deckY);
+                ctx.stroke();
+                // Cables · 8 fanning to each side from pylon top
+                ctx.strokeStyle = 'rgba(90, 58, 34, 0.7)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = 1; i <= 8; i++) {
+                    const dx = i * 9;
+                    ctx.moveTo(sx, pylonTop);
+                    ctx.lineTo(sx - dx, deckY);
+                    ctx.moveTo(sx, pylonTop);
+                    ctx.lineTo(sx + dx, deckY);
+                }
+                ctx.stroke();
+                // Anchor piers below deck (2)
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 78, deckY + 4, 4, horizonY - deckY - 4);
+                ctx.fillRect(sx + 74, deckY + 4, 4, horizonY - deckY - 4);
+                // Cap finial at pylon top
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(sx - 1, pylonTop - 2, 2, 2);
+            } else if (br.kind === 'arch_bridge') {
+                // Small 2-arch stone bridge over a stream
+                const deckY = horizonY - 4;
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 40, deckY, 80, 5);
+                // Two arches under the deck
+                ctx.beginPath();
+                ctx.moveTo(sx - 40, horizonY);
+                ctx.lineTo(sx - 40, deckY + 4);
+                ctx.lineTo(sx - 5,  deckY + 4);
+                ctx.arc(sx - 22, deckY + 4, 17, 0, Math.PI, false);
+                ctx.lineTo(sx - 40, horizonY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(sx + 5,  deckY + 4);
+                ctx.arc(sx + 22, deckY + 4, 17, Math.PI, 0, true);
+                ctx.lineTo(sx + 40, deckY + 4);
+                ctx.lineTo(sx + 40, horizonY);
+                ctx.lineTo(sx + 5,  horizonY);
+                ctx.closePath();
+                ctx.fill();
+                // Mid-pier
+                ctx.fillRect(sx - 4, deckY + 4, 8, horizonY - deckY - 4);
+                // Parapet ornament
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(sx - 40, deckY - 2, 80, 2);
+                // Stream water hint · 2-px wavy band under the bridge
+                ctx.fillStyle = 'rgba(120, 140, 130, 0.35)';
+                ctx.fillRect(sx - 40, horizonY - 1, 80, 2);
+            }
+        }
+    }
+
     /** Bangalore Metro viaduct · 0.45× parallax · elevated rail line.
      *  Era-gated: appears from CMR era (chapter idx ≥ 1) onward, since Phase 1
      *  opened Oct 2011. Continuous beam with regular piers, station every chapter. */
@@ -1410,6 +1541,34 @@
             // parapet top band
             ctx.fillStyle = '#8a6a48';
             ctx.fillRect(sxStart, yTop, sxEnd - sxStart, 1);
+            // ── RAILS · two parallel 1-px steel lines atop the beam ──
+            const railY = yTop - 3;   // sits just above parapet
+            ctx.fillStyle = '#8a7a5a';   // muted steel · sepia-cool
+            ctx.fillRect(sxStart, railY,     sxEnd - sxStart, 1);
+            ctx.fillRect(sxStart, railY - 4, sxEnd - sxStart, 1);
+            // ── SLEEPERS (ties) · perpendicular ticks every 6 world-px ──
+            ctx.fillStyle = '#3a2418';
+            const tieSpacing = 6;
+            const firstTie = Math.ceil((sxStart - offset) / tieSpacing) * tieSpacing;
+            for (let wx = firstTie; wx + offset < sxEnd; wx += tieSpacing) {
+                const px = wx + offset;
+                ctx.fillRect(px, railY - 4, 1, 5);
+            }
+            // ── OVERHEAD CATENARY WIRE · single line above rails ──
+            ctx.strokeStyle = 'rgba(58, 36, 24, 0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(sxStart, railY - 22);
+            ctx.lineTo(sxEnd,   railY - 22);
+            ctx.stroke();
+            // ── Catenary masts · OHE supports every 60 world-px (above each pier) ──
+            ctx.fillStyle = '#5a3a22';
+            const firstMast = Math.ceil((sxStart - offset) / 60) * 60;
+            for (let wx = firstMast; wx + offset < sxEnd; wx += 60) {
+                const px = wx + offset;
+                ctx.fillRect(px - 1, railY - 22, 2, 22);   // vertical mast
+                ctx.fillRect(px - 6, railY - 22, 12, 1);   // horizontal arm
+            }
         }
         // Piers · every 60 world-px
         ctx.fillStyle = '#5a3a22';
@@ -5836,6 +5995,7 @@
         drawSkyline(W, horizonY, cameraX);
         drawPowerLines(W, horizonY, cameraX);
         drawKites(W, horizonY, cameraX);
+        drawBridges(W, horizonY, cameraX);
         drawMetroViaduct(W, horizonY, cameraX);
         drawMetroTrain(W, horizonY, cameraX);
         drawRaintrees(W, horizonY, groundY, cameraX);
