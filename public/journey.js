@@ -5746,7 +5746,6 @@
         { frontThigh: -10, frontKnee:   5, backThigh:  25, backKnee:   0, hipBob: -3, armFront:  28, armBack: -28 }, // high-point
     ];
     function sampleWalkPose(p01, amp) {
-        // 4 keys evenly distributed at [0, 0.25, 0.5, 0.75]; 1.0 wraps to 0 with legs swapped
         const f = p01 * 4;
         const i = Math.floor(f) % 4;
         const j = (i + 1) % 4;
@@ -5759,10 +5758,17 @@
             frontKnee:  lerp(a.frontKnee,  b.frontKnee),
             backThigh:  lerp(a.backThigh,  b.backThigh),
             backKnee:   lerp(a.backKnee,   b.backKnee),
-            hipBob:     lerp(a.hipBob,     b.hipBob),
             armFront:   lerp(a.armFront,   b.armFront),
             armBack:    lerp(a.armBack,    b.armBack),
         };
+    }
+    // Vertical reach of a leg given thigh + knee angles · used to anchor hip
+    // to ground so the character's feet never float.
+    function legVerticalReach(thighDeg, kneeDeg) {
+        const THIGH = 13, SHIN = 13;
+        const t = (90 - thighDeg) * Math.PI / 180;
+        const s = (90 - (thighDeg + kneeDeg)) * Math.PI / 180;
+        return Math.sin(t) * THIGH + Math.sin(s) * SHIN;
     }
     // Rotated rectangle helper · gives limbs volume + 1-px shadow line
     function drawLimbSegment(x1, y1, x2, y2, w, fill, shade) {
@@ -5826,7 +5832,15 @@
         const TORSO_H = 18, NECK_H = 1, HEAD_R = 4.5;
         const cosL = Math.cos(lean), sinL = Math.sin(lean);
         const hipX = cx;
-        const hipY = footY - 27 + pose.hipBob + bob;     // 27 = leg length
+        // ── GEOMETRIC GROUND-ANCHOR ──
+        // Compute both legs' vertical reach, anchor hip so the longer-reaching
+        // (planted) leg's foot always touches ground. Natural hip-bob emerges
+        // from the math: legs splay → reach shrinks → hip lowers; legs straight
+        // → reach extends → hip rises. No more floating.
+        const frontReach = legVerticalReach(pose.frontThigh, pose.frontKnee);
+        const backReach  = legVerticalReach(pose.backThigh,  pose.backKnee);
+        const grounded   = Math.max(frontReach, backReach);
+        const hipY       = footY - grounded - 1 + bob;   // -1 for shoe height
         const torsoTopX = hipX + sinL * TORSO_H;
         const torsoTopY = hipY - cosL * TORSO_H;
         const neckY     = torsoTopY - NECK_H;
