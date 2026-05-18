@@ -4647,7 +4647,13 @@
      *  drawWalker; wheeled vehicles use drawCycle/drawBike/drawCar with
      *  spinning wheels driven by state.wheelPhase. */
     function drawPlayer(W, groundY) {
-        const cx = W * 0.32;
+        // Player is normally fixed at 32% of viewport (camera follows them).
+        // During end-cinematic the camera is LOCKED — playerX keeps growing
+        // while cameraX holds, so screen-x = playerX - lockedCameraX, which
+        // makes the GT visibly translate rightward and exit the viewport.
+        const cx = state.lockedCameraX !== null
+            ? (state.playerX - state.lockedCameraX)
+            : W * 0.32;
         // small body bob for organic feel · bigger when walking, tiny when riding
         const moving = state.keys.right || state.touchHold || state.keys.left;
         // bob now oscillates around 0: -cos(2*phase)*1.5 dips negative at
@@ -5295,6 +5301,46 @@
         }
         drawPlayer(W, groundY);
         ctx.restore();
+
+        // "the journey continues" tooltip · appears in the smoke cloud area
+        // during the cinematic mid-point. Fade in at t=1.5s, hold, fade out
+        // before end-card at t=3.2s.
+        if (state.endingCinematic) {
+            const tSec = state.cinematicT / 1000;
+            let textAlpha = 0;
+            if      (tSec >= 1.5 && tSec < 2.3) textAlpha = (tSec - 1.5) / 0.8;     // fade in
+            else if (tSec >= 2.3 && tSec < 3.0) textAlpha = 1;                       // hold
+            else if (tSec >= 3.0 && tSec < 3.4) textAlpha = 1 - (tSec - 3.0) / 0.4;  // fade out
+            if (textAlpha > 0.02) {
+                ctx.save();
+                // Position: roughly where the smoke cloud is (center-right
+                // of the locked viewport, slightly above ground)
+                const tx = W * 0.55;
+                const ty = H * 0.55;
+                // Subtle drift up + sin-wobble for organic feel
+                const drift = (tSec - 1.5) * 4;
+                const wobble = Math.sin(tSec * 1.8) * 1.5;
+                // Soft halo behind text so it reads against any smoke density
+                const halo = ctx.createRadialGradient(tx + wobble, ty - drift, 0, tx + wobble, ty - drift, 220);
+                halo.addColorStop(0, `rgba(20, 14, 8, ${0.55 * textAlpha})`);
+                halo.addColorStop(1, `rgba(20, 14, 8, 0)`);
+                ctx.fillStyle = halo;
+                ctx.fillRect(tx - 220 + wobble, ty - drift - 80, 440, 160);
+                // Main text · italic serif, large
+                ctx.fillStyle = `rgba(245, 230, 195, ${textAlpha})`;
+                ctx.font = 'italic 26px "IM Fell English", "Cinzel", serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('the journey continues', tx + wobble, ty - drift);
+                // Subtle ellipsis line below, smaller
+                ctx.fillStyle = `rgba(212, 166, 83, ${textAlpha * 0.75})`;
+                ctx.font = '14px "IM Fell English", serif';
+                ctx.fillText('…', tx + wobble, ty - drift + 28);
+                ctx.textAlign = 'start';
+                ctx.textBaseline = 'alphabetic';
+                ctx.restore();
+            }
+        }
 
         // Lore card draws ABOVE the world transform (no shake/translate),
         // pinned to viewport so it stays steady regardless of camera state.
