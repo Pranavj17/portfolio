@@ -5737,121 +5737,204 @@
      *     killing the canonical "stiff stick figure" silhouette.
      *   - arms swing CONTRALATERALLY without the +lean bias that previously
      *     pushed both arms permanently forward. */
+    // ── 4-key-pose walk cycle table (agent-researched) ──
+    // contact / recoil / passing / high-point — angles in DEGREES, hipBob in PX
+    const WALK_KEYS = [
+        { frontThigh:  30, frontKnee:   0, backThigh: -30, backKnee:  15, hipBob:  0, armFront: -28, armBack:  28 }, // contact
+        { frontThigh:  15, frontKnee:  25, backThigh: -15, backKnee:  45, hipBob:  3, armFront: -18, armBack:  18 }, // recoil
+        { frontThigh:   0, frontKnee:   5, backThigh:   0, backKnee:  60, hipBob: -1, armFront:   0, armBack:   0 }, // passing
+        { frontThigh: -10, frontKnee:   5, backThigh:  25, backKnee:   0, hipBob: -3, armFront:  28, armBack: -28 }, // high-point
+    ];
+    function sampleWalkPose(p01, amp) {
+        // 4 keys evenly distributed at [0, 0.25, 0.5, 0.75]; 1.0 wraps to 0 with legs swapped
+        const f = p01 * 4;
+        const i = Math.floor(f) % 4;
+        const j = (i + 1) % 4;
+        const t = f - Math.floor(f);
+        const ease = 0.5 - 0.5 * Math.cos(t * Math.PI);
+        const a = WALK_KEYS[i], b = WALK_KEYS[j];
+        const lerp = (x, y) => (x + (y - x) * ease) * amp;
+        return {
+            frontThigh: lerp(a.frontThigh, b.frontThigh),
+            frontKnee:  lerp(a.frontKnee,  b.frontKnee),
+            backThigh:  lerp(a.backThigh,  b.backThigh),
+            backKnee:   lerp(a.backKnee,   b.backKnee),
+            hipBob:     lerp(a.hipBob,     b.hipBob),
+            armFront:   lerp(a.armFront,   b.armFront),
+            armBack:    lerp(a.armBack,    b.armBack),
+        };
+    }
+    // Rotated rectangle helper · gives limbs volume + 1-px shadow line
+    function drawLimbSegment(x1, y1, x2, y2, w, fill, shade) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        if (len < 0.1) return;
+        const ang = Math.atan2(dy, dx);
+        ctx.save();
+        ctx.translate(x1, y1);
+        ctx.rotate(ang);
+        ctx.fillStyle = fill;
+        ctx.fillRect(0, -w / 2, len, w);
+        ctx.fillStyle = shade;
+        ctx.fillRect(0, w / 2 - 1, len, 1);
+        ctx.restore();
+    }
+    function drawLeg(hipX, hipY, thighDeg, kneeDeg, pant, pantShade, shoe, shoeDark) {
+        const t = (90 - thighDeg) * Math.PI / 180;     // 0° = straight down
+        const THIGH = 13, SHIN = 13;
+        const kneeX = hipX + Math.cos(t) * THIGH;
+        const kneeY = hipY + Math.sin(t) * THIGH;
+        const s = (90 - (thighDeg + kneeDeg)) * Math.PI / 180;
+        const footX = kneeX + Math.cos(s) * SHIN;
+        const footY = kneeY + Math.sin(s) * SHIN;
+        drawLimbSegment(hipX, hipY, kneeX, kneeY, 3.5, pant, pantShade);
+        drawLimbSegment(kneeX, kneeY, footX, footY, 3, pant, pantShade);
+        ctx.fillStyle = shoe;
+        ctx.fillRect(footX - 1, footY - 1, 5, 2);
+        ctx.fillStyle = shoeDark;
+        ctx.fillRect(footX - 1, footY + 1, 5, 1);
+    }
+    function drawArm(shoulderX, shoulderY, armDeg, sleeve, skin) {
+        const ARM = 14;
+        const t = (90 + armDeg) * Math.PI / 180;
+        const handX = shoulderX + Math.cos(t) * ARM;
+        const handY = shoulderY + Math.sin(t) * ARM;
+        drawLimbSegment(shoulderX, shoulderY, handX, handY, 3, sleeve, '#4a5a3a');
+        // Hand · small skin-tone block at end
+        ctx.fillStyle = skin;
+        ctx.fillRect(handX - 1, handY - 1, 2, 3);
+    }
+
     function drawWalker(cx, footY, phase, amp, lean, bob) {
         ctx.save();
-        const torsoH = 22;
-        const legH   = 22;
-        const armL   = 16;
-        const hipX   = cx;
-        const hipY   = footY - legH + bob;
-        // forward lean: pivot the upper body around the hip
+        // Sepia-harmonized "Bangalore techie" palette (agent-recommended)
+        const SK   = '#a47a52';      // skin · sepia warm-brown
+        const SK_SHADE = '#7d5a3a';
+        const HAIR = '#1f1208';      // short black with warm tint
+        const TEE  = '#7a8a6a';      // muted olive t-shirt
+        const TEE_SHADE = '#556248';
+        const JEAN = '#3a4258';      // faded indigo (reads denim in sepia)
+        const JEAN_SHADE = '#252a3a';
+        const SHOE = '#d4b48a';      // cream sneakers
+        const SHOE_DARK = '#5a3a22';
+        const BAG  = '#3a2418';      // laptop sling · the techie signal
+
+        // Normalize phase to [0, 1)
+        const p01 = ((phase / (Math.PI * 2)) % 1 + 1) % 1;
+        const pose = sampleWalkPose(p01, Math.max(0.15, amp));
+
+        const TORSO_H = 18, NECK_H = 1, HEAD_R = 4.5;
         const cosL = Math.cos(lean), sinL = Math.sin(lean);
-        const torsoTop = { x: hipX + sinL * torsoH, y: hipY - cosL * torsoH };
-        const headR    = 7;
-        const headY    = torsoTop.y - headR - 1;
-        const headX    = torsoTop.x + sinL * (headR + 1);
+        const hipX = cx;
+        const hipY = footY - 27 + pose.hipBob + bob;     // 27 = leg length
+        const torsoTopX = hipX + sinL * TORSO_H;
+        const torsoTopY = hipY - cosL * TORSO_H;
+        const neckY     = torsoTopY - NECK_H;
+        const headCx    = torsoTopX + sinL * (HEAD_R + 1);
+        const headCy    = neckY - HEAD_R;
+        const shoulderL = { x: torsoTopX - 5 * cosL, y: torsoTopY + 2 };
+        const shoulderR = { x: torsoTopX + 5 * cosL, y: torsoTopY + 2 };
 
-        // legs · L/R 180° out of phase
-        const legAngL = Math.sin(phase) * amp;
-        const legAngR = Math.sin(phase + Math.PI) * amp;
-        // foot lift is asymmetric: only happens on forward swing (positive sin)
-        const liftL = Math.max(0, Math.sin(phase))            * 5;
-        const liftR = Math.max(0, Math.sin(phase + Math.PI))  * 5;
-        const footLX = hipX + Math.sin(legAngL) * legH;
-        const footLY = hipY + Math.cos(legAngL) * legH - liftL;
-        const footRX = hipX + Math.sin(legAngR) * legH;
-        const footRY = hipY + Math.cos(legAngR) * legH - liftR;
-        // knee = midpoint with forward bend during swing only
-        const kneeLX = hipX + (footLX - hipX) * 0.5 + Math.max(0, Math.sin(phase))           * 4;
-        const kneeLY = hipY + (footLY - hipY) * 0.5;
-        const kneeRX = hipX + (footRX - hipX) * 0.5 + Math.max(0, Math.sin(phase + Math.PI)) * 4;
-        const kneeRY = hipY + (footRY - hipY) * 0.5;
+        // ── BACK leg drawn first (so front overlaps) ──
+        drawLeg(hipX - 2, hipY, pose.backThigh, pose.backKnee, JEAN, JEAN_SHADE, SHOE, SHOE_DARK);
+        // ── BACK arm ──
+        drawArm(shoulderL.x, shoulderL.y, pose.armBack, TEE, SK);
 
-        // arms swing opposite to legs · NO lean bias (shoulder already pivots
-        // with torso lean via sinL above)
-        const armAngL = Math.sin(phase + Math.PI) * amp * 0.7;
-        const armAngR = Math.sin(phase)            * amp * 0.7;
-        const shoulder = { x: hipX + sinL * (torsoH - 4), y: hipY - cosL * (torsoH - 4) };
-        const handLX = shoulder.x + Math.sin(armAngL) * armL;
-        const handLY = shoulder.y + Math.cos(armAngL) * armL;
-        const handRX = shoulder.x + Math.sin(armAngR) * armL;
-        const handRY = shoulder.y + Math.cos(armAngR) * armL;
+        // ── TORSO · filled rect, slight V-taper, hem shadow ──
+        ctx.fillStyle = TEE;
+        ctx.fillRect(hipX - 5, hipY - TORSO_H, 11, TORSO_H);     // body
+        ctx.fillStyle = TEE_SHADE;
+        ctx.fillRect(hipX + 4, hipY - TORSO_H, 1, TORSO_H);      // right shadow column
+        ctx.fillRect(hipX - 5, hipY - 3, 11, 2);                  // hem shadow
+        // Sleeve caps
+        ctx.fillRect(hipX - 7, hipY - TORSO_H + 1, 2, 5);
+        ctx.fillRect(hipX + 5, hipY - TORSO_H + 1, 2, 5);
 
-        ctx.lineCap = 'round';
-        // back leg first (hip → knee → foot) so front leg overlaps
-        ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeRX, kneeRY); ctx.lineTo(footRX, footRY); ctx.stroke();
-        // back arm
-        ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
-        ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handRX, handRY); ctx.stroke();
-        // torso (shirt under coat)
-        ctx.strokeStyle = SHIRT; ctx.lineWidth = 8;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
-        ctx.strokeStyle = COAT;  ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY - 2); ctx.lineTo(torsoTop.x, torsoTop.y); ctx.stroke();
-        // front leg (with knee bend)
-        ctx.strokeStyle = PANT;  ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeLX, kneeLY); ctx.lineTo(footLX, footLY); ctx.stroke();
-        // front arm
-        ctx.strokeStyle = COAT;  ctx.lineWidth = 3.5;
-        ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handLX, handLY); ctx.stroke();
-        // head
-        ctx.fillStyle = SKIN;
-        ctx.beginPath(); ctx.arc(headX, headY, headR, 0, Math.PI * 2); ctx.fill();
+        // ── PELVIS / waistband ──
+        ctx.fillStyle = JEAN_SHADE;
+        ctx.fillRect(hipX - 5, hipY - 1, 11, 2);
 
-        // STAGE-SPECIFIC ACCESSORIES · character evolves with life phase.
-        // School (< 1100m): RED backpack with straps, messy hair tuft.
-        // College (1100-2500m): blue shoulder bag, baseball cap.
-        // Adult (>= 2500m): classic cowboy hat (the original look).
+        // ── FRONT leg ──
+        drawLeg(hipX + 2, hipY, pose.frontThigh, pose.frontKnee, JEAN, JEAN_SHADE, SHOE, SHOE_DARK);
+        // ── FRONT arm ──
+        drawArm(shoulderR.x, shoulderR.y, pose.armFront, TEE, SK);
+
+        // ── NECK ──
+        ctx.fillStyle = SK_SHADE;
+        ctx.fillRect(headCx - 1.5, neckY - 1, 3, 2);
+
+        // ── HEAD · oblong ellipse ──
+        ctx.fillStyle = SK;
+        ctx.beginPath();
+        ctx.ellipse(headCx, headCy, HEAD_R - 0.5, HEAD_R, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Jaw shadow
+        ctx.fillStyle = SK_SHADE;
+        ctx.fillRect(headCx - 2, headCy + 3, 4, 1);
+
+        // ── FACE HINT (no eyes/mouth, just nose-side shade + brow line) ──
+        ctx.fillStyle = SK_SHADE;
+        ctx.fillRect(headCx + 1, headCy + 0.5, 1, 1);    // cheek/nose
+        ctx.fillRect(headCx - 2, headCy - 0.5, 2, 0.6);  // brow line
+
+        // ── LAPTOP SLING (the techie signal) · diagonal strap + hip bag ──
+        ctx.strokeStyle = BAG;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(shoulderL.x, shoulderL.y);
+        ctx.lineTo(hipX + 8, hipY - 8);
+        ctx.stroke();
+        ctx.fillStyle = BAG;
+        ctx.fillRect(hipX + 4, hipY - 10, 10, 8);     // bag body
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillRect(hipX + 4, hipY - 10, 10, 1);     // bag top edge
+        // Strap buckle dot
+        ctx.fillStyle = '#c89a5a';
+        ctx.fillRect(hipX + 6, hipY - 8, 1, 1);
+
+        // ── HAIR · always-on · short black, sits on top + sides of head ──
+        ctx.fillStyle = HAIR;
+        ctx.beginPath();
+        ctx.ellipse(headCx, headCy - 1.5, HEAD_R + 0.2, 3, 0, Math.PI, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillRect(headCx - HEAD_R, headCy - 2, HEAD_R * 2, 2);   // hairline rect
+        ctx.fillRect(headCx + HEAD_R - 1, headCy - 1, 1.5, 2);       // side temple
+        ctx.fillRect(headCx - HEAD_R, headCy - 1, 1.5, 2);
+
+        // STAGE-SPECIFIC OVERLAYS · evolve with life phase
+        // School (< 1100m): RED backpack overrides laptop sling
+        // College (1100-2500m): baseball cap + laptop sling
+        // Adult (>= 2500m): standard look + laptop sling
         const stage = state.playerX < 1100 ? 'school'
                     : state.playerX < 2500 ? 'college'
                     : 'adult';
 
         if (stage === 'school') {
-            // SCHOOL · backpack over shoulders + hair tuft
-            ctx.fillStyle = '#5a3a22';       // hair tuft (dark brown)
-            ctx.beginPath();
-            ctx.arc(headX, headY - headR + 2, headR + 1, Math.PI, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillRect(headX - 3 + sinL * 2, headY - headR - 2, 6, 2);
-            // BACKPACK (rectangle on back, two thin straps over shoulders)
-            const bagX = hipX - sinL * 8 - 7;
-            const bagY = hipY - cosL * (torsoH - 4);
+            // SCHOOL · big RED backpack on back, slightly messy hair tuft
+            ctx.fillStyle = '#1f1208';       // hair-tuft sticking up
+            ctx.fillRect(headCx - 1, headCy - HEAD_R - 2, 2, 2);
+            // BACKPACK · rect on back with strap visible
+            const bagX = hipX - 8;
+            const bagY = hipY - TORSO_H + 2;
             ctx.fillStyle = '#a4332e';       // red school bag
             ctx.fillRect(bagX, bagY, 9, 14);
             ctx.fillStyle = '#7a221c';
             ctx.fillRect(bagX, bagY, 9, 2);  // top flap
             ctx.strokeStyle = '#7a221c'; ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(shoulder.x - 4, shoulder.y); ctx.lineTo(bagX + 2, bagY + 2);
-            ctx.moveTo(shoulder.x + 4, shoulder.y); ctx.lineTo(bagX + 7, bagY + 2);
+            ctx.moveTo(shoulderL.x - 2, shoulderL.y); ctx.lineTo(bagX + 2, bagY + 2);
+            ctx.moveTo(shoulderR.x - 2, shoulderR.y); ctx.lineTo(bagX + 7, bagY + 2);
             ctx.stroke();
         } else if (stage === 'college') {
-            // COLLEGE · baseball cap + messenger shoulder bag
-            ctx.fillStyle = '#2a3a5a';       // navy cap crown
+            // COLLEGE · baseball cap (DSCE orange-ish) over hair
+            ctx.fillStyle = '#c47540';       // cap crown · DSCE accent color
             ctx.beginPath();
-            ctx.arc(headX, headY - headR + 1, headR + 1, Math.PI, 2 * Math.PI);
+            ctx.ellipse(headCx, headCy - HEAD_R + 1, HEAD_R + 1, 2, 0, Math.PI, 2 * Math.PI);
             ctx.fill();
-            ctx.fillStyle = '#1a2a4a';       // cap brim (front-only)
-            ctx.fillRect(headX + sinL * 4, headY - headR + 1, headR + 2, 2);
-            // MESSENGER BAG · across the body, strap diagonal
-            ctx.strokeStyle = '#3a4a6a'; ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(shoulder.x - 3, shoulder.y);
-            ctx.lineTo(hipX + 10, hipY - 4);
-            ctx.stroke();
-            ctx.fillStyle = '#4a5a7a';
-            ctx.fillRect(hipX + 6, hipY - 8, 10, 9);
-            ctx.fillStyle = '#2a3a5a';
-            ctx.fillRect(hipX + 6, hipY - 8, 10, 2);
-        } else {
-            // ADULT · classic cowboy hat (brim + crown) — RDR vibe
-            ctx.fillStyle = HAT;
-            ctx.beginPath();
-            ctx.ellipse(headX + sinL * 2, headY - headR + 1, headR + 4, 2.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillRect(headX - 4 + sinL * 3, headY - headR - 5, 8, 4);
+            ctx.fillStyle = '#8a4a26';
+            ctx.fillRect(headCx + 1, headCy - HEAD_R + 1, HEAD_R + 1, 1.5);   // brim
         }
+        // Adult: no extra headgear · clean professional look
         ctx.restore();
     }
 
