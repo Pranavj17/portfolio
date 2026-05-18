@@ -695,11 +695,16 @@
     // they start walking, the chapter music ramps in naturally.
     function audioGesture() {
         if (_initialPlayerX === null) _initialPlayerX = state.playerX;
-        const traveled = Math.abs(state.playerX - _initialPlayerX);
-        if (!_audioBooted && traveled > 40) {
+        // iOS SAFARI REQUIREMENT: AudioContext must be CREATED inside a user
+        // gesture handler. If we wait until "traveled > 40" (which fires in a
+        // rAF tick, not a gesture), iOS blocks creation forever. So boot
+        // immediately on first gesture. The MASTER GAIN stays at 0 until the
+        // player has actually walked (gated in chapterAudioTick).
+        if (!_audioBooted) {
             _audioBooted = true;
             chapterAudioBoot();
         }
+        // iOS can re-suspend after backgrounding · resume every gesture
         if (chapterAudio && chapterAudio.ac && chapterAudio.ac.state !== 'running') {
             chapterAudio.ac.resume().catch(() => {});
         }
@@ -819,9 +824,77 @@
         { wx: 4000, range: 110, kind: 'office_chatter',  cooldown: 35000 },
     ];
     const _zoneLastFired = {};
+
+    // ── BEAT-LEVEL PROXIMITY SFX ──
+    // Each beat in the BEATS array (44 total) maps to a procedural SFX type.
+    // Walking within 60px of a beat's world-x triggers its sound, with a
+    // per-beat cooldown (default 18s) so the same beat doesn't re-fire spam.
+    const BEAT_SFX_MAP = {
+        // ITICS · school years
+        'football-match':  'football_cheer',
+        'cricket-match':   'cricket_play',
+        'sports-day':      'graduation_applause',
+        'cultural-dance':  'graduation_applause',
+        'assembly-stage':  'school_bell_distant',
+        'exam-anxiety':    'classroom_quiet',
+        'chit-chat':       'lunch_chatter',
+        'trips':           'bike_engine',
+        // CMR · PU pressure
+        'tuition-rush':    'classroom_chatter',
+        'study-lamp':      'classroom_quiet',
+        'mock-test':       'classroom_quiet',
+        'group-study':     'classroom_chatter',
+        'pu-graduation':   'graduation_applause',
+        'movie-night':     'cinema_audience',
+        'cricket-weekend': 'cricket_play',
+        'first-crush':     'heartbeat_chime',
+        // DSCE · engineering
+        'hostel-room':     'lunch_chatter',
+        'fest-stage':      'graduation_applause',
+        'group-ride':      'bike_engine',
+        'convocation':     'graduation_applause',
+        // FEVER 104 · radio
+        'headphones':      'radio_static',
+        'script-binder':   'radio_static',
+        'sound-engineer':  'radio_static',
+        'trainee-cert':    'paycheck_chime',
+        // SAKHA · first job
+        'interview-day':   'office_meeting',
+        'first-day-badge': 'paycheck_chime',
+        'team-lunch':      'lunch_chatter',
+        'first-paycheck':  'paycheck_chime',
+        'wfh-covid':       'typing_keyboard',
+        'office-standup':  'office_meeting',
+        'late-night-coding': 'typing_keyboard',
+        'team-outing':     'lunch_chatter',
+        // SCRIPBOX · current
+        'onboarding':      'office_meeting',
+        'pr-review':       'typing_keyboard',
+        'anthropic-catalog': 'ai_shimmer',
+        'whiteboard':      'office_meeting',
+        'claude-code':     'typing_keyboard',
+        'anthropic-talk':  'office_meeting',
+        'coffee-setup':    'morning_ambient',
+        'bangalore-traffic': 'bike_engine',
+        // VWGT · car
+        'test-drive':      'car_engine',
+        'documents-signing': 'paycheck_chime',
+        'keys-handover':   'paycheck_chime',
+        'first-drive-out': 'car_engine',
+        // NOW · present
+        'morning-routine': 'morning_ambient',
+        'code-flow':       'typing_keyboard',
+        'anthropic-goal':  'ai_shimmer',
+        'forward-horizon': 'morning_ambient',
+    };
+    const _beatLastFired = {};
+    const BEAT_COOLDOWN = 18000;       // 18s between same-beat firings
+    const BEAT_RANGE_WX = 60;          // world-x distance to trigger
+
     function tickProximitySFX() {
         if (!chapterAudio || !_audioBooted) return;
         const now = state.elapsedMs;
+        // 1. Landmark zones (cinema, market, stadium, etc.)
         for (const z of NEAR_SFX_ZONES) {
             const d = Math.abs(state.playerX - z.wx);
             if (d > z.range) continue;
@@ -829,6 +902,23 @@
             if (now - last < z.cooldown) continue;
             _zoneLastFired[z.kind] = now;
             playProximitySFX(z.kind);
+        }
+        // 2. BEAT-level proximity · 44 beats with per-beat cooldown
+        if (typeof BEATS !== 'undefined' && BEATS) {
+            for (const b of BEATS) {
+                const sfxKind = BEAT_SFX_MAP[b.id];
+                if (!sfxKind) continue;
+                const ch = CHAPTERS.find(c => c.id === b.ch);
+                if (!ch) continue;
+                const beatWX = ch.x + b.dx;
+                const d = Math.abs(state.playerX - beatWX);
+                if (d > BEAT_RANGE_WX) continue;
+                const beatKey = b.ch + ':' + b.id;
+                const last = _beatLastFired[beatKey] || 0;
+                if (now - last < BEAT_COOLDOWN) continue;
+                _beatLastFired[beatKey] = now;
+                playBeatSFX(sfxKind);
+            }
         }
     }
     function playProximitySFX(kind) {
@@ -918,6 +1008,199 @@
             g.gain.linearRampToValueAtTime(0.03, t0 + 0.5);
             g.gain.linearRampToValueAtTime(0, t0 + 2.8);
             n.start(t0); n.stop(t0 + 2.9);
+        }
+    }
+
+    // ── BEAT-LEVEL SFX · 13 procedural sound types · ~2s each ──
+    // Fires when player walks within 60 world-px of a story beat
+    function playBeatSFX(kind) {
+        if (!chapterAudio) return;
+        const ac = chapterAudio.ac;
+        const master = chapterAudio.master;
+        const t0 = ac.currentTime;
+        const o = (type, f) => { const n = ac.createOscillator(); n.type = type; n.frequency.value = f; return n; };
+        const gn = (v) => { const n = ac.createGain(); n.gain.value = v; return n; };
+        const bp = (f, q) => { const n = ac.createBiquadFilter(); n.type = 'bandpass'; n.frequency.value = f; n.Q.value = q; return n; };
+        const lp = (f) => { const n = ac.createBiquadFilter(); n.type = 'lowpass'; n.frequency.value = f; return n; };
+        const noiseBuf = (() => {
+            const b = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+            const d = b.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            return b;
+        })();
+        const ns = () => { const s = ac.createBufferSource(); s.buffer = noiseBuf; return s; };
+        const tone = (type, freq, start, dur, vol) => {
+            const osc = o(type, freq); const g = gn(0);
+            osc.connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + start);
+            g.gain.linearRampToValueAtTime(vol, t0 + start + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
+            osc.start(t0 + start); osc.stop(t0 + start + dur + 0.05);
+        };
+        const burst = (start, dur, vol, freq, q) => {
+            const s = ns(); const f = bp(freq, q); const g = gn(0);
+            s.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + start);
+            g.gain.linearRampToValueAtTime(vol, t0 + start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
+            s.start(t0 + start); s.stop(t0 + start + dur + 0.05);
+        };
+
+        if (kind === 'football_cheer') {
+            // Crowd cheer + ref whistle
+            const n = ns(); const f = bp(450, 0.6); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.10, t0 + 0.4);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 2.5);
+            n.start(t0); n.stop(t0 + 2.6);
+            // Whistle at 1.2s
+            const w1 = o('triangle', 2200), w2 = o('triangle', 2208);
+            const wg = gn(0); w1.connect(wg); w2.connect(wg); wg.connect(master);
+            wg.gain.setValueAtTime(0, t0 + 1.2);
+            wg.gain.linearRampToValueAtTime(0.08, t0 + 1.25);
+            wg.gain.setValueAtTime(0.08, t0 + 1.55);
+            wg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.65);
+            w1.start(t0 + 1.2); w2.start(t0 + 1.2);
+            w1.stop(t0 + 1.7); w2.stop(t0 + 1.7);
+        } else if (kind === 'cricket_play') {
+            // Bat crack + crowd
+            burst(0, 0.05, 0.18, 3200, 4);     // bat hit
+            const n = ns(); const f = bp(500, 0.7); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + 0.2);
+            g.gain.linearRampToValueAtTime(0.08, t0 + 0.6);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 2.0);
+            n.start(t0 + 0.2); n.stop(t0 + 2.1);
+        } else if (kind === 'classroom_chatter') {
+            // Murmur of voices, occasional shuffle
+            const n = ns(); const f = bp(700, 0.5); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.06, t0 + 0.4);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.5);
+            n.start(t0); n.stop(t0 + 2.6);
+            // Page rustle
+            burst(0.8, 0.15, 0.06, 2800, 4);
+        } else if (kind === 'classroom_quiet') {
+            // Soft pencil scratch + clock tick · concentration
+            burst(0.1, 0.15, 0.07, 3200, 5);    // pencil
+            tone('sine', 1600, 0.6, 0.04, 0.06);  // tick
+            tone('sine', 1600, 1.6, 0.04, 0.06);
+            burst(2.0, 0.15, 0.06, 3200, 5);
+        } else if (kind === 'lunch_chatter') {
+            // Cafeteria · plates + chatter + laughter
+            const n = ns(); const f = bp(650, 0.55); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.07, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.6);
+            n.start(t0); n.stop(t0 + 2.7);
+            // Plate clink
+            burst(0.5, 0.08, 0.10, 2400, 6);
+            burst(1.4, 0.08, 0.10, 2600, 6);
+        } else if (kind === 'school_bell_distant') {
+            // Distant struck bell · gentle
+            const freqs = [1320, 1980, 2640];
+            freqs.forEach((f, i) => tone('sine', f, 0, 2.2, 0.08 - i * 0.02));
+        } else if (kind === 'cinema_audience') {
+            // Audience claps + whistle
+            const n = ns(); const f = bp(550, 0.6); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.06, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.4);
+            n.start(t0); n.stop(t0 + 2.5);
+            for (let i = 0; i < 3; i++) {
+                burst(0.6 + i * 0.5, 0.08, 0.10, 2500, 5);
+            }
+        } else if (kind === 'graduation_applause') {
+            // Sustained applause
+            const n = ns(); const f = bp(2200, 1.0); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.10, t0 + 0.2);
+            g.gain.setValueAtTime(0.10, t0 + 2.0);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 2.5);
+            n.start(t0); n.stop(t0 + 2.6);
+        } else if (kind === 'bike_engine') {
+            // Motorbike rev · sawtooth pitch curve
+            const eng = o('sawtooth', 80);
+            const ef  = lp(380);
+            const eg  = gn(0);
+            eng.connect(ef).connect(eg).connect(master);
+            eg.gain.setValueAtTime(0, t0);
+            eg.gain.linearRampToValueAtTime(0.08, t0 + 0.2);
+            eng.frequency.setValueAtTime(80, t0);
+            eng.frequency.exponentialRampToValueAtTime(160, t0 + 0.7);
+            eng.frequency.exponentialRampToValueAtTime(100, t0 + 1.6);
+            eng.frequency.exponentialRampToValueAtTime(180, t0 + 2.2);
+            eg.gain.exponentialRampToValueAtTime(0.001, t0 + 2.6);
+            eng.start(t0); eng.stop(t0 + 2.7);
+        } else if (kind === 'heartbeat_chime') {
+            // Soft heartbeat + chime · first crush
+            for (let i = 0; i < 4; i++) {
+                tone('sine', 90, 0.4 * i, 0.12, 0.10);
+            }
+            tone('sine', 880, 0.5, 1.2, 0.06);
+            tone('sine', 1109, 0.7, 1.0, 0.05);
+        } else if (kind === 'radio_static') {
+            // Radio tune-in sweep
+            const n = ns(); const f = bp(2400, 3); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.10, t0 + 0.2);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 1.5);
+            n.start(t0); n.stop(t0 + 1.6);
+            f.frequency.setValueAtTime(2400, t0);
+            f.frequency.exponentialRampToValueAtTime(800, t0 + 1.2);
+            tone('sine', 523, 1.3, 0.6, 0.08);   // note settles
+        } else if (kind === 'paycheck_chime') {
+            // Bright achievement chime
+            tone('triangle', 880,  0.0, 0.3, 0.10);
+            tone('triangle', 1109, 0.15, 0.3, 0.09);
+            tone('triangle', 1318, 0.30, 0.6, 0.10);
+        } else if (kind === 'typing_keyboard') {
+            // Mechanical keys cluster
+            for (let i = 0; i < 12; i++) {
+                burst(0.05 * i, 0.02, 0.08, 3500 + (i % 4) * 700, 6);
+            }
+        } else if (kind === 'office_meeting') {
+            // Low office murmur + slide click
+            const n = ns(); const f = lp(500); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.05, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.4);
+            n.start(t0); n.stop(t0 + 2.5);
+            burst(0.6, 0.03, 0.08, 1800, 8);   // pen click
+        } else if (kind === 'ai_shimmer') {
+            // AI moment · high shimmer + arpeggio
+            tone('sine', 1760, 0.0, 0.6, 0.08);
+            tone('sine', 2093, 0.1, 0.6, 0.06);
+            tone('triangle', 880, 0.3, 0.4, 0.07);
+            tone('triangle', 1109, 0.5, 0.4, 0.06);
+            burst(0.0, 0.8, 0.04, 4500, 2);   // sparkle wash
+        } else if (kind === 'car_engine') {
+            // VW engine rev
+            const eng = o('sawtooth', 120);
+            const ef = lp(450);
+            const eg = gn(0);
+            eng.connect(ef).connect(eg).connect(master);
+            eg.gain.setValueAtTime(0, t0);
+            eg.gain.linearRampToValueAtTime(0.10, t0 + 0.2);
+            eng.frequency.setValueAtTime(120, t0);
+            eng.frequency.exponentialRampToValueAtTime(280, t0 + 0.9);
+            eng.frequency.exponentialRampToValueAtTime(110, t0 + 2.0);
+            eg.gain.exponentialRampToValueAtTime(0.001, t0 + 2.3);
+            eng.start(t0); eng.stop(t0 + 2.4);
+        } else if (kind === 'morning_ambient') {
+            // Bird chirp + soft chime · contemplative morning
+            tone('sine', 2400, 0.0, 0.15, 0.05);   // chirp 1
+            tone('sine', 2200, 0.18, 0.15, 0.05);
+            tone('sine', 2600, 1.0, 0.15, 0.05);   // chirp 2
+            tone('sine', 220, 0.3, 2.0, 0.07);
+            tone('sine', 329, 0.5, 1.8, 0.06);
         }
     }
 
