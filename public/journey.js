@@ -1326,6 +1326,70 @@
             chapterAudio.master.gain.setTargetAtTime(1.0, chapterAudio.ac.currentTime, 0.12);
         }
     }
+
+    // ── STAGE-COMPLETION VIDEO · plays an AI-generated 5s montage when a
+    //    chapter is collected. Pauses world + ducks audio. Dismisses on
+    //    video-end, skip button, click outside, or ESC. Graceful no-op if
+    //    the MP4 file is missing (e.g. user hasn't run the build script).
+    let _stageVideoActive = false;
+    function playStageVideo(chapterId, chapterLabel) {
+        if (_stageVideoActive) return;   // dedupe rapid calls
+        const $vid = document.getElementById('stage-video');
+        const $overlay = document.getElementById('stage-video-overlay');
+        const $skip = document.getElementById('stage-video-skip');
+        const $caption = document.getElementById('stage-video-caption');
+        if (!$vid || !$overlay) return;
+        const src = `/videos/${chapterId}.mp4`;
+        // Probe whether the file exists · HEAD request before fully committing
+        fetch(src, { method: 'HEAD' }).then(res => {
+            if (!res.ok) return;   // file missing · graceful no-op
+            actuallyPlay();
+        }).catch(() => {/* network/CORS error · graceful no-op */});
+
+        function actuallyPlay() {
+            _stageVideoActive = true;
+            $vid.src = src;
+            $vid.currentTime = 0;
+            if ($caption) $caption.textContent = chapterLabel || '';
+            document.body.classList.add('stage-video-active');
+            $overlay.setAttribute('aria-hidden', 'false');
+            // Pause world + mute game audio
+            state.paused = true;
+            if (chapterAudio && chapterAudio.master) {
+                chapterAudio.master.gain.setTargetAtTime(0, chapterAudio.ac.currentTime, 0.15);
+            }
+            $vid.play().catch(err => {
+                console.log('stage video play err', err);
+                dismiss();
+            });
+            $vid.onended = dismiss;
+            $skip.onclick = (e) => { e.stopPropagation(); dismiss(); };
+            $overlay.onclick = (e) => {
+                if (e.target === $overlay) dismiss();   // click backdrop = dismiss
+            };
+            document.addEventListener('keydown', escDismiss, true);
+        }
+        function escDismiss(e) {
+            if (e.key === 'Escape') { e.preventDefault(); dismiss(); }
+        }
+        function dismiss() {
+            if (!_stageVideoActive) return;
+            _stageVideoActive = false;
+            try { $vid.pause(); } catch (_) {}
+            $vid.removeAttribute('src');
+            $vid.load();
+            document.body.classList.remove('stage-video-active');
+            $overlay.setAttribute('aria-hidden', 'true');
+            state.paused = false;
+            if (chapterAudio && chapterAudio.master) {
+                chapterAudio.master.gain.setTargetAtTime(1.0, chapterAudio.ac.currentTime, 0.15);
+            }
+            $vid.onended = null;
+            $skip.onclick = null;
+            $overlay.onclick = null;
+            document.removeEventListener('keydown', escDismiss, true);
+        }
+    }
     // ── CHATTER · ambient speech bubbles above active beats ──
     // Each beat with a `chatter` array rotates through its lines, one
     // visible at a time. Bubble appears above the beat with a tail,
@@ -7467,6 +7531,10 @@
                     // this chapter (school bell, study scratch, engineering bell,
                     // radio static, keyboard, AI shimmer, engine rev, chime).
                     try { playChapterSting(ch.id); } catch (_) {}
+                    // STAGE-COMPLETION VIDEO · play a 5s AI-generated montage
+                    // of the activities in this stage. Graceful no-op if the
+                    // MP4 file isn't present (e.g. user hasn't run the build script).
+                    setTimeout(() => { try { playStageVideo(ch.id, ch.label); } catch (_) {} }, 1600);
                     sfxCollect();
                     shake(10, 380);
                     // 28 particles radiating from the landmark · color-matched

@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "description": "Per-chapter prompts for AI-generated stage-completion videos.",
+    "style_suffix": "warm sepia tones, soft film grain, cinematic 16:9, no text overlays, no watermarks, painterly illustration",
+    "negative": "text, watermark, logo, signature, blurry, deformed faces, ugly, low quality",
+    "image_size": "1024x576",
+    "model_preferred": "black-forest-labs/flux.1-schnell",
+    "model_fallback": "stabilityai/sdxl",
+    "frames_per_chapter": 5,
+    "seconds_per_frame": 1.0
+  },
+  "itics": {
+    "label": "ITICS",
+    "mood": "nostalgic Bangalore school years 2004 to 2013, primary school boys, copper-pod and gulmohar trees",
+    "scenes": [
+      "Indian school children in white-and-navy uniforms playing football on a dusty Bangalore school ground at golden hour",
+      "School morning assembly with kids standing in rows, hands joined for prayer, raintree shadows on the courtyard",
+      "Boys playing cricket on a dirt pitch with a tennis ball, palm trees in the background",
+      "Yellow school bus parked at a tree-lined gate, kids carrying backpacks running toward it",
+      "Indian school students lined up on stone steps at a Karnataka heritage palace during a school field trip, holding notebooks"
+    ]
+  },
+  "cmr": {
+    "label": "CMR NATIONAL",
+    "mood": "JEE pre-university pressure 2013 to 2015, late-night study room, anxious teenager",
+    "scenes": [
+      "Indian teenager in a crowded coaching-class classroom solving physics problems on a chalkboard at dusk",
+      "Single study lamp casting warm light over an open IIT-JEE physics textbook and a half-filled answer sheet at midnight",
+      "Group of teens with notebooks scattered on a tea-stained table, intense study session at a Bangalore PU college canteen",
+      "Two teenagers walking out of a single-screen cinema with Bahubali film posters, weekend movie-night vibe",
+      "Boys playing pickup cricket in the ITI Pavilion ground near the school, evening light over palms"
+    ]
+  },
+  "college": {
+    "label": "D.S.C.E.",
+    "mood": "Bangalore engineering college 2015 to 2019, mechanical engineering, hostel and bike rides",
+    "scenes": [
+      "Three young men riding triples on a black motorbike through Bangalore traffic, helmets, golden afternoon light",
+      "Mechanical engineering lab with steel lathe machines, blueprints pinned on wall, fluorescent lights",
+      "Engineering college fest stage with students dancing, hand-painted banners, multicolored spotlights",
+      "Hostel room with cluttered desk, posters, two friends laughing over a half-eaten Maggi packet",
+      "Convocation ceremony with graduating students in black robes, parents proudly clapping, evening hall"
+    ]
+  },
+  "fever104": {
+    "label": "FEVER 104 FM",
+    "mood": "Bangalore radio station internship March to May 2019, broadcasting booth, music notes",
+    "scenes": [
+      "Young Indian intern wearing studio headphones, sitting in a soundproofed FM radio booth in Bangalore",
+      "Hands holding a printed radio script binder next to a vintage analog mixing console",
+      "Sound engineer at FEVER 104 FM mixing console with rows of glowing fader lights and meter peaks",
+      "Tabletop microphone with foam windscreen and red ON AIR sign glowing in the background",
+      "Trainee certificate in a wooden frame on a desk beside a glass of chai, gentle radio-studio light"
+    ]
+  },
+  "sakha": {
+    "label": "SAKHA GLOBAL",
+    "mood": "first frontend developer job 2019 to 2022, Maruti Alto, COVID work-from-home",
+    "scenes": [
+      "Nervous young Indian man in his first job interview, formal shirt, glass-walled Bangalore tech office conference room",
+      "Hands gifting a wrapped wristwatch box to a smiling father, with a silk saree folded next to it for mother",
+      "Empty Bangalore street during COVID lockdown 2020 with a single white Maruti Alto parked, soft pandemic stillness",
+      "Open laptop at a cluttered home WFH desk with React code on screen, coffee cup, cat on the keyboard",
+      "Late-night coding session, single monitor casting blue glow on developer face in a small Bangalore apartment"
+    ]
+  },
+  "scripbox": {
+    "label": "SCRIPBOX",
+    "mood": "fullstack and AI engineer 2022 to present, Anthropic catalog moment, Claude Code, MCP tooling",
+    "scenes": [
+      "Bright modern Bangalore tech office onboarding with developer at a new desk receiving a welcome kit and laptop",
+      "Pull request code review on a wide monitor, terminal open, two developers pointing at the screen",
+      "Excited developer reading the Anthropic MCP catalog page on a laptop, late-evening Bangalore window behind",
+      "Whiteboard knowledge-sharing session with developer drawing system architecture diagrams to a small audience",
+      "Hands typing on a mechanical keyboard, glowing terminal output, Bangalore night traffic blurred through the window"
+    ]
+  },
+  "vwgt": {
+    "label": "THE GT",
+    "mood": "new sports sedan car delivery in Bangalore November 2025, celebration day",
+    "scenes": [
+      "Red modern sports sedan being test-driven on a Bangalore ring-road at sunset, dashboard glowing",
+      "Car showroom desk with delivery paperwork stacked, pen poised over signing line, RC and insurance papers",
+      "Salesperson handing over a metallic car key on a wooden tray with rose petals around it at a dealership",
+      "First drive of a new red sports sedan pulling out of a showroom under a celebratory garland, family watching",
+      "Red sports sedan parked at home with proud owner standing next to it at golden hour, residential Bangalore"
+    ]
+  },
+  "now": {
+    "label": "NOW",
+    "mood": "2026 present contemplation, morning routine, code flow, Anthropic goal, looking forward",
+    "scenes": [
+      "Quiet morning coffee on a Bangalore apartment balcony, sunrise over the city skyline, open laptop on the table",
+      "Developer in deep flow state, terminal full of AI code, mechanical keyboard, golden morning light",
+      "Anthropic logo glowing softly on a laptop screen, with handwritten goal note on a notebook nearby",
+      "Person standing on a rooftop at dusk looking out over Bangalore skyline with metro train passing far below",
+      "Open journal with pen, half-finished entry about future plans, a steaming cup of South Indian filter coffee"
+    ]
+  }
+}
