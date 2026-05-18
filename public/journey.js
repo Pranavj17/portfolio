@@ -217,6 +217,11 @@
         glideTargetX:    null,     // when set, lerp playerX toward this on each frame
         discoveredBeats: new Set(),// beats the user has clicked through
         lastMissionIdx:  -1,       // change-detection for mission-text DOM updates
+        // END-OF-JOURNEY CINEMATIC · VW GT accelerates off-screen with tire smoke
+        endingCinematic: false,    // active during the 3.5s pre-end sequence
+        cinematicT:      0,        // ms elapsed since cinematic started
+        lockedCameraX:   null,     // when non-null, camera uses this instead of player-derived
+        tireSmoke:       [],       // [{x,y,vx,vy,life,size}] · screen-coord particles
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
@@ -284,6 +289,13 @@
         // descending whoosh + low thump · "I just got something"
         sfx({ freq: 740, type: 'sawtooth', dur: 0.32, vol: 0.14, sweep: 220 });
         setTimeout(() => sfx({ freq: 110, type: 'triangle', dur: 0.22, vol: 0.20 }), 90);
+    }
+    function sfxRev() {
+        // engine rev for end-game cinematic · rising sawtooth + tire-screech noise
+        sfx({ freq: 80,  type: 'sawtooth', dur: 2.5,  vol: 0.18, sweep: 240 });
+        // short screech via square pulse at start
+        setTimeout(() => sfx({ freq: 600, type: 'square', dur: 0.18, vol: 0.08, sweep: 1200 }), 60);
+        setTimeout(() => sfx({ freq: 500, type: 'square', dur: 0.14, vol: 0.06, sweep: 900 }), 200);
     }
 
     // ── PER-CHAPTER AMBIENT AUDIO · 8 cross-fading voices ────────────
@@ -5157,36 +5169,86 @@
                 $scoreTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
             }
 
-            // end · past the last chapter
-            if (state.collected.size >= CHAPTERS.length && state.playerX > CHAPTERS[CHAPTERS.length - 1].x + 150) {
-                state.ended = true;
-                if ($end) {
-                    // Populate dynamic stats before showing.
-                    const $endStatChapters = document.getElementById('end-stat-chapters');
-                    const $endStatBeats    = document.getElementById('end-stat-beats');
-                    const $endStatTime     = document.getElementById('end-stat-time');
-                    if ($endStatChapters) {
-                        $endStatChapters.textContent =
-                            String(state.collected.size).padStart(2, '0') + ' / ' +
-                            String(CHAPTERS.length).padStart(2, '0');
+            // end · past the last chapter · TRIGGER CINEMATIC (not end-card)
+            // VW Virtus GT accelerates off-screen with tire smoke, THEN end-card.
+            if (state.collected.size >= CHAPTERS.length &&
+                state.playerX > CHAPTERS[CHAPTERS.length - 1].x + 150 &&
+                !state.endingCinematic && !state.ended) {
+                state.endingCinematic = true;
+                state.cinematicT = 0;
+                state.lockedCameraX = state.playerX - W * 0.32;   // lock camera here
+                sfxRev();   // engine rev + tire-screech kickoff
+            }
+
+            // ── CINEMATIC update · accelerate GT + spawn tire smoke ──
+            if (state.endingCinematic) {
+                state.cinematicT += dt;
+                const tSec = state.cinematicT / 1000;
+                // Speed curve: 200 → 900 px/s over 2.5s, ease-out cubic
+                const ease = 1 - Math.pow(1 - Math.min(1, tSec / 2.5), 3);
+                const speed = 200 + 700 * ease;
+                state.playerX += speed * dt / 1000;
+                // Spawn smoke at rear-wheel position (screen coords)
+                const gtScreenX = state.playerX - state.lockedCameraX;
+                // ~2 puffs per ~30ms
+                if (Math.random() < dt / 25) {
+                    for (let i = 0; i < 2; i++) {
+                        state.tireSmoke.push({
+                            x: gtScreenX - 22 + Math.random() * 4,
+                            y: groundY - 4 + Math.random() * 4,
+                            vx: -50 - Math.random() * 60,   // drifts back-left
+                            vy: -10 - Math.random() * 18,   // drifts up
+                            life: 1.0,
+                            size: 5 + Math.random() * 4,
+                        });
                     }
-                    if ($endStatBeats) {
-                        $endStatBeats.textContent =
-                            String(state.discoveredBeats.size).padStart(2, '0') + ' / ' +
-                            String(BEATS.length).padStart(2, '0');
-                    }
-                    if ($endStatTime) {
-                        const s = Math.floor(state.elapsedMs / 1000);
-                        $endStatTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-                    }
-                    $end.hidden = false;
                 }
-                saveState();
+                // Update smoke physics
+                for (let i = state.tireSmoke.length - 1; i >= 0; i--) {
+                    const p = state.tireSmoke[i];
+                    p.x += p.vx * dt / 1000;
+                    p.y += p.vy * dt / 1000;
+                    p.vx *= 0.93;     // air drag
+                    p.vy *= 0.93;
+                    p.life -= dt / 1800;
+                    p.size += dt * 0.014;   // expand as it fades
+                    if (p.life <= 0) state.tireSmoke.splice(i, 1);
+                }
+                // After 3.5s, transition to end card
+                if (state.cinematicT > 3500) {
+                    state.ended = true;
+                    state.endingCinematic = false;
+                    state.lockedCameraX = null;      // release camera lock
+                    state.tireSmoke = [];
+                    if ($end) {
+                        const $endStatChapters = document.getElementById('end-stat-chapters');
+                        const $endStatBeats    = document.getElementById('end-stat-beats');
+                        const $endStatTime     = document.getElementById('end-stat-time');
+                        if ($endStatChapters) {
+                            $endStatChapters.textContent =
+                                String(state.collected.size).padStart(2, '0') + ' / ' +
+                                String(CHAPTERS.length).padStart(2, '0');
+                        }
+                        if ($endStatBeats) {
+                            $endStatBeats.textContent =
+                                String(state.discoveredBeats.size).padStart(2, '0') + ' / ' +
+                                String(BEATS.length).padStart(2, '0');
+                        }
+                        if ($endStatTime) {
+                            const s = Math.floor(state.elapsedMs / 1000);
+                            $endStatTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+                        }
+                        $end.hidden = false;
+                    }
+                    saveState();
+                }
             }
         }
 
-        // camera · player anchored at 32% from left
-        const cameraX = state.playerX - W * 0.32;
+        // camera · player anchored at 32% from left, OR locked during cinematic
+        const cameraX = state.lockedCameraX !== null
+            ? state.lockedCameraX
+            : (state.playerX - W * 0.32);
 
         // life-progress 0..1 · drives the time-of-day sky gradient.
         // World ends at the last chapter + 150. Clamp so we don't NaN.
@@ -5222,6 +5284,15 @@
         drawChapters(W, horizonY, groundY, cameraX);
         drawChatter(W, H, groundY, cameraX);
         drawParticles();
+        // Tire smoke during end-cinematic — drawn BEFORE the GT so the car
+        // appears to be ahead of its own dust cloud (correct depth-ordering)
+        if (state.tireSmoke && state.tireSmoke.length > 0) {
+            for (const p of state.tireSmoke) {
+                const a = Math.max(0, p.life) * 0.55;
+                ctx.fillStyle = `rgba(220, 220, 224, ${a})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            }
+        }
         drawPlayer(W, groundY);
         ctx.restore();
 
