@@ -1858,63 +1858,138 @@
                 ctx.fillRect(sx - 1, pylonTop - 2, 2, 2);
             } else if (br.kind === 'h_bridge') {
                 // Iblur-style H-pylon cable-stayed bridge · ORR signature
-                // Twin H-shaped pylons with cables spanning between them
+                // Substantial concrete twin H-pylons with dense cable fan
                 const deckY = horizonY - 12;
-                const pylonTop = deckY - 70;
-                const pylonGap = 70;
+                const pylonTop = deckY - 80;
+                const pylonGap = 80;
                 const px1 = sx - pylonGap / 2;
                 const px2 = sx + pylonGap / 2;
-                // Deck · longer span (180px)
-                ctx.fillStyle = '#5a3a22';
-                ctx.fillRect(sx - 90, deckY, 180, 5);
+                const deckHalf = 110;
+
+                // ── DECK · multi-lane road ──
+                // Asphalt surface (slightly lighter near-side for road perspective)
                 ctx.fillStyle = '#3a2418';
-                ctx.fillRect(sx - 90, deckY + 4, 180, 1);
-                // TWIN H-PYLONS
-                ctx.fillStyle = '#5a3a22';
-                for (const px of [px1, px2]) {
-                    // H-shape: 2 vertical legs + horizontal crossbar
-                    ctx.fillRect(px - 6, deckY, 3, deckY - pylonTop);   // left leg
-                    ctx.fillRect(px + 3, deckY, 3, deckY - pylonTop);   // right leg
-                    ctx.fillRect(px - 6, deckY - 35, 12, 3);             // horizontal cross-beam (the H bar)
-                    // Cap finial
-                    ctx.fillStyle = '#c89a5a';
-                    ctx.fillRect(px - 7, pylonTop - 2, 4, 2);
-                    ctx.fillRect(px + 3, pylonTop - 2, 4, 2);
-                    ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - deckHalf, deckY, deckHalf * 2, 8);
+                // Center divider · yellow double-stripe
+                ctx.fillStyle = '#e6c285';
+                ctx.fillRect(sx - deckHalf, deckY + 3, deckHalf * 2, 1);
+                // Lane edge markings · white stripes
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(sx - deckHalf, deckY, deckHalf * 2, 1);
+                ctx.fillRect(sx - deckHalf, deckY + 7, deckHalf * 2, 1);
+                // Dashed lane dividers between lanes
+                ctx.fillStyle = '#d4b48a';
+                for (let i = 0; i < 14; i++) {
+                    ctx.fillRect(sx - deckHalf + i * 16, deckY + 5, 4, 0.6);
                 }
-                // Diagonal cables · fanning from each pylon-top to deck
-                ctx.strokeStyle = 'rgba(90, 58, 34, 0.75)';
-                ctx.lineWidth = 1;
+                // Parapet barriers · low walls on both sides
+                ctx.fillStyle = '#5a4a36';
+                ctx.fillRect(sx - deckHalf, deckY - 2, deckHalf * 2, 2);
+                ctx.fillRect(sx - deckHalf, deckY + 8, deckHalf * 2, 2);
+                // Underside shadow band
+                ctx.fillStyle = '#1a1208';
+                ctx.fillRect(sx - deckHalf, deckY + 10, deckHalf * 2, 1);
+
+                // Cars on the deck · 4 silhouettes scattered
+                const carPositions = [
+                    { dx: -85, color: '#c4baa8', dir: 1 },   // white hatchback going right
+                    { dx: -42, color: '#5a3a22', dir: 1 },   // brown sedan
+                    { dx: 28,  color: '#c4baa8', dir: -1 },  // white car going left
+                    { dx: 78,  color: '#8a3a2e', dir: -1 },  // red car
+                ];
+                for (const car of carPositions) {
+                    const cx = sx + car.dx;
+                    ctx.fillStyle = car.color;
+                    ctx.fillRect(cx - 7, deckY + 1, 14, 4);
+                    ctx.fillStyle = '#3a4a55';
+                    ctx.fillRect(cx - 5, deckY + 1, 10, 2);    // windshield
+                    ctx.fillStyle = '#e6c285';
+                    ctx.fillRect(cx + (car.dir > 0 ? 6 : -7), deckY + 3, 1.5, 1);
+                }
+
+                // ── TWIN H-PYLONS · substantial concrete ──
+                for (const px of [px1, px2]) {
+                    // Two thick vertical legs
+                    ctx.fillStyle = '#6a5a4a';   // concrete grey-brown
+                    ctx.fillRect(px - 9, deckY - 2, 5, deckY - pylonTop);
+                    ctx.fillRect(px + 4, deckY - 2, 5, deckY - pylonTop);
+                    // Shadow side · right edge of each leg
+                    ctx.fillStyle = '#3a2818';
+                    ctx.fillRect(px - 5, deckY - 2, 1, deckY - pylonTop);
+                    ctx.fillRect(px + 8, deckY - 2, 1, deckY - pylonTop);
+                    // Light catch · highlight on left edge
+                    ctx.fillStyle = '#8a7a5a';
+                    ctx.fillRect(px - 9, deckY - 2, 1, deckY - pylonTop);
+                    ctx.fillRect(px + 4, deckY - 2, 1, deckY - pylonTop);
+                    // HORIZONTAL CROSS-BEAM · the H bar · upper third
+                    ctx.fillStyle = '#6a5a4a';
+                    ctx.fillRect(px - 9, deckY - 42, 18, 5);
+                    ctx.fillStyle = '#3a2818';
+                    ctx.fillRect(px - 9, deckY - 38, 18, 1);   // shadow underside
+                    ctx.fillStyle = '#8a7a5a';
+                    ctx.fillRect(px - 9, deckY - 42, 18, 1);   // highlight top
+                    // Access ladder · vertical rungs climbing left leg
+                    ctx.fillStyle = '#3a2418';
+                    for (let r = 0; r < 14; r++) {
+                        ctx.fillRect(px - 4, deckY - 6 - r * 5, 2, 1);
+                    }
+                    // Pylon top · maintenance light + aviation warning
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(px - 4, pylonTop - 3, 8, 3);   // crown box
+                    ctx.fillStyle = '#a4332e';                    // red aviation light
+                    ctx.fillRect(px - 1, pylonTop - 4, 2, 2);
+                    // Subtle glow around aviation light
+                    ctx.fillStyle = 'rgba(164, 51, 46, 0.25)';
+                    ctx.beginPath();
+                    ctx.arc(px, pylonTop - 3, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // ── CABLES · dense fan, 17 per pylon ──
+                ctx.strokeStyle = 'rgba(70, 50, 30, 0.55)';
+                ctx.lineWidth = 0.8;
                 ctx.beginPath();
-                // Cables from px1 fanning outward (toward left end of deck)
-                for (let i = 1; i <= 7; i++) {
-                    const dx = i * 11;
-                    ctx.moveTo(px1, pylonTop);
+                // Cables anchor at top crossbeam, fan to deck
+                // FROM px1 → outward (12 cables to left)
+                for (let i = 1; i <= 12; i++) {
+                    const dx = i * 8;
+                    ctx.moveTo(px1, deckY - 42);
                     ctx.lineTo(px1 - dx, deckY);
                 }
-                // Cables from px1 fanning inward (between pylons)
-                for (let i = 1; i <= 4; i++) {
-                    const dx = i * 6;
-                    ctx.moveTo(px1, pylonTop);
+                // FROM px1 → inward (5 cables between pylons)
+                for (let i = 1; i <= 5; i++) {
+                    const dx = i * 7;
+                    ctx.moveTo(px1, deckY - 42);
                     ctx.lineTo(px1 + dx, deckY);
                 }
-                // Cables from px2 fanning inward
-                for (let i = 1; i <= 4; i++) {
-                    const dx = i * 6;
-                    ctx.moveTo(px2, pylonTop);
+                // FROM px2 → inward
+                for (let i = 1; i <= 5; i++) {
+                    const dx = i * 7;
+                    ctx.moveTo(px2, deckY - 42);
                     ctx.lineTo(px2 - dx, deckY);
                 }
-                // Cables from px2 fanning outward (right)
-                for (let i = 1; i <= 7; i++) {
-                    const dx = i * 11;
-                    ctx.moveTo(px2, pylonTop);
+                // FROM px2 → outward
+                for (let i = 1; i <= 12; i++) {
+                    const dx = i * 8;
+                    ctx.moveTo(px2, deckY - 42);
                     ctx.lineTo(px2 + dx, deckY);
                 }
                 ctx.stroke();
-                // Anchor piers · supports below deck at both ends
-                ctx.fillStyle = '#5a3a22';
-                ctx.fillRect(sx - 88, deckY + 4, 4, horizonY - deckY - 4);
-                ctx.fillRect(sx + 84, deckY + 4, 4, horizonY - deckY - 4);
+
+                // Cable anchor blocks on the deck · tiny white dots
+                ctx.fillStyle = '#d4b48a';
+                for (let i = 1; i <= 12; i++) {
+                    ctx.fillRect(px1 - i * 8 - 1, deckY - 1, 2, 1);
+                    ctx.fillRect(px2 + i * 8 - 1, deckY - 1, 2, 1);
+                }
+
+                // ── ANCHOR PIERS under deck at both ends ──
+                ctx.fillStyle = '#6a5a4a';
+                ctx.fillRect(sx - deckHalf + 2, deckY + 10, 5, horizonY - deckY - 10);
+                ctx.fillRect(sx + deckHalf - 7, deckY + 10, 5, horizonY - deckY - 10);
+                ctx.fillStyle = '#3a2818';
+                ctx.fillRect(sx - deckHalf + 6, deckY + 10, 1, horizonY - deckY - 10);
+                ctx.fillRect(sx + deckHalf - 2, deckY + 10, 1, horizonY - deckY - 10);
             } else if (br.kind === 'arch_bridge') {
                 // Small 2-arch stone bridge over a stream
                 const deckY = horizonY - 4;
@@ -2025,11 +2100,20 @@
         for (const stn of METRO_STATIONS) {
             const stnSx = stn.x + offset;
             if (stnSx < -130 || stnSx > W + 130) continue;
-            // Arched canopy roof · the Namma Metro Phase-1 signature shallow arc
+            // Arched canopy roof · 3-panel segmented (real Phase-1 stations have panels)
             ctx.fillStyle = '#5a3a22';
             ctx.beginPath();
             ctx.ellipse(stnSx, yTop - 6, 60, 10, 0, Math.PI, 0);
             ctx.fill();
+            // Panel divisions · vertical ribs in the canopy
+            ctx.strokeStyle = '#3a2418';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let r = -2; r <= 2; r++) {
+                ctx.moveTo(stnSx + r * 20, yTop - 14 + Math.abs(r) * 0.8);
+                ctx.lineTo(stnSx + r * 20, yTop - 4);
+            }
+            ctx.stroke();
             // Roof rim highlight · brass detailing
             ctx.fillStyle = '#c89a5a';
             ctx.beginPath();
@@ -2039,15 +2123,24 @@
             ctx.fillStyle = '#5a3a22';
             ctx.fillRect(stnSx - 55, yTop - 4, 3, 22);
             ctx.fillRect(stnSx + 52, yTop - 4, 3, 22);
-            // Platform deck band (where passengers wait)
+            // Column shadow
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(stnSx - 53, yTop - 4, 1, 22);
+            ctx.fillRect(stnSx + 54, yTop - 4, 1, 22);
+            // Platform deck band
             ctx.fillStyle = '#8a6a48';
             ctx.fillRect(stnSx - 58, yTop + 6, 120, 3);
-            // Platform tactile-strip yellow edge
+            // BMRCL PURPLE LINE LED strip · purple accent along platform edge
+            ctx.fillStyle = '#6e4a5c';
+            ctx.fillRect(stnSx - 58, yTop + 9, 120, 1);
+            // Yellow tactile warning strip
             ctx.fillStyle = '#e6c285';
             ctx.fillRect(stnSx - 58, yTop + 6, 120, 1);
-            // STATION NAME BOARD · purple field with cream text (BMRCL livery)
+            // STATION NAME BOARD · purple field with cream text
             ctx.fillStyle = '#6e4a5c';
             ctx.fillRect(stnSx - 32, yTop - 14, 64, 6);
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(stnSx - 32, yTop - 9, 64, 1);  // board shadow
             ctx.fillStyle = '#d4b48a';
             ctx.font = '4px "IM Fell English", serif';
             ctx.textAlign = 'center';
@@ -2055,11 +2148,30 @@
             ctx.fillText(stn.name, stnSx, yTop - 11);
             ctx.textAlign = 'start';
             ctx.textBaseline = 'alphabetic';
-            // Tiny entrance staircase descending below platform on near side
+            // Standing passengers on platform · 3-px tall "I" silhouettes
+            const passSeed = stn.x | 0;
+            for (let p = 0; p < 5; p++) {
+                const offsetX = ((passSeed * 7 + p * 23) % 100) - 50;
+                const px = stnSx + offsetX;
+                // Body
+                ctx.fillStyle = ['#5a3a22', '#8a3a2e', '#3a4a55', '#6a4a2a', '#3a2418'][p];
+                ctx.fillRect(px - 1, yTop + 2, 2, 4);
+                // Head
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(px - 1, yTop + 1, 2, 1);
+            }
+            // Entrance staircase descending below platform on near side
             ctx.fillStyle = '#3a2418';
             for (let i = 0; i < 4; i++) {
                 ctx.fillRect(stnSx + 40 + i * 2, yTop + 9 + i, 12, 2);
             }
+            // Station entrance arch · semi-circular at base of stairs
+            ctx.fillStyle = '#5a3a22';
+            ctx.beginPath();
+            ctx.arc(stnSx + 56, yTop + 13, 6, Math.PI, 0);
+            ctx.fill();
+            ctx.fillStyle = '#6e4a5c';   // entrance LED accent
+            ctx.fillRect(stnSx + 50, yTop + 12, 12, 1);
         }
     }
 
@@ -2069,37 +2181,94 @@
         if (chapterIdxAt(state.playerX) < 1) return;
         const parallax = 0.45;
         const yTop = horizonY - 32;
-        const trainY = yTop - 18;   // sits on top of viaduct
+        const trainY = yTop - 20;   // sits on top of viaduct
         // Two trains alternating direction · phase by elapsed time
         const cycle = 32000;
         for (let trainIdx = 0; trainIdx < 2; trainIdx++) {
             const phase = (state.elapsedMs + trainIdx * 16000) % cycle;
             const t = phase / cycle;        // 0..1
             const dir = trainIdx === 0 ? 1 : -1;
-            // World-x of train head · sweeps across the visible beam region
             const startWX = dir > 0 ? 1300 : 6500;
             const endWX   = dir > 0 ? 6500 : 1300;
             const headWX = startWX + (endWX - startWX) * t;
-            const trainLen = 6 * 28 + 5 * 2;  // 6 coaches × 28 + gaps
+            const trainLen = 6 * 30 + 5 * 2;
             const offset = -(cameraX * parallax);
             const headSx = headWX + offset;
             if (headSx < -trainLen - 50 || headSx > W + 50) continue;
+
+            // Determine if it's "night" for interior-light effect
+            const cyc = ((state.playerX % 1500) + 1500) % 1500 / 1500;
+            const isNight = cyc >= 0.5 && cyc < 0.95;
+            const interiorAlpha = isNight ? 0.95 : 0.7;
+
             // Draw 6 coaches behind the head
             for (let c = 0; c < 6; c++) {
                 const cx = headSx - dir * c * 30;
-                // body · cream
+                // Coach body · cream
                 ctx.fillStyle = '#d4b48a';
                 ctx.fillRect(cx - 14, trainY, 28, 16);
-                // purple stripe (Purple Line · sepia-desaturated)
+                // Roof shadow band · top edge
+                ctx.fillStyle = '#a4845a';
+                ctx.fillRect(cx - 14, trainY, 28, 1);
+                // Purple Line livery stripe
                 ctx.fillStyle = '#6e4a5c';
-                ctx.fillRect(cx - 14, trainY + 7, 28, 3);
-                // windows
+                ctx.fillRect(cx - 14, trainY + 8, 28, 3);
+                // Lit interior windows · 4 per coach, with passenger silhouettes
+                for (let w = 0; w < 4; w++) {
+                    const wx = cx - 12 + w * 7;
+                    // Window frame
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(wx, trainY + 2, 5, 5);
+                    // Lit interior · warm glow
+                    ctx.fillStyle = `rgba(230, 194, 133, ${interiorAlpha})`;
+                    ctx.fillRect(wx + 1, trainY + 3, 3, 3);
+                    // Passenger silhouette · 1-2 dark heads per window
+                    ctx.fillStyle = '#3a2418';
+                    if ((c + w) % 3 !== 0) {
+                        ctx.fillRect(wx + 1, trainY + 3, 1, 2);
+                    }
+                    if ((c * 4 + w) % 4 === 0) {
+                        ctx.fillRect(wx + 3, trainY + 4, 1, 2);
+                    }
+                }
+                // Door gap · 2 doors visible between window groups
                 ctx.fillStyle = '#3a2418';
-                for (let w = 0; w < 4; w++) ctx.fillRect(cx - 12 + w * 7, trainY + 2, 4, 4);
+                ctx.fillRect(cx - 1, trainY + 2, 2, 14);
+                // Pantograph · Z-shape on coach roof (coaches 1, 3, 5)
+                if (c === 0 || c === 2 || c === 4) {
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(cx - 2, trainY - 6, 4, 1);   // contact plate
+                    ctx.fillRect(cx - 4, trainY - 4, 1, 4);   // angled arm 1
+                    ctx.fillRect(cx + 3, trainY - 4, 1, 4);   // angled arm 2
+                    ctx.fillRect(cx - 1, trainY - 1, 2, 1);   // base mount
+                }
+                // Bogie (wheel housing) · underbody
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(cx - 10, trainY + 16, 4, 1);
+                ctx.fillRect(cx + 6, trainY + 16, 4, 1);
+                // Coupling link to next coach
+                if (c < 5) {
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(cx + (dir > 0 ? -16 : 14), trainY + 9, 2, 2);
+                }
             }
-            // headlight on lead coach
-            ctx.fillStyle = '#c89a5a';
-            ctx.fillRect(headSx + dir * 13, trainY + 12, 2, 2);
+            // Headlight halo on lead coach · radial warm glow
+            const hx = headSx + dir * 13;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const hg = ctx.createRadialGradient(hx, trainY + 12, 0, hx, trainY + 12, 10);
+            hg.addColorStop(0,   'rgba(230, 194, 133, 0.95)');
+            hg.addColorStop(0.4, 'rgba(230, 194, 133, 0.3)');
+            hg.addColorStop(1,   'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = hg;
+            ctx.fillRect(hx - 10, trainY + 2, 20, 20);
+            ctx.restore();
+            // Core headlight bulb
+            ctx.fillStyle = '#fff8e0';
+            ctx.fillRect(hx - 1, trainY + 11, 3, 3);
+            // Subtle motion blur · tail trail
+            ctx.fillStyle = 'rgba(60, 40, 30, 0.18)';
+            ctx.fillRect(headSx - dir * (trainLen + 4), trainY + 6, dir > 0 ? -8 : 8, 8);
         }
     }
 
