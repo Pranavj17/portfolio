@@ -78,7 +78,7 @@
         { ch:'itics', id:'assembly-stage',  dx:-260, dy:-22, w:54, h:60, title:'Morning assembly', lore:'Every day at 8:30 AM. Lined up, sang, marched in.' },
         { ch:'itics', id:'football-match',  dx:-380, dy:-80, w:64, h:48, title:'Football match',   lore:'Intra and inter-school competitions. Played striker.', chatter:['PASS!','on me!','GOAL!','foul!','shoot!'] },
         { ch:'itics', id:'sports-day',      dx:-340, dy:-80, w:64, h:48, title:'Sports day',       lore:'Great fun. Won.' },
-        { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka.', chatter:['HOWZAT!','SIX!','caught!','no-ball','run!'] },
+        { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka. CSK fan since I could pronounce Dhoni.', chatter:['WHISTLE PODU!','THALA!','DHONI! DHONI!','CSK! CSK!','Yellove!','SIX!','HOWZAT!','Anbuden!'] },
         { ch:'itics', id:'cultural-dance',  dx:-260, dy:-80, w:64, h:48, title:'Cultural dance',   lore:'Did it as part of school activity.', chatter:['together!','and... go','one more','smile!'] },
 
         // ── CMR NATIONAL (PU, 2013–2015) ──
@@ -849,7 +849,7 @@
     const BEAT_SFX_MAP = {
         // ITICS · school years
         'football-match':  'football_cheer',
-        'cricket-match':   'cricket_play',
+        'cricket-match':   'cricket_chant',   // CSK "Whistle Podu" crowd vibe
         'sports-day':      'graduation_applause',
         'cultural-dance':  'graduation_applause',
         'assembly-stage':  'school_bell_distant',
@@ -1082,6 +1082,43 @@
             wg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.65);
             w1.start(t0 + 1.2); w2.start(t0 + 1.2);
             w1.stop(t0 + 1.7); w2.stop(t0 + 1.7);
+        } else if (kind === 'cricket_chant') {
+            // CSK "Whistle Podu" stadium chant · 4-syllable rhythmic crowd
+            // pulses + signature train-whistle on top
+            const crowdN = ns(); const crowdF = bp(450, 0.7); const crowdG = gn(0);
+            crowdN.connect(crowdF).connect(crowdG).connect(master);
+            crowdG.gain.setValueAtTime(0, t0);
+            crowdG.gain.linearRampToValueAtTime(0.08, t0 + 0.3);
+            crowdG.gain.setValueAtTime(0.08, t0 + 3.0);
+            crowdG.gain.exponentialRampToValueAtTime(0.001, t0 + 3.5);
+            crowdN.start(t0); crowdN.stop(t0 + 3.6);
+            // 4-syllable chant: WHIS-TLE  PO-DU (low + high pulse alternating)
+            // Each pulse = bandpassed noise burst pitched to vowel formant
+            const chant = [
+                { t: 0.20, f: 380 }, { t: 0.40, f: 480 },   // WHIS-TLE
+                { t: 0.70, f: 380 }, { t: 0.90, f: 480 },   // PO-DU
+                { t: 1.30, f: 380 }, { t: 1.50, f: 480 },   // WHIS-TLE
+                { t: 1.80, f: 380 }, { t: 2.00, f: 480 },   // PO-DU
+            ];
+            for (const pulse of chant) {
+                const s = ns(); const f = bp(pulse.f, 2.5); const g = gn(0);
+                s.connect(f).connect(g).connect(master);
+                const tt = t0 + pulse.t;
+                g.gain.setValueAtTime(0.16, tt);
+                g.gain.exponentialRampToValueAtTime(0.001, tt + 0.14);
+                s.start(tt); s.stop(tt + 0.16);
+            }
+            // Signature train whistle · long sweep on top
+            const w1 = o('triangle', 2100), w2 = o('triangle', 2110);
+            const wg = gn(0); w1.connect(wg); w2.connect(wg); wg.connect(master);
+            wg.gain.setValueAtTime(0, t0 + 2.3);
+            wg.gain.linearRampToValueAtTime(0.10, t0 + 2.4);
+            wg.gain.setValueAtTime(0.10, t0 + 2.9);
+            wg.gain.exponentialRampToValueAtTime(0.001, t0 + 3.2);
+            w1.start(t0 + 2.3); w2.start(t0 + 2.3);
+            w1.stop(t0 + 3.3); w2.stop(t0 + 3.3);
+            // Bat crack to anchor the cricket context (subtle)
+            burst(0.05, 0.05, 0.12, 3200, 4);
         } else if (kind === 'cricket_play') {
             // Bat crack + crowd
             burst(0, 0.05, 0.18, 3200, 4);     // bat hit
@@ -4351,6 +4388,102 @@
             ctx.beginPath(); ctx.moveTo(f.x, cky - 6); ctx.lineTo(f.x - 1.5, cky); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(f.x, cky - 6); ctx.lineTo(f.x + 1.5, cky); ctx.stroke();
         });
+        // ── CRICKET ENRICHMENTS ──
+        // WICKET-KEEPER behind the stumps, crouching, pads visible
+        const wkX = ckx + 21;
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillRect(wkX - 1.5, cky - 9, 3, 4);   // crouch body
+        ctx.fillStyle = '#a86434';
+        ctx.beginPath(); ctx.arc(wkX, cky - 11, 1.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e9d8b0';                 // pads (cream)
+        ctx.fillRect(wkX - 2, cky - 5, 1.5, 5);
+        ctx.fillRect(wkX + 0.5, cky - 5, 1.5, 5);
+        // Gloves
+        ctx.fillStyle = '#7a4a26';
+        ctx.fillRect(wkX - 3, cky - 7, 1.5, 1.5);
+        ctx.fillRect(wkX + 1.5, cky - 7, 1.5, 1.5);
+
+        // UMPIRE in white coat with raised finger (OUT!) · stands at non-striker end
+        const umpX = ckx - 22;
+        ctx.fillStyle = '#e9d8b0';                 // white coat
+        ctx.fillRect(umpX - 2, cky - 13, 4, 9);
+        ctx.fillStyle = '#a86434';                 // head
+        ctx.beginPath(); ctx.arc(umpX, cky - 15, 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1208';                 // hat brim
+        ctx.fillRect(umpX - 2.5, cky - 16, 5, 1);
+        // Raised finger (out signal)
+        ctx.strokeStyle = '#a86434'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(umpX + 1.5, cky - 11);
+        ctx.lineTo(umpX + 3.5, cky - 16); ctx.stroke();
+
+        // SCOREBOARD · small panel above the action with runs/wickets · animated
+        const sbX = ckx + 5, sbY = cky - 32;
+        ctx.fillStyle = '#3a2418';
+        ctx.fillRect(sbX - 10, sbY, 22, 11);       // panel body
+        ctx.fillStyle = '#c89a5a';                  // brass trim
+        ctx.fillRect(sbX - 10, sbY, 22, 1);
+        ctx.fillStyle = '#e9d8b0';                  // score text
+        ctx.font = '5px monospace'; ctx.textAlign = 'center';
+        const runs = (87 + Math.floor((t * 0.0008)) % 13);   // slow ticker 87-100
+        ctx.fillText(`${runs}/3`, sbX, sbY + 6);
+        ctx.font = '3px monospace';
+        ctx.fillText('IND', sbX, sbY + 10);
+        ctx.textAlign = 'start';
+
+        // SLIP CORDON · 3 fielders crouched between keeper and gully
+        for (let i = 0; i < 3; i++) {
+            const slipX = ckx + 27 + i * 4;
+            ctx.fillStyle = '#5a3a22';
+            ctx.fillRect(slipX - 1, cky - 8, 2, 3);
+            ctx.fillStyle = '#a86434';
+            ctx.beginPath(); ctx.arc(slipX, cky - 9.5, 1, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // BOUNDARY ROPE · thin curving line at the edge of the field
+        ctx.strokeStyle = '#d4b48a'; ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(ckx - 36, cky + 4);
+        ctx.quadraticCurveTo(ckx, cky + 6, ckx + 36, cky + 4);
+        ctx.stroke();
+
+        // PAVILION · small triangular tent behind the action
+        const pavX = ckx + 38, pavY = cky - 3;
+        ctx.fillStyle = '#a4332e';
+        ctx.beginPath();
+        ctx.moveTo(pavX - 7, pavY);
+        ctx.lineTo(pavX + 7, pavY);
+        ctx.lineTo(pavX,      pavY - 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#7a221c';
+        ctx.fillRect(pavX - 7, pavY, 14, 1);    // ground line
+        ctx.fillStyle = '#e9d8b0';               // flag
+        ctx.fillRect(pavX - 0.5, pavY - 12, 1, 3);
+        const flagWave = Math.sin(t * 0.01) * 1.5;
+        ctx.fillRect(pavX, pavY - 12, 3, 1);
+
+        // BAT SWING · subtle motion blur arc when batsman just hit
+        const swingPhase = (t * 0.001) % 4;
+        if (swingPhase < 0.5) {
+            ctx.strokeStyle = 'rgba(122, 74, 38, 0.4)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(bsx - 3, cky - 12, 4, Math.PI * 1.5, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // FOUR/SIX SIGNAL · brief text indicator above scoreboard, cycles
+        const sixPhase = (t * 0.00015) % 1;
+        if (sixPhase < 0.15) {
+            ctx.fillStyle = '#e9d8b0';
+            ctx.font = 'bold 6px serif'; ctx.textAlign = 'center';
+            ctx.fillText('SIX!', sbX, sbY - 3);
+            ctx.textAlign = 'start';
+        } else if (sixPhase > 0.5 && sixPhase < 0.65) {
+            ctx.fillStyle = '#d4a653';
+            ctx.font = 'bold 6px serif'; ctx.textAlign = 'center';
+            ctx.fillText('FOUR!', sbX, sbY - 3);
+            ctx.textAlign = 'start';
+        }
 
         // ANNUAL DAY CULTURAL · 5 dancers in costume + conductor + audience
         const adx = px - 260, ady = gY - 80;
