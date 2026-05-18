@@ -576,6 +576,35 @@
         .letterbox-bar.top    { top: 0; }
         .letterbox-bar.bottom { bottom: 0; }
         body.cinematic .letterbox-bar { height: 9vh; }
+        /* AUDIO TEST BUTTON · diagnoses iOS mute-switch issues */
+        .audio-test-btn {
+            position: absolute;
+            bottom: 60px;
+            right: 16px;
+            background: linear-gradient(180deg, rgba(233,216,176,0.96) 0%, rgba(201,181,140,0.96) 100%);
+            color: var(--mahogany);
+            border: 1.5px solid var(--mahogany);
+            border-radius: 22px;
+            padding: 9px 18px;
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            letter-spacing: 0.20em;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 0 8px rgba(90,46,26,0.2);
+            transition: opacity 0.3s ease, transform 0.12s ease;
+            z-index: 30;
+            animation: audioBtnPulse 2.2s ease-in-out infinite;
+        }
+        .audio-test-btn:hover { transform: scale(1.04); }
+        .audio-test-btn.hidden { opacity: 0; pointer-events: none; transform: scale(0.9); }
+        @keyframes audioBtnPulse {
+            0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 0 8px rgba(90,46,26,0.2); }
+            50%      { box-shadow: 0 4px 18px rgba(212,166,83,0.55), inset 0 0 8px rgba(212,166,83,0.4); }
+        }
+        @media (max-width: 600px) {
+            .audio-test-btn { bottom: 40px; right: 10px; font-size: 10px; padding: 7px 14px; }
+        }
+
         /* STAGE-COMPLETION VIDEO OVERLAY · full-screen player on chapter collect */
         .stage-video-overlay {
             position: fixed;
@@ -768,6 +797,10 @@
 
             <!-- tap hint · bottom-center · fades after first interaction -->
             <div class="tap-hint" id="tap-hint">hold → to walk · tap to peek · tap buildings for stories</div>
+
+            <!-- Audio test pill · bottom-right · diagnoses iOS mute-switch issues.
+                 Auto-hides after first successful audio boot. -->
+            <button id="audio-test-btn" class="audio-test-btn" type="button">🔊 TAP FOR SOUND</button>
         </div>
 
         <!-- vehicle-card removed per user request · was showing "MARUTI ALTO" etc.
@@ -831,6 +864,6 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260519-52" defer></script>
+    <script src="/journey.js?v=20260519-53" defer></script>
 </body>
 </html>

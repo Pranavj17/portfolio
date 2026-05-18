@@ -516,6 +516,17 @@
         const master = ac.createGain();
         master.gain.value = 1;
         master.connect(ac.destination);
+        // iOS PRIME · push a 1-sample silent buffer through destination
+        // immediately. This tells iOS Safari that the AudioContext IS
+        // producing output, preventing it from going silent in background.
+        // Without this, iOS sometimes suspends the context even after resume().
+        try {
+            const silent = ac.createBuffer(1, 1, 22050);
+            const src = ac.createBufferSource();
+            src.buffer = silent;
+            src.connect(ac.destination);
+            src.start(0);
+        } catch (_) {}
         const noiseBuf = (() => {
             const b = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
             const d = b.getChannelData(0);
@@ -1937,6 +1948,52 @@
             clearSavedState();
             location.reload();
         });
+    }
+
+    // ── AUDIO TEST BUTTON · diagnoses iOS mute-switch / autoplay issues
+    // Plays a loud chime via WebAudio. If user hears it → audio works,
+    // hide button. If silent → likely iPhone hardware mute switch.
+    const $audioTestBtn = document.getElementById('audio-test-btn');
+    if ($audioTestBtn) {
+        $audioTestBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Force-boot audio context inside this gesture handler
+            audioGesture();
+            if (chapterAudio && chapterAudio.ac) {
+                const ac = chapterAudio.ac;
+                if (ac.state !== 'running') ac.resume().catch(() => {});
+                // Play loud ascending chime (3 notes · 1.2s total)
+                const t0 = ac.currentTime;
+                const master = chapterAudio.master;
+                // Ensure master is audible
+                master.gain.cancelScheduledValues(t0);
+                master.gain.setValueAtTime(1.0, t0);
+                const tone = (freq, start, dur, vol) => {
+                    const osc = ac.createOscillator();
+                    const g = ac.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    osc.connect(g).connect(master);
+                    g.gain.setValueAtTime(0, t0 + start);
+                    g.gain.linearRampToValueAtTime(vol, t0 + start + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
+                    osc.start(t0 + start); osc.stop(t0 + start + dur + 0.05);
+                };
+                tone(523.25, 0.0, 0.35, 0.18);  // C5
+                tone(659.25, 0.2, 0.35, 0.18);  // E5
+                tone(783.99, 0.4, 0.6,  0.20);  // G5
+            }
+            // Hide after first tap regardless · either it worked or hardware mute
+            setTimeout(() => $audioTestBtn.classList.add('hidden'), 200);
+        });
+        // Auto-hide if user starts walking without tapping (assumes audio works)
+        setInterval(() => {
+            if (_initialPlayerX !== null &&
+                Math.abs(state.playerX - _initialPlayerX) > 200) {
+                $audioTestBtn.classList.add('hidden');
+            }
+        }, 1000);
     }
 
     // Music toggle · bottom-right brass button · persisted in localStorage
@@ -3391,6 +3448,93 @@
     /** Fireworks over Vidhana Soudha · brief bursts every ~6s at night.
      *  Each firework rises, peaks, then bursts into 14 colored sparks
      *  that fall with gravity. Color is patriotic (saffron/white/green). */
+    // ── FLIGHTS · animated aircraft passing through the sky band ──
+    // 3 kinds: passenger jet (large + long contrail), military jet (small + fast),
+    // prop plane (low altitude, slower, no contrail). Spawn every 18-35s with
+    // randomized altitude and direction. Render in screen-space (no parallax)
+    // since they're FAR away and apparent motion is just their own velocity.
+    const flights = [];
+    function spawnFlight() {
+        const kinds = ['jet', 'jet', 'jet', 'prop', 'military'];   // jets more common
+        const kind = kinds[(Math.random() * kinds.length) | 0];
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const y = kind === 'prop' ? 80 + Math.random() * 40
+                : kind === 'military' ? 50 + Math.random() * 30
+                : 30 + Math.random() * 60;
+        const speed = kind === 'military' ? 220 : kind === 'jet' ? 95 : 65;
+        flights.push({
+            x: dir > 0 ? -80 : (window.innerWidth + 80),
+            y, dir, speed, kind,
+            trail: [],
+        });
+    }
+    function updateFlights(dt) {
+        if (!_audioBooted || _initialPlayerX === null) return;
+        // Auto-spawn every 18-35s, cap at 3 on screen
+        if (!updateFlights.nextSpawn) updateFlights.nextSpawn = state.elapsedMs + 3000;
+        if (state.elapsedMs > updateFlights.nextSpawn && flights.length < 3) {
+            spawnFlight();
+            updateFlights.nextSpawn = state.elapsedMs + 18000 + Math.random() * 17000;
+        }
+        for (let i = flights.length - 1; i >= 0; i--) {
+            const f = flights[i];
+            f.x += f.dir * f.speed * dt / 1000;
+            // Contrail emission (jets only)
+            if (f.kind !== 'prop' && Math.random() < 0.6) {
+                f.trail.push({ x: f.x, y: f.y, life: 1.0 });
+                if (f.trail.length > 60) f.trail.shift();
+            }
+            for (const t of f.trail) t.life -= dt / 4500;
+            f.trail = f.trail.filter(t => t.life > 0);
+            // Despawn when fully off-screen
+            const W = window.innerWidth;
+            if (f.x < -150 || f.x > W + 150) flights.splice(i, 1);
+        }
+    }
+    function drawFlights(W, horizonY) {
+        for (const f of flights) {
+            const screenY = horizonY * (f.y / 240);   // map sky band 0..240 → 0..horizonY
+            // Contrail · faded dots receding behind aircraft
+            for (const t of f.trail) {
+                ctx.fillStyle = `rgba(248, 232, 200, ${t.life * 0.35})`;
+                const tScreenY = horizonY * (t.y / 240);
+                ctx.fillRect(t.x, tScreenY, 2, 2);
+            }
+            // Aircraft silhouette
+            if (f.kind === 'jet') {
+                // Passenger jet · slim fuselage + swept wings
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(f.x - 12, screenY - 1, 24, 2);              // fuselage
+                ctx.fillRect(f.x - 4, screenY - 2, 10, 4);                // wing chord
+                ctx.fillRect(f.x + (f.dir > 0 ? 10 : -12), screenY - 3, 2, 5);  // tail fin
+                // Window line · 3 tiny dots
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(f.x - 8, screenY, 1, 0.6);
+                ctx.fillRect(f.x - 4, screenY, 1, 0.6);
+                ctx.fillRect(f.x,     screenY, 1, 0.6);
+            } else if (f.kind === 'military') {
+                // Small fast military jet · angular delta-wing
+                ctx.fillStyle = '#1f1208';
+                ctx.beginPath();
+                ctx.moveTo(f.x + f.dir * 8, screenY);
+                ctx.lineTo(f.x - f.dir * 4, screenY - 2.5);
+                ctx.lineTo(f.x - f.dir * 8, screenY);
+                ctx.lineTo(f.x - f.dir * 4, screenY + 2.5);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Prop plane · twin-engine silhouette + visible propeller blur
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(f.x - 8, screenY - 1, 16, 2);    // fuselage
+                ctx.fillRect(f.x - 6, screenY - 3, 12, 1);    // wing
+                ctx.fillStyle = 'rgba(58, 36, 24, 0.35)';
+                ctx.beginPath();                                // prop disc
+                ctx.arc(f.x + f.dir * 9, screenY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
     const fireworks = [];
     function spawnFirework() {
         const wx = 600 + (Math.random() - 0.5) * 200;   // near Vidhana Soudha
@@ -7936,6 +8080,7 @@
         // particles update (gravity, drag, fade)
         updateParticles(dt);
         updateFireworks(dt);
+        updateFlights(dt);
 
         // screen-shake decay
         if (state.shake.t > 0) {
@@ -8054,6 +8199,8 @@
         drawKites(W, horizonY, cameraX);
         // 0.25 — fireworks over Vidhana Soudha (only ITICS+CMR)
         drawFireworks(W, horizonY, cameraX);
+        // 0.05 — flights crossing the upper sky band (always)
+        drawFlights(W, horizonY);
         // 0.35 — raintree fillers between skyline and infrastructure
         drawRaintrees(W, horizonY, groundY, cameraX);
         // 0.40 — bridges (road infrastructure)
