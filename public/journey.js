@@ -175,6 +175,65 @@
         distHills.push({ x, y });
     }
 
+    // ── BANGALORE BACKGROUND LAYERS ──
+    // Far back-ridge (0.10× parallax) sits even BEHIND distHills · Deccan plateau read
+    // One prominent Nandi-like asymmetric peak near world-x 4200 (vwgt era)
+    const backRidge = [];
+    for (let i = 0; i < 800; i++) {
+        const x = i * 80;
+        let y = 30 + Math.sin(i * 0.09) * 14 + Math.cos(i * 0.21 + 0.7) * 10;
+        // Nandi peak overlay around world-x 4200 (i ≈ 52-54)
+        const peakDist = Math.abs(i - 52);
+        if (peakDist < 5) y += (5 - peakDist) * 7;   // steep east face
+        else if (peakDist < 10 && i > 52) y += (10 - peakDist) * 3.5;  // gentler west face
+        backRidge.push({ x, y });
+    }
+
+    // Palm crowns · sparse, ride mid-band, fill the residential canopy line
+    const palms = [];
+    for (let i = 0; i < 70; i++) {
+        palms.push({
+            x: i * 95 + (Math.random() - 0.5) * 40,
+            lean: (Math.random() - 0.5) * 4,
+            scale: 0.85 + Math.random() * 0.4,
+            fronds: 7 + (Math.random() * 3 | 0),
+        });
+    }
+
+    // Raintree fillers · wide flat canopies between bloom trees and skyline (0.35× band)
+    const raintrees = [];
+    for (let i = 0; i < 40; i++) {
+        raintrees.push({
+            x: i * 165 + (Math.random() - 0.5) * 60,
+            scale: 0.9 + Math.random() * 0.35,
+        });
+    }
+
+    // Skyline landmarks · individually era-gated · world-x positions per agent plan
+    const SKYLINE = [
+        { kind: 'vidhana_soudha', x:  600, minChapterIdx: 0 },  // always
+        { kind: 'planetarium',    x: 1100, minChapterIdx: 0 },
+        { kind: 'ub_wtc',         x: 2400, minChapterIdx: 2 },  // UB City 2008, WTC 2010 → DSCE era
+        { kind: 'iskcon',         x: 3050, minChapterIdx: 0 },
+        { kind: 'manyata',        x: 4000, minChapterIdx: 4 },  // tech park · Sakha era
+        { kind: 'glass_cluster',  x: 5500, minChapterIdx: 5 },  // dense fill · Scripbox era
+        { kind: 'glass_cluster',  x: 5900, minChapterIdx: 5 },
+    ];
+
+    // Kites · only chapter 0-1 (school nostalgia, Sankranti coding)
+    const kites = [
+        { x:  300, baseY: 130, color: '#c89a5a' },
+        { x:  750, baseY: 105, color: '#d4b48a' },
+        { x: 1050, baseY: 145, color: '#c89a5a' },
+        { x: 1450, baseY: 115, color: '#a47a52' },
+    ];
+
+    // Power-line spans · sagging catenaries every ~500 world-px
+    const powerSpans = [];
+    for (let i = 0; i < 14; i++) {
+        powerSpans.push({ x0: i * 500, x1: i * 500 + 320, y: 80 + (i % 3) * 6 });
+    }
+
     // Bangalore flowering canopy · per-chapter bloom color
     //   gulmohar (delonix regia)   = saturated brick-red, peaks Apr–Jun
     //   tabebuia rosea             = soft pink, peaks Feb–Mar
@@ -200,6 +259,15 @@
             if (d < bestD) { bestD = d; best = ch; }
         }
         return CHAPTER_BLOOMS[best.id] || '#d8442a';
+    }
+    function chapterIdxAt(wx) {
+        // index of the chapter the world-x has passed (0..7)
+        let idx = 0;
+        for (let i = 0; i < CHAPTERS.length; i++) {
+            if (wx >= CHAPTERS[i].x - 200) idx = i;
+            else break;
+        }
+        return idx;
     }
 
     // pre-generate mid-ground trees + telegraph poles at random x positions
@@ -1180,6 +1248,322 @@
         ctx.lineTo(W, horizonY);
         ctx.closePath();
         ctx.fill();
+    }
+
+    /** Far back-ridge · 0.10× parallax · sits behind distHills.
+     *  Includes Nandi-like asymmetric peak around world-x 4200. */
+    function drawBackRidge(W, horizonY, cameraX) {
+        const offset = -(cameraX * 0.10);
+        ctx.fillStyle = '#8a6a48';   // SEPIA_HAZE
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let i = 0; i < backRidge.length; i++) {
+            const p = backRidge[i];
+            const px = p.x + offset;
+            if (px > -100 && px < W + 100) {
+                ctx.lineTo(px, horizonY - p.y * 0.7);
+            }
+        }
+        ctx.lineTo(W, horizonY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    /** Bangalore skyline silhouettes · 0.30× parallax · era-gated landmarks.
+     *  Drawn between distHills and mid-band. */
+    function drawSkyline(W, horizonY, cameraX) {
+        const parallax = 0.30;
+        const playerChapter = chapterIdxAt(state.playerX);
+        ctx.save();
+        for (const lm of SKYLINE) {
+            if (playerChapter < lm.minChapterIdx) continue;
+            const sx = (lm.x - cameraX) * parallax + W * 0.32 * (1 - parallax);
+            // ↑ keep the camera 0.32 anchor point stable across bands
+            if (sx < -200 || sx > W + 200) continue;
+            const baseY = horizonY - 2;
+            if (lm.kind === 'vidhana_soudha') {
+                // Stepped granite base
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 50, baseY - 18, 100, 18);
+                // 4 corner domes
+                ctx.beginPath();
+                ctx.arc(sx - 42, baseY - 18, 4, Math.PI, 0); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sx + 42, baseY - 18, 4, Math.PI, 0); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sx - 22, baseY - 20, 3, Math.PI, 0); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sx + 22, baseY - 20, 3, Math.PI, 0); ctx.fill();
+                // Central dome on drum
+                ctx.fillRect(sx - 10, baseY - 22, 20, 4);
+                ctx.beginPath();
+                ctx.arc(sx, baseY - 22, 14, Math.PI, 0); ctx.fill();
+                // Sarnath lion finial · 1-px nub
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(sx - 1, baseY - 38, 2, 2);
+                // Column hints
+                ctx.fillStyle = '#3a2418';
+                for (let i = -4; i <= 4; i++) ctx.fillRect(sx + i * 9, baseY - 14, 1, 12);
+            } else if (lm.kind === 'planetarium') {
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 20, baseY - 8, 40, 8);
+                ctx.beginPath();
+                ctx.arc(sx, baseY - 8, 20, Math.PI, 0); ctx.fill();
+            } else if (lm.kind === 'ub_wtc') {
+                // UB Tower · stepped crown
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 14, baseY - 60, 14, 60);
+                ctx.fillRect(sx - 16, baseY - 62, 18, 2);
+                // window grid · warm dusk glow
+                ctx.fillStyle = '#c89a5a';
+                for (let r = 0; r < 12; r++) for (let c = 0; c < 4; c++) {
+                    if (((r * 4 + c) * 1103515245 + 12345) & 4) {  // pseudo-random lit pattern
+                        ctx.fillRect(sx - 12 + c * 3, baseY - 56 + r * 4, 2, 2);
+                    }
+                }
+                // WTC slim tower next to it
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx + 18, baseY - 70, 10, 70);
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(sx + 22, baseY - 68, 2, 66);  // central mullion
+            } else if (lm.kind === 'iskcon') {
+                // Stepped pyramid temple · gold finial
+                ctx.fillStyle = '#5a3a22';
+                for (let i = 0; i < 4; i++) {
+                    ctx.fillRect(sx - 15 + i * 3, baseY - (4 + i * 4), 30 - i * 6, 4);
+                }
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(sx - 1, baseY - 22, 2, 4);
+            } else if (lm.kind === 'manyata') {
+                // Tech park cluster · 8 boxes of varied heights
+                ctx.fillStyle = '#5a3a22';
+                const heights = [28, 38, 32, 42, 30, 48, 35, 60];
+                let cx = sx - 90;
+                for (let i = 0; i < heights.length; i++) {
+                    const w = 20 + (i & 1) * 2;
+                    ctx.fillRect(cx, baseY - heights[i], w, heights[i]);
+                    cx += w + 2;
+                }
+                // Sprinkle lit windows
+                ctx.fillStyle = '#c89a5a';
+                for (let i = 0; i < 8; i++) {
+                    const px = sx - 88 + i * 23;
+                    ctx.fillRect(px, baseY - 10, 2, 2);
+                    ctx.fillRect(px + 4, baseY - 18, 2, 2);
+                }
+            } else if (lm.kind === 'glass_cluster') {
+                ctx.fillStyle = '#5a3a22';
+                const heights = [42, 36, 50, 38];
+                let cx = sx - 40;
+                for (let i = 0; i < heights.length; i++) {
+                    ctx.fillRect(cx, baseY - heights[i], 18, heights[i]);
+                    cx += 22;
+                }
+                ctx.fillStyle = '#c89a5a';
+                for (let i = 0; i < 4; i++) ctx.fillRect(sx - 38 + i * 22, baseY - 20, 2, 2);
+            }
+        }
+        ctx.restore();
+    }
+
+    /** Raintree filler canopies · 0.35× parallax · between skyline and bloom trees.
+     *  Wide flat-topped mushroom shape — the dominant Bangalore street tree. */
+    function drawRaintrees(W, horizonY, groundY, cameraX) {
+        const offset = -(cameraX * 0.35);
+        const y = horizonY + 18;
+        for (let i = 0; i < raintrees.length; i++) {
+            const rt = raintrees[i];
+            const px = rt.x + offset;
+            if (px < -80 || px > W + 80) continue;
+            // Flattened crown ellipse
+            ctx.fillStyle = '#3a2418';
+            ctx.beginPath();
+            ctx.ellipse(px, y, 25 * rt.scale, 8 * rt.scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Highlight rim · upper edge
+            ctx.fillStyle = '#5a3a22';
+            ctx.beginPath();
+            ctx.ellipse(px, y - 2, 24 * rt.scale, 4 * rt.scale, 0, Math.PI, 0);
+            ctx.fill();
+        }
+    }
+
+    /** Bangalore Metro viaduct · 0.45× parallax · elevated rail line.
+     *  Era-gated: appears from CMR era (chapter idx ≥ 1) onward, since Phase 1
+     *  opened Oct 2011. Continuous beam with regular piers, station every chapter. */
+    function drawMetroViaduct(W, horizonY, cameraX) {
+        if (chapterIdxAt(state.playerX) < 1) return;
+        const parallax = 0.45;
+        const offset = -(cameraX * parallax);
+        // Beam only renders past world-x 1500 (CMR onward)
+        const beamStart = 1500, beamEnd = 6400;
+        const yTop = horizonY - 32, yBot = horizonY - 26;
+        // Beam (box girder) · screen-space slice for visible portion only
+        ctx.fillStyle = '#5a3a22';
+        const sxStart = Math.max(0, beamStart + offset);
+        const sxEnd   = Math.min(W, beamEnd + offset);
+        if (sxEnd > sxStart) {
+            ctx.fillRect(sxStart, yTop, sxEnd - sxStart, 6);
+            // underside shadow line
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(sxStart, yBot - 1, sxEnd - sxStart, 1);
+            // parapet top band
+            ctx.fillStyle = '#8a6a48';
+            ctx.fillRect(sxStart, yTop, sxEnd - sxStart, 1);
+        }
+        // Piers · every 60 world-px
+        ctx.fillStyle = '#5a3a22';
+        const firstPier = Math.ceil(beamStart / 60) * 60;
+        for (let wx = firstPier; wx <= beamEnd; wx += 60) {
+            const px = wx + offset;
+            if (px < -10 || px > W + 10) continue;
+            ctx.fillRect(px - 3, yBot, 6, 32);
+            // shadow strip on right edge
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(px + 2, yBot, 1, 32);
+            ctx.fillStyle = '#5a3a22';
+        }
+        // Metro station near Sakha chapter (world-x 3500)
+        const stationWX = 3500;
+        const stnSx = stationWX + offset;
+        if (stnSx > -120 && stnSx < W + 120) {
+            // Arched canopy roof
+            ctx.fillStyle = '#5a3a22';
+            ctx.beginPath();
+            ctx.ellipse(stnSx, yTop - 6, 60, 10, 0, Math.PI, 0);
+            ctx.fill();
+            // Support columns
+            ctx.fillRect(stnSx - 55, yTop - 4, 3, 22);
+            ctx.fillRect(stnSx + 52, yTop - 4, 3, 22);
+            // Platform deck band
+            ctx.fillStyle = '#8a6a48';
+            ctx.fillRect(stnSx - 58, yTop + 6, 120, 3);
+        }
+    }
+
+    /** Metro train · slides at screen-space velocity, loops every 25s.
+     *  Drawn AFTER viaduct so the train sits on the beam. */
+    function drawMetroTrain(W, horizonY, cameraX) {
+        if (chapterIdxAt(state.playerX) < 1) return;
+        const parallax = 0.45;
+        const yTop = horizonY - 32;
+        const trainY = yTop - 18;   // sits on top of viaduct
+        // Two trains alternating direction · phase by elapsed time
+        const cycle = 32000;
+        for (let trainIdx = 0; trainIdx < 2; trainIdx++) {
+            const phase = (state.elapsedMs + trainIdx * 16000) % cycle;
+            const t = phase / cycle;        // 0..1
+            const dir = trainIdx === 0 ? 1 : -1;
+            // World-x of train head · sweeps across the visible beam region
+            const startWX = dir > 0 ? 1300 : 6500;
+            const endWX   = dir > 0 ? 6500 : 1300;
+            const headWX = startWX + (endWX - startWX) * t;
+            const trainLen = 6 * 28 + 5 * 2;  // 6 coaches × 28 + gaps
+            const offset = -(cameraX * parallax);
+            const headSx = headWX + offset;
+            if (headSx < -trainLen - 50 || headSx > W + 50) continue;
+            // Draw 6 coaches behind the head
+            for (let c = 0; c < 6; c++) {
+                const cx = headSx - dir * c * 30;
+                // body · cream
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(cx - 14, trainY, 28, 16);
+                // purple stripe (Purple Line · sepia-desaturated)
+                ctx.fillStyle = '#6e4a5c';
+                ctx.fillRect(cx - 14, trainY + 7, 28, 3);
+                // windows
+                ctx.fillStyle = '#3a2418';
+                for (let w = 0; w < 4; w++) ctx.fillRect(cx - 12 + w * 7, trainY + 2, 4, 4);
+            }
+            // headlight on lead coach
+            ctx.fillStyle = '#c89a5a';
+            ctx.fillRect(headSx + dir * 13, trainY + 12, 2, 2);
+        }
+    }
+
+    /** Palm crowns · 0.50× parallax · fan-shaped Bangalore residential canopy.
+     *  Drawn between metro viaduct and bloom trees. */
+    function drawPalms(W, horizonY, groundY, cameraX) {
+        const offset = -(cameraX * 0.50);
+        for (let i = 0; i < palms.length; i++) {
+            const p = palms[i];
+            const px = p.x + offset;
+            if (px < -30 || px > W + 30) continue;
+            const trunkH = 32 * p.scale;
+            const topY = groundY - trunkH;
+            // Trunk · slight lean
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(px - 1 + p.lean, topY, 2, trunkH);
+            // Fronds · radial 1-px lines from trunk top
+            ctx.strokeStyle = '#5a4a2a';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let f = 0; f < p.fronds; f++) {
+                const angle = Math.PI + (f / (p.fronds - 1)) * Math.PI;  // upper half
+                const len = 11 * p.scale;
+                ctx.moveTo(px + p.lean, topY);
+                ctx.lineTo(px + p.lean + Math.cos(angle) * len, topY + Math.sin(angle) * len);
+            }
+            ctx.stroke();
+            // Coconut cluster · 2-3 dots near top
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(px + p.lean - 2, topY + 1, 2, 2);
+            ctx.fillRect(px + p.lean + 1, topY + 2, 2, 2);
+        }
+    }
+
+    /** Power-line catenaries · 0.40× parallax · sagging cables across the sky.
+     *  Simple but adds urban depth. */
+    function drawPowerLines(W, horizonY, cameraX) {
+        const offset = -(cameraX * 0.40);
+        ctx.strokeStyle = '#3a2418';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (const sp of powerSpans) {
+            const x0 = sp.x0 + offset;
+            const x1 = sp.x1 + offset;
+            if (x1 < -20 || x0 > W + 20) continue;
+            const y = horizonY - sp.y;
+            const midX = (x0 + x1) / 2;
+            const sagY = y + 6;
+            // 2 parallel lines
+            ctx.moveTo(x0, y);     ctx.quadraticCurveTo(midX, sagY, x1, y);
+            ctx.moveTo(x0, y - 4); ctx.quadraticCurveTo(midX, sagY - 4, x1, y - 4);
+        }
+        ctx.stroke();
+    }
+
+    /** Sankranti kites · chapter 0-1 only · bobbing 3-px diamonds.
+     *  Pure school-era nostalgia signal. */
+    function drawKites(W, horizonY, cameraX) {
+        if (chapterIdxAt(state.playerX) > 1) return;
+        const offset = -(cameraX * 0.35);
+        const t = state.elapsedMs / 1000;
+        for (let i = 0; i < kites.length; i++) {
+            const k = kites[i];
+            const px = k.x + offset;
+            if (px < -20 || px > W + 20) continue;
+            const bob = Math.sin(t * 0.8 + i) * 3;
+            const sway = Math.cos(t * 0.5 + i * 1.3) * 2;
+            const ky = horizonY - k.baseY + bob;
+            const kx = px + sway;
+            // Diamond
+            ctx.fillStyle = k.color;
+            ctx.beginPath();
+            ctx.moveTo(kx, ky - 4);
+            ctx.lineTo(kx + 3, ky);
+            ctx.lineTo(kx, ky + 4);
+            ctx.lineTo(kx - 3, ky);
+            ctx.closePath();
+            ctx.fill();
+            // Tail string · diagonal 30px
+            ctx.strokeStyle = 'rgba(58, 36, 24, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(kx, ky + 4);
+            ctx.lineTo(kx - 16, ky + 30);
+            ctx.stroke();
+        }
     }
 
     /** Holiday/trip vignettes scattered between chapters · 0.45 parallax.
@@ -5446,9 +5830,18 @@
             ctx.translate((Math.random() - 0.5) * k * 2, (Math.random() - 0.5) * k * 2);
         }
         drawSky(W, H, horizonY, progress);
+        // ── Bangalore background bands · far→near ──
+        drawBackRidge(W, horizonY, cameraX);
         drawDistHills(W, horizonY, cameraX);
+        drawSkyline(W, horizonY, cameraX);
+        drawPowerLines(W, horizonY, cameraX);
+        drawKites(W, horizonY, cameraX);
+        drawMetroViaduct(W, horizonY, cameraX);
+        drawMetroTrain(W, horizonY, cameraX);
+        drawRaintrees(W, horizonY, groundY, cameraX);
         drawGround(W, H, horizonY, groundY, cameraX);
         drawHolidayProps(W, horizonY, groundY, cameraX);
+        drawPalms(W, horizonY, groundY, cameraX);
         drawMidProps(W, horizonY, groundY, cameraX);
         drawAutoRickshaw(W, groundY);
         drawChapters(W, horizonY, groundY, cameraX);
