@@ -492,6 +492,8 @@
     // One persistent voice per chapter, gain follows player proximity.
     // Lazy-booted on first user gesture (autoplay-safe).
     let chapterAudio = null;
+    let _initialPlayerX = null;
+    let _audioBooted = false;
     function chapterAudioBoot() {
         if (chapterAudio) return;
         const ac = initAudio(); if (!ac) return;
@@ -540,7 +542,7 @@
         };
         const every = (ms, fn) => setInterval(fn, ms);
         // ITICS · Bhupali pentatonic music-box, school nostalgia (C major pentatonic)
-        mk('itics', 0.14, (lane) => {
+        mk('itics', 0.08, (lane) => {
             const d1 = osc('sine', 65.41), d2 = osc('sine', 98.00), dg = g(0.06);
             d1.connect(dg); d2.connect(dg); dg.connect(lane.gain);
             const bhupali = [523.25, 587.33, 659.25, 783.99, 880.00];
@@ -560,7 +562,7 @@
             every(14000, () => ping(lane, 'sine', 261.63, 3.0, 0.08));
         });
         // CMR · anxious pre-university pressure (A minor with chromatic neighbor)
-        mk('cmr', 0.14, (lane) => {
+        mk('cmr', 0.08, (lane) => {
             const d = osc('sawtooth', 55), df = lp(180), dg = g(0.04);
             d.connect(df).connect(dg).connect(lane.gain);
             const aminor = [440, 523.25, 493.88, 440, 415.30];   // A C B A G#
@@ -570,7 +572,7 @@
             every(4000, () => noisePulse(lane, 0.18, 0.06, 3200, 4));   // pencil scratch
         });
         // DSCE · engineering · youthful expansive D major
-        mk('college', 0.14, (lane) => {
+        mk('college', 0.08, (lane) => {
             const a = osc('triangle', 146.83), b = osc('triangle', 220), c = osc('triangle', 277.18);
             const pad = g(0.05);
             a.connect(pad); b.connect(pad); c.connect(pad); pad.connect(lane.gain);
@@ -584,7 +586,7 @@
             n.connect(f).connect(atten).connect(lane.gain);
         });
         // FEVER 104 · F major pentatonic radio jingle vibe
-        mk('fever104', 0.14, (lane) => {
+        mk('fever104', 0.08, (lane) => {
             const wobble = osc('sine', 0.5), wf = lp(800), wg = g(220);
             wobble.connect(wg).connect(wf.frequency);
             const n = noise(), atten = g(0.05);
@@ -600,7 +602,7 @@
             });
         });
         // SAKHA · lo-fi melancholy first-job (E minor)
-        mk('sakha', 0.14, (lane) => {
+        mk('sakha', 0.08, (lane) => {
             const a = osc('sine', 82.41), b = osc('sine', 123.47);
             const pad = g(0.06);
             a.connect(pad); b.connect(pad); pad.connect(lane.gain);
@@ -611,7 +613,7 @@
             n.connect(f).connect(atten).connect(lane.gain);
         });
         // SCRIPBOX · purposeful modern building (A minor → C major arpeggio)
-        mk('scripbox', 0.14, (lane) => {
+        mk('scripbox', 0.08, (lane) => {
             const subOsc = osc('sine', 55), sg = g(0.05);
             subOsc.connect(sg).connect(lane.gain);
             // 16th-note arpeggio · A C E G E C E G
@@ -628,7 +630,7 @@
             });
         });
         // VWGT · triumphant G major fanfare + engine idle
-        mk('vwgt', 0.14, (lane) => {
+        mk('vwgt', 0.08, (lane) => {
             const o = osc('sawtooth', 80), f = lp(220), atten = g(0.08);
             o.connect(f).connect(atten).connect(lane.gain);
             const fanfare = [392, 493.88, 587.33, 783.99, 493.88];
@@ -637,7 +639,7 @@
             every(400, () => noisePulse(lane, 0.02, 0.04, 6000, 4));   // light hi-hat
         });
         // NOW · contemplative A minor add9 pad
-        mk('now', 0.14, (lane) => {
+        mk('now', 0.08, (lane) => {
             const a1 = osc('sine', 220), b1 = osc('sine', 277.18), c1 = osc('sine', 329.63);
             const pad = g(0.10);
             a1.connect(pad); b1.connect(pad); c1.connect(pad);
@@ -652,6 +654,14 @@
     }
     function chapterAudioTick() {
         if (!chapterAudio) return;
+        // MASTER gain ramps from 0 → 1 ONLY after player has moved > 40px from
+        // start. Silent until then so a casual visitor hears nothing on page load.
+        if (_initialPlayerX === null) _initialPlayerX = state.playerX;
+        const traveled = Math.abs(state.playerX - _initialPlayerX);
+        const targetMaster = traveled > 40 ? 1 : 0;
+        chapterAudio.master.gain.setTargetAtTime(
+            targetMaster, chapterAudio.ac.currentTime, 0.4
+        );
         for (const lane of chapterAudio.lanes) {
             const d = Math.abs(state.playerX - lane.x);
             const prox = d >= 400 ? 0 : 1 - d / 400;
@@ -659,11 +669,17 @@
             lane.gain.gain.setTargetAtTime(target, chapterAudio.ac.currentTime, 0.12);
         }
     }
-    // Boot ambient audio on first user gesture · resume on EVERY gesture
-    // (iOS can re-suspend the AudioContext after backgrounding the tab)
+    // Audio auto-boots only after the player has actually MOVED into the
+    // world (not on page load, not on idle tap). This means a viewer who
+    // glances at the page in a shared environment hears nothing. Once
+    // they start walking, the chapter music ramps in naturally.
     function audioGesture() {
-        chapterAudioBoot();
-        // Force resume on EVERY gesture, not just first
+        if (_initialPlayerX === null) _initialPlayerX = state.playerX;
+        const traveled = Math.abs(state.playerX - _initialPlayerX);
+        if (!_audioBooted && traveled > 40) {
+            _audioBooted = true;
+            chapterAudioBoot();
+        }
         if (chapterAudio && chapterAudio.ac && chapterAudio.ac.state !== 'running') {
             chapterAudio.ac.resume().catch(() => {});
         }
@@ -736,8 +752,12 @@
             }
         }
     }
-    window.addEventListener('touchstart', chapterMusicBoot, { passive: true, once: false });
-    window.addEventListener('pointerdown', chapterMusicBoot, { passive: true, once: false });
+    // MP3 chapter music ALSO opt-in only · same ?music=1 flag
+    const _musicFlag = new URLSearchParams(location.search).get('music') === '1';
+    if (_musicFlag) {
+        window.addEventListener('touchstart', chapterMusicBoot, { passive: true, once: false });
+        window.addEventListener('pointerdown', chapterMusicBoot, { passive: true, once: false });
+    }
 
     // ── PARTICLES · color-matched bursts on chapter collection ───────
     function burstParticles(x, y, color, n) {
@@ -1346,9 +1366,11 @@
     }
 
     // Music toggle · bottom-right brass button · persisted in localStorage
+    // DEFAULTS TO MUTED on first visit · user opt-in to enable music
     const $musicBtn = document.getElementById('music-btn');
     if ($musicBtn) {
-        let muted = localStorage.getItem('journey_muted') === '1';
+        const stored = localStorage.getItem('journey_muted');
+        let muted = stored === null ? true : (stored === '1');  // default muted
         const updateBtn = () => {
             $musicBtn.textContent = muted ? '🔇' : '🔊';
             $musicBtn.classList.toggle('muted', muted);
