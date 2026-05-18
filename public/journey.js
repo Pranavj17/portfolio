@@ -580,10 +580,29 @@
         return last;
     }
     function drawSky(W, H, horizonY, progress) {
-        // Per-chapter atmospheric tint. School years (ITICS/CMR/DSCE) get
-        // brighter daylight palettes; working years (Sakha+) warm to dusk.
-        // lerpHex outputs rgb() strings — we use skyAtChapter directly to
-        // avoid feeding rgb back into lerpHex (which only parses hex).
+        // === UNIFIED PLAYER-DRIVEN DAY/NIGHT CYCLE ===
+        // The sun (and moon) move as the character moves. Every 1500px walked
+        // = ONE full day/night cycle. World is ~6200px → ~4 cycles across
+        // the journey. The chapter mood tint is BASE; day/night OVERLAYS
+        // on top. Walking faster makes time pass faster — your literal pace
+        // becomes your perceived passage of time.
+        //
+        //   cyc 0.00 dawn (warm horizon glow, sun about to rise on RIGHT)
+        //   cyc 0.05-0.45 day (sun arcing right→left across sky)
+        //   cyc 0.45-0.55 dusk (sun setting, warm horizon)
+        //   cyc 0.55-0.95 night (moon arcing, stars twinkling)
+        //   cyc 0.95-1.00 pre-dawn (night fading, warm glow rising)
+        //
+        // Sun and moon arc from RIGHT horizon (rising) → top center (noon
+        // /midnight) → LEFT horizon (setting). The horizontal motion is
+        // proportional to subCyc, so as player walks rightward, sun appears
+        // to fall behind westward — physically accurate.
+        const CYCLE_LEN = 1500;
+        const cyc = ((state.playerX % CYCLE_LEN) + CYCLE_LEN) % CYCLE_LEN / CYCLE_LEN;
+        const isNight = cyc >= 0.5;
+        const subCyc  = isNight ? (cyc - 0.5) * 2 : cyc * 2;  // 0..1 within current half
+
+        // --- 1. Base chapter-tint sky (mood per life-phase) ---
         const cBlend = skyAtChapter(state.playerX);
         const grad = ctx.createLinearGradient(0, 0, 0, horizonY);
         grad.addColorStop(0,    cBlend.top);
@@ -592,92 +611,93 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, horizonY);
 
-        // === CMR DAY/NIGHT BACKGROUND CYCLE ===
-        // When player is within ±500px of CMR (x=1200), overlay a 10-second
-        // day/night sky cycle on top of the chapter-tint base. The PU grind
-        // happened across day/night/day/night — the sky reflects it.
-        const cmrDist = Math.abs(state.playerX - 1200);
-        if (cmrDist < 500) {
-            const proximity = 1 - cmrDist / 500;                // 0 at edge, 1 at CMR center
-            const cyc = (state.elapsedMs % 10000) / 10000;
-            // sky tint per cycle phase:
-            //   0.00 dawn (warm pink), 0.10 day (light blue), 0.40 dusk (orange),
-            //   0.55 twilight (deep blue), 0.75 midnight (very dark), 0.90 pre-dawn
-            let nightStrength;            // 0 = full day, 1 = full night
-            if (cyc < 0.05)      nightStrength = 1 - cyc * 20;       // dawn rising
-            else if (cyc < 0.45) nightStrength = 0;                  // full day
-            else if (cyc < 0.55) nightStrength = (cyc - 0.45) * 10;  // dusk falling
-            else if (cyc < 0.95) nightStrength = 1;                  // full night
-            else                  nightStrength = 1 - (cyc - 0.95) * 20; // pre-dawn
+        // --- 2. Night-strength curve: 0 in day, 1 in night, smooth at edges ---
+        let nightStrength;
+        if      (cyc < 0.05) nightStrength = 1 - cyc * 20;          // pre-dawn fade-out
+        else if (cyc < 0.45) nightStrength = 0;                     // full day
+        else if (cyc < 0.55) nightStrength = (cyc - 0.45) * 10;     // dusk fade-in
+        else if (cyc < 0.95) nightStrength = 1;                     // full night
+        else                  nightStrength = 1 - (cyc - 0.95) * 20; // dawn fade-out
 
-            // Dawn/dusk warm tint (when transitioning)
-            const isDawn = cyc < 0.05 || cyc > 0.95;
-            const isDusk = cyc > 0.45 && cyc < 0.55;
-            const warm = (isDawn || isDusk) ? 1 : 0;
+        // --- 3. Night sky overlay · deep blue, gets denser at zenith ---
+        if (nightStrength > 0) {
+            const nightG = ctx.createLinearGradient(0, 0, 0, horizonY);
+            nightG.addColorStop(0,    `rgba(8, 14, 36, ${0.82 * nightStrength})`);
+            nightG.addColorStop(0.55, `rgba(20, 28, 56, ${0.68 * nightStrength})`);
+            nightG.addColorStop(1,    `rgba(48, 40, 60, ${0.48 * nightStrength})`);
+            ctx.fillStyle = nightG;
+            ctx.fillRect(0, 0, W, horizonY);
+        }
 
-            // Night sky overlay · deep blue with star-friendly darkness
-            if (nightStrength > 0) {
-                const nightG = ctx.createLinearGradient(0, 0, 0, horizonY);
-                nightG.addColorStop(0,    `rgba(8, 14, 36, ${0.78 * nightStrength * proximity})`);
-                nightG.addColorStop(0.55, `rgba(20, 28, 56, ${0.65 * nightStrength * proximity})`);
-                nightG.addColorStop(1,    `rgba(48, 40, 60, ${0.45 * nightStrength * proximity})`);
-                ctx.fillStyle = nightG;
-                ctx.fillRect(0, 0, W, horizonY);
-            }
-            // Dawn/dusk warm tint band near horizon
-            if (warm > 0) {
-                const warmG = ctx.createLinearGradient(0, horizonY - 80, 0, horizonY);
-                warmG.addColorStop(0, `rgba(255, 120, 60, 0)`);
-                warmG.addColorStop(0.5, `rgba(255, 130, 70, ${0.35 * proximity})`);
-                warmG.addColorStop(1, `rgba(255, 90, 50, ${0.25 * proximity})`);
-                ctx.fillStyle = warmG;
-                ctx.fillRect(0, horizonY - 80, W, 80);
-            }
-            // Stars across full night sky (not just near CMR landmark)
-            if (nightStrength > 0.5) {
-                const starAlpha = (nightStrength - 0.5) * 2 * proximity;
-                ctx.fillStyle = `rgba(233, 216, 176, ${0.7 * starAlpha})`;
-                const starSeed = [13, 47, 81, 109, 131, 167, 191, 223, 257, 281, 311, 337, 367, 401, 419];
-                for (let i = 0; i < 15; i++) {
-                    const sx = (starSeed[i] * 13) % W;
-                    const sy = (starSeed[i] * 7) % (horizonY - 20);
-                    const twinkle = 0.5 + 0.5 * Math.sin(state.elapsedMs * 0.003 + i * 1.3);
-                    ctx.globalAlpha = 0.7 * starAlpha * twinkle;
-                    ctx.beginPath(); ctx.arc(sx, sy, 0.9, 0, Math.PI * 2); ctx.fill();
-                }
-                ctx.globalAlpha = 1;
+        // --- 4. Dawn/dusk warm horizon band (sun/moon at horizon) ---
+        const horizonGlow = Math.max(0, 1 - Math.abs(subCyc - 0.5) * 2.5);
+        if (horizonGlow > 0) {
+            const warmG = ctx.createLinearGradient(0, horizonY - 100, 0, horizonY);
+            const a1 = 0.45 * horizonGlow;
+            const a2 = 0.30 * horizonGlow;
+            warmG.addColorStop(0,   `rgba(255, 130, 60, 0)`);
+            warmG.addColorStop(0.5, `rgba(255, 140, 70, ${a1})`);
+            warmG.addColorStop(1,   `rgba(255, 100, 50, ${a2})`);
+            ctx.fillStyle = warmG;
+            ctx.fillRect(0, horizonY - 100, W, 100);
+        }
+
+        // --- 5. Stars (visible at night, twinkling) ---
+        if (nightStrength > 0.5) {
+            const starAlpha = (nightStrength - 0.5) * 2;
+            const starSeed = [13, 47, 81, 109, 131, 167, 191, 223, 257, 281, 311, 337, 367, 401, 419, 433, 463, 491, 521, 557];
+            for (let i = 0; i < 20; i++) {
+                const sx = (starSeed[i] * 13 + Math.floor(state.playerX * 0.05)) % W;
+                const sy = (starSeed[i] * 7) % (horizonY - 20);
+                const twinkle = 0.5 + 0.5 * Math.sin(state.elapsedMs * 0.003 + i * 1.3);
+                ctx.fillStyle = `rgba(233, 216, 176, ${0.8 * starAlpha * twinkle})`;
+                ctx.beginPath(); ctx.arc(sx, sy, 0.9 + twinkle * 0.4, 0, Math.PI * 2); ctx.fill();
             }
         }
 
-        // SUN · drawn with composite='lighter' (additive) so the radial
-        // gradient's BOUNDING RECTANGLE produces no visible edge · only
-        // the bright glow blends on top of the sky. Previously source-over
-        // composite was painting subtle vertical seams at the rect edges.
-        const sunSize = 70 + (1 - Math.abs(progress - 0.5) * 2) * 40;
-        const sunX = W * (0.78 - progress * 0.3);
-        const sunY = horizonY - 48 + progress * 28;
-        const sg = ctx.createRadialGradient(sunX, sunY, 3, sunX, sunY, sunSize);
-        let sunCore, sunMid, sunEdge;
-        if (progress < 0.5) {
-            sunCore = 'rgba(220, 190, 130, 1)'; sunMid = 'rgba(150, 100, 60, 0.5)'; sunEdge = 'rgba(0, 0, 0, 0)';
-        } else if (progress < 0.85) {
-            sunCore = 'rgba(220, 140, 80, 1)';  sunMid = 'rgba(150, 70, 40, 0.5)';  sunEdge = 'rgba(0, 0, 0, 0)';
+        // --- 6. Celestial body (sun OR moon) arcs right → top → left ---
+        // arcAngle: 0 at horizon-right, π/2 at zenith, π at horizon-left
+        const arcAngle = subCyc * Math.PI;
+        const celestialX = W * (1 - subCyc);
+        const celestialY = horizonY - Math.sin(arcAngle) * 140;
+
+        if (!isNight) {
+            // SUN · warm radial glow + bright core. Color shifts toward
+            // orange at horizon (dawn/dusk), bright yellow at zenith.
+            const sunWarmth = 1 - Math.sin(arcAngle);   // 1 at horizon, 0 at zenith
+            const coreR = 220 + sunWarmth * 35;
+            const coreG = 200 + sunWarmth * -20;
+            const coreB = 120 - sunWarmth * 40;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const sg = ctx.createRadialGradient(celestialX, celestialY, 3, celestialX, celestialY, 90);
+            sg.addColorStop(0,   `rgba(${coreR}, ${coreG}, ${coreB}, 1)`);
+            sg.addColorStop(0.4, `rgba(${coreR - 60}, ${coreG - 80}, ${coreB - 50}, 0.5)`);
+            sg.addColorStop(1,   `rgba(0, 0, 0, 0)`);
+            ctx.fillStyle = sg;
+            ctx.fillRect(0, 0, W, horizonY);
+            ctx.restore();
+            // Sun core (solid disc)
+            ctx.fillStyle = `rgb(${coreR}, ${Math.max(0, coreG)}, ${Math.max(0, coreB)})`;
+            ctx.beginPath(); ctx.arc(celestialX, celestialY, 16, 0, Math.PI * 2); ctx.fill();
         } else {
-            sunCore = 'rgba(180, 110, 160, 1)'; sunMid = 'rgba(90, 40, 100, 0.5)';  sunEdge = 'rgba(0, 0, 0, 0)';
+            // MOON · cool pale glow + crescent shadow
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const mg = ctx.createRadialGradient(celestialX, celestialY, 3, celestialX, celestialY, 60);
+            mg.addColorStop(0,   'rgba(220, 230, 240, 0.6)');
+            mg.addColorStop(0.4, 'rgba(180, 200, 230, 0.2)');
+            mg.addColorStop(1,   'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = mg;
+            ctx.fillRect(0, 0, W, horizonY);
+            ctx.restore();
+            // Moon disc
+            ctx.fillStyle = 'rgba(232, 236, 244, 0.96)';
+            ctx.beginPath(); ctx.arc(celestialX, celestialY, 12, 0, Math.PI * 2); ctx.fill();
+            // Crescent shadow (offset darker circle)
+            ctx.fillStyle = 'rgba(15, 20, 40, 0.85)';
+            ctx.beginPath(); ctx.arc(celestialX + 3.5, celestialY - 1, 11, 0, Math.PI * 2); ctx.fill();
         }
-        sg.addColorStop(0,   sunCore);
-        sg.addColorStop(0.4, sunMid);
-        sg.addColorStop(1,   sunEdge);
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = sg;
-        // Paint sun gradient over the WHOLE sky rect (not just the sun's
-        // bounding box). Outer color stop is rgba(0,0,0,0), so 'lighter'
-        // composite contributes nothing outside the gradient circle ·
-        // this guarantees no rect-edge seam even on rendering backends
-        // (Safari/macOS) that anti-alias fractional fillRect bounds.
-        ctx.fillRect(0, 0, W, horizonY);
-        ctx.restore();
     }
 
     /** distant hills · slow parallax silhouette */
@@ -1389,69 +1409,10 @@
         const t = state.elapsedMs;
         ctx.globalAlpha = a;
 
-        // === DAY/NIGHT CYCLE near tuitions · the PU GRIND ===
-        // Days blur into nights blur into days. Sun rises → moon → sun rises
-        // again. 10-second full cycle, visible as celestial body arcing
-        // across the sky above CMR. Stars appear at night phase. The local
-        // sky tint also shifts subtly to reinforce day/night.
-        const cycleLen = 10000;
-        const cyc = (t % cycleLen) / cycleLen;   // 0..1
-        // celestial body arcs from left horizon → overhead → right horizon
-        // for sun (0..0.5), then moon traces same arc (0.5..1.0)
-        const isNight = cyc >= 0.5;
-        const subCyc = isNight ? (cyc - 0.5) * 2 : cyc * 2;   // 0..1 within sun OR moon phase
-        const arcX = px + Math.cos(Math.PI - subCyc * Math.PI) * 110;
-        const arcY = gY - 60 - Math.sin(subCyc * Math.PI) * 48;
-        // dawn/dusk warm glow when celestial body is near horizon
-        const nearHorizon = Math.abs(subCyc - 0.5) > 0.35 ? 1 : (0.5 - Math.abs(subCyc - 0.5)) * 2;
-        // STARS at night (cyc > 0.55 to cyc < 0.95)
-        if (cyc > 0.55 && cyc < 0.95) {
-            const starAlpha = Math.min(1, (cyc - 0.55) * 6) * Math.min(1, (0.95 - cyc) * 6);
-            ctx.fillStyle = `rgba(233, 216, 176, ${0.6 * starAlpha})`;
-            const starSeed = [13, 47, 81, 109, 131, 167, 191, 223, 257, 281];
-            for (let i = 0; i < 10; i++) {
-                const sx = px - 80 + (starSeed[i] % 160);
-                const sy = gY - 110 + (starSeed[i] * 7 % 60);
-                const twinkle = 0.5 + 0.5 * Math.sin(t * 0.003 + i * 1.3);
-                ctx.globalAlpha = a * starAlpha * twinkle;
-                ctx.beginPath(); ctx.arc(sx, sy, 0.9, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.globalAlpha = a;
-        }
-        // SUN (day phase) · warm yellow with halo
-        if (!isNight) {
-            const sunGrad = ctx.createRadialGradient(arcX, arcY, 0, arcX, arcY, 22);
-            sunGrad.addColorStop(0, 'rgba(255, 230, 140, 0.9)');
-            sunGrad.addColorStop(0.4, 'rgba(255, 180, 80, 0.5)');
-            sunGrad.addColorStop(1, 'rgba(255, 140, 60, 0)');
-            ctx.fillStyle = sunGrad;
-            ctx.fillRect(arcX - 22, arcY - 22, 44, 44);
-            ctx.fillStyle = '#ffe4a0';
-            ctx.beginPath(); ctx.arc(arcX, arcY, 5.5, 0, Math.PI * 2); ctx.fill();
-        } else {
-            // MOON (night phase) · pale blue-white with crescent shadow
-            ctx.fillStyle = 'rgba(220, 230, 240, 0.92)';
-            ctx.beginPath(); ctx.arc(arcX, arcY, 5, 0, Math.PI * 2); ctx.fill();
-            // crescent shadow
-            ctx.fillStyle = 'rgba(40, 40, 60, 0.85)';
-            ctx.beginPath(); ctx.arc(arcX + 1.5, arcY - 0.5, 4.5, 0, Math.PI * 2); ctx.fill();
-            // moon glow halo
-            const moonGrad = ctx.createRadialGradient(arcX, arcY, 0, arcX, arcY, 14);
-            moonGrad.addColorStop(0, 'rgba(220, 230, 240, 0.25)');
-            moonGrad.addColorStop(1, 'rgba(220, 230, 240, 0)');
-            ctx.fillStyle = moonGrad;
-            ctx.fillRect(arcX - 14, arcY - 14, 28, 28);
-        }
-        // DAWN/DUSK warm horizon glow (when celestial body near horizon)
-        if (nearHorizon > 0.4) {
-            const horG = ctx.createLinearGradient(0, gY - 30, 0, gY);
-            const horAlpha = (nearHorizon - 0.4) * 0.6;
-            horG.addColorStop(0, `rgba(255, 140, 70, 0)`);
-            horG.addColorStop(0.5, `rgba(255, 140, 70, ${horAlpha * 0.4})`);
-            horG.addColorStop(1, `rgba(120, 50, 30, ${horAlpha * 0.2})`);
-            ctx.fillStyle = horG;
-            ctx.fillRect(px - 200, gY - 30, 400, 30);
-        }
+        // (CMR-local day/night cycle removed — replaced by the unified
+        // player-driven cycle in drawSky which covers the entire world.
+        // The PU grind now blends with every other chapter's celestial
+        // arc rather than being an isolated effect.)
 
         // TUITION CENTER billboard
         const bx = px - 230, by = gY - 78;
