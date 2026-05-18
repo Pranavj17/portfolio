@@ -49,6 +49,103 @@
         { id: 'now',      label: 'NOW',              period: '2026 — present',       x: 6200, color: '#e6c285', icon: '🏁', achId: 'journey-end', achTitle: 'END OF THE TRAIL',       achSub: '8 chapters · 13 years' },
     ];
 
+    // ── CHAPTER LORE · shown when a progress-strip dot is clicked ──
+    // 2-3 sentences setting the era. Pulled from JOURNEY_LORE.md.
+    const CHAPTER_LORE = {
+        itics:    "2004–2013. Crazy peaceful school life.",
+        cmr:      "2013–2015. After 10 years of school with the same friends — new entry to the world, dealing with new folks.",
+        college:  "2015–2019. Did multiple things — interned at BOSCH, ABB, and also Fever.",
+        fever104: "2018–2019. Made creative friends, edited videos, recorded calls, even did prank calls on air.",
+        sakha:    "2019–2022. Started as a frontend developer.",
+        scripbox: "2022–now. Became full-stack with infra and AI.",
+        vwgt:     "Nov 16, 2025. Got the VW Virtus GT — 1.5 TSI turbo.",
+        now:      "2026–present. AI infra, MCP tooling, Anthropic goal active.",
+    };
+
+    // ── BEATS · clickable story vignettes in the world ──
+    // Each beat: {ch, id, dx, dy, w, h, title, lore}
+    //   dx = offset from chapter.x   (world x)
+    //   dy = offset from groundY     (negative = above ground)
+    //   w, h = hit-box dimensions    (centered on dx, dy)
+    //   title = short label shown in lore card header
+    //   lore = the actual autobiographical sentence(s)
+    // Hit-test: click point in world coords falls inside the beat's box.
+    const BEATS = [
+        // ── ITICS (primary school, until 2013) ──
+        { ch:'itics', id:'exam-anxiety',    dx:-380, dy:-18, w:48, h:48, title:'Exam anxiety',     lore:'Drank water and actually studied — the last 3 days before the exam.' },
+        { ch:'itics', id:'trips',           dx:-340, dy:-15, w:48, h:48, title:'School trips',     lore:'Bus trips to school, school trips by train to nearby places in Karnataka.' },
+        { ch:'itics', id:'chit-chat',       dx:-300, dy:-18, w:48, h:48, title:'Chit-chat',        lore:'Casual timepass with friends.' },
+        { ch:'itics', id:'assembly-stage',  dx:-260, dy:-22, w:54, h:60, title:'Morning assembly', lore:'Every day at 8:30 AM. Lined up, sang, marched in.' },
+        { ch:'itics', id:'football-match',  dx:-380, dy:-80, w:64, h:48, title:'Football match',   lore:'Intra and inter-school competitions. Played striker.' },
+        { ch:'itics', id:'sports-day',      dx:-340, dy:-80, w:64, h:48, title:'Sports day',       lore:'Great fun. Won.' },
+        { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka.' },
+        { ch:'itics', id:'cultural-dance',  dx:-260, dy:-80, w:64, h:48, title:'Cultural dance',   lore:'Did it as part of school activity.' },
+
+        // ── CMR NATIONAL (PU, 2013–2015) ──
+        { ch:'cmr', id:'tuition-rush',      dx:-380, dy:-13, w:44, h:40, title:'Tuition rush',     lore:'Went for IIT JEE.' },
+        { ch:'cmr', id:'mock-test',         dx:-340, dy:-24, w:44, h:40, title:'Mock test',        lore:'Didn\'t study.' },
+        { ch:'cmr', id:'study-lamp',        dx:-300, dy:-22, w:44, h:48, title:'Study lamp',       lore:'Had room lights. Late nights.' },
+        { ch:'cmr', id:'pu-graduation',     dx:-260, dy:-8,  w:44, h:32, title:'PU graduation',    lore:'Fun.' },
+        { ch:'cmr', id:'group-study',       dx:-540, dy:-12, w:54, h:44, title:'Group study',      lore:'Did do it during exam times.' },
+        { ch:'cmr', id:'movie-night',       dx:-490, dy:-30, w:54, h:60, title:'Movie night',      lore:'Watched Bahubali with girlfriend.' },
+        { ch:'cmr', id:'cricket-weekend',   dx:-440, dy:-10, w:54, h:40, title:'Cricket weekend',  lore:'Yes — every weekend at the ITI pavilion.' },
+        { ch:'cmr', id:'first-crush',       dx:-390, dy:-20, w:48, h:40, title:'First crush',      lore:'Yes — at tuition.' },
+
+        // ── D.S.C.E. (mech eng, 2015–2019) ──
+        { ch:'college', id:'hostel-room',   dx:-380, dy:-30, w:48, h:64, title:'Hostel room',      lore:'Didn\'t go to hostel. Travelled every day — walking to 3 bus changes to college walk.' },
+        { ch:'college', id:'fest-stage',    dx:-340, dy:-25, w:54, h:54, title:'Fest stage',       lore:'Great fun. Did a dance in the fest.' },
+        { ch:'college', id:'group-ride',    dx:-300, dy:-12, w:54, h:36, title:'Group ride',       lore:'Yes — every day, triples.' },
+        { ch:'college', id:'convocation',   dx:-260, dy:-30, w:54, h:64, title:'Convocation',      lore:'Attended with parents.' },
+
+        // ── FEVER 104 FM (Mar–May 2019) ──
+        { ch:'fever104', id:'headphones',   dx:-380, dy:-15, w:36, h:36, title:'Headphones',       lore:'Did.' },
+        { ch:'fever104', id:'script-binder',dx:-340, dy:-5,  w:36, h:24, title:'Script binder',    lore:'Did.' },
+        { ch:'fever104', id:'sound-engineer',dx:-300,dy:-10, w:36, h:28, title:'Sound engineer',   lore:'Did.' },
+        { ch:'fever104', id:'trainee-cert', dx:-260, dy:-5,  w:36, h:28, title:'Trainee cert',     lore:'Did.' },
+
+        // ── SAKHA GLOBAL (first job, Jul 2019 – Sep 2022) ──
+        { ch:'sakha', id:'interview-day',   dx:-380, dy:-25, w:48, h:48, title:'Interview day',    lore:'Crazy feeling — first interview cracked, after 5 failed attempts.' },
+        { ch:'sakha', id:'first-day-badge', dx:-340, dy:-22, w:32, h:40, title:'First day badge',  lore:'Liked it.' },
+        { ch:'sakha', id:'team-lunch',      dx:-300, dy:-20, w:48, h:40, title:'Team lunch',       lore:'Lunches with the team.' },
+        { ch:'sakha', id:'first-paycheck',  dx:-260, dy:-8,  w:48, h:32, title:'First paycheck',   lore:'Bought a watch and a saree — for dad and mum.' },
+        { ch:'sakha', id:'wfh-covid',       dx:-540, dy:-30, w:60, h:56, title:'WFH · COVID',      lore:'Changed my life. Got bored eventually.' },
+        { ch:'sakha', id:'office-standup',  dx:-490, dy:-25, w:48, h:48, title:'Office standup',   lore:'New experience.' },
+        { ch:'sakha', id:'late-night-coding',dx:-440,dy:-20, w:54, h:48, title:'Late-night coding',lore:'Yes — was passionate.' },
+        { ch:'sakha', id:'team-outing',     dx:-390, dy:-22, w:54, h:44, title:'Team outing',      lore:'Yes — did.' },
+
+        // ── SCRIPBOX (AI/MCP era, Sep 2022 – present) ──
+        { ch:'scripbox', id:'onboarding',     dx:-380, dy:-15, w:48, h:36, title:'Onboarding',       lore:'Great fun. Met a lot of friends.' },
+        { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Did.' },
+        { ch:'scripbox', id:'anthropic-catalog',dx:-300,dy:-30,w:48, h:48, title:'Anthropic catalog',lore:'Was excited. Did show off after.' },
+        { ch:'scripbox', id:'whiteboard',     dx:-260, dy:-30, w:54, h:48, title:'Whiteboard',       lore:'Gave knowledge transfer on things I learn — with my peers.' },
+        { ch:'scripbox', id:'claude-code',    dx:-540, dy:-25, w:54, h:48, title:'Claude Code',      lore:'Best AI skill I\'ve learnt as of now — for me.' },
+        { ch:'scripbox', id:'anthropic-talk', dx:-490, dy:-25, w:54, h:48, title:'Anthropic talk',   lore:'Success.' },
+        { ch:'scripbox', id:'coffee-setup',   dx:-440, dy:-15, w:64, h:36, title:'Coffee setup',     lore:'Timepass.' },
+        { ch:'scripbox', id:'bangalore-traffic',dx:-390,dy:-15,w:54, h:40, title:'Bangalore traffic',lore:'Okay sometimes.' },
+
+        // ── THE GT (Nov 16 2025) ──
+        { ch:'vwgt', id:'test-drive',       dx:-380, dy:-12, w:54, h:32, title:'Test drive',       lore:'Yes.' },
+        { ch:'vwgt', id:'documents-signing',dx:-340, dy:-12, w:36, h:28, title:'Documents',        lore:'Yes.' },
+        { ch:'vwgt', id:'keys-handover',    dx:-300, dy:-20, w:40, h:40, title:'Keys handover',    lore:'Yes.' },
+        { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Yes.' },
+
+        // ── NOW (2026 – present) ──
+        { ch:'now', id:'morning-routine',   dx:-380, dy:-25, w:48, h:56, title:'Morning routine',  lore:'Coffee, phone, sunrise. The new day.' },
+        { ch:'now', id:'code-flow',         dx:-340, dy:-20, w:48, h:48, title:'Code flow',        lore:'Multi-monitor flow state.' },
+        { ch:'now', id:'anthropic-goal',    dx:-300, dy:-20, w:48, h:52, title:'Anthropic goal',   lore:'AI Engineer. The north star.' },
+        { ch:'now', id:'forward-horizon',   dx:-260, dy:-10, w:48, h:32, title:'Forward horizon',  lore:'Walking confidently toward what\'s next.' },
+    ];
+
+    // ── CONTACT URLs · used in end-card CTA ──
+    // Placeholders (https://...) are detected and the button is hidden.
+    // User-fillable in JOURNEY_LORE.md.
+    const CONTACT_URLS = {
+        resume:   "https://...",
+        github:   "https://github.com/Pranavj17",
+        linkedin: "https://www.linkedin.com/in/...",
+        email:    "mailto:...",
+    };
+
     // SIX locomotion stages · each one is a life-milestone in itself ·
     // each visibly faster than the last. Speeds in px/s.
     const VEHICLES = {
@@ -113,10 +210,38 @@
         // held. No auto-walk.
         keys: { right: false, left: false },
         touchHold: false,
+        // INTERACTIVITY (Phase A · Plan v1)
+        paused:          false,    // P key / pause button toggles
+        activeLore:      null,     // the BEATS entry currently shown in lore card
+        loreShownAt:     0,        // state.elapsedMs when active lore card opened
+        glideTargetX:    null,     // when set, lerp playerX toward this on each frame
+        discoveredBeats: new Set(),// beats the user has clicked through
+        lastMissionIdx:  -1,       // change-detection for mission-text DOM updates
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
-    setTimeout(() => { state.running = true; }, 3400);
+    setTimeout(() => {
+        state.running = true;
+        // After splash, attempt to restore prior session. If found, show
+        // a "Welcome back" peek card with stats. The restoreState() call
+        // happens BELOW (synchronously at boot) — this just announces it.
+        if (state.playerX > 0 && state.collected.size > 0) {
+            const next = pickNextObjective();
+            const ch = CHAPTERS[next];
+            const totalBeats = BEATS.length;
+            const found = state.discoveredBeats.size;
+            showAchievement({
+                icon: '↻',
+                achTitle: 'WELCOME BACK',
+                achSub: `${state.collected.size}/${CHAPTERS.length} chapters · ${found}/${totalBeats} beats discovered`,
+            }, { kind: 'peek' });
+        }
+    }, 3400);
+
+    // Attempt to restore prior session BEFORE rendering starts. If localStorage
+    // has a snapshot, state.playerX + collected + achievements + discoveredBeats
+    // are populated. Otherwise state stays default (playerX=0, empty sets).
+    restoreState();
 
     // ── AUDIO · synthesized WebAudio one-shots, no asset fetches ─────
     //   Lazy AudioContext creation on first user input (modern browsers
@@ -352,12 +477,28 @@
     const $tapHint      = document.getElementById('tap-hint');
     const $end          = document.getElementById('end');
 
-    // build progress dots once
+    // build progress dots once · each dot is CLICKABLE to fast-travel
     const dots = [];
     if ($progress) {
-        CHAPTERS.forEach(() => {
+        CHAPTERS.forEach((ch, idx) => {
             const d = document.createElement('span');
             d.className = 'dot';
+            d.setAttribute('role', 'button');
+            d.setAttribute('aria-label', `Travel to ${ch.label}`);
+            d.title = ch.label;
+            d.style.cursor = 'pointer';
+            d.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Set glide target — frame() lerps playerX toward this.
+                // Don't auto-collect; viewer still has to walk last ~80px.
+                state.glideTargetX = ch.x - 80;
+                // Dismiss any open lore card so glide isn't blocked by pause.
+                if (state.activeLore) dismissLoreCard();
+                state.paused = false;
+                // Show a peek card for the destination chapter so viewer
+                // knows where they're going.
+                showAchievement(ch, { kind: 'peek' });
+            });
             $progress.appendChild(d);
             dots.push(d);
         });
@@ -472,6 +613,161 @@
             $tapHint.classList.add('faded');
         }
     }
+
+    // ── HIT-TEST · convert client (px) → world (px) and find beat under cursor.
+    //   Returns the topmost beat whose bounding box contains the click, or null.
+    //   Camera math (inverse of drawChapters): worldX = clientX + cameraX
+    //   Beat box (world coords): [chx + dx - w/2, chx + dx + w/2] × [groundY + dy - h/2, groundY + dy + h/2]
+    function hitTestBeat(clientX, clientY) {
+        const H = window.innerHeight;
+        const groundY = H * GROUND_PCT;
+        const W = window.innerWidth;
+        const cameraX = state.playerX - W * 0.32;
+        const worldX = clientX + cameraX;
+        let best = null, bestDist = Infinity;
+        for (const b of BEATS) {
+            const ch = CHAPTERS.find(c => c.id === b.ch);
+            if (!ch) continue;
+            const bx = ch.x + b.dx;
+            const by = groundY + b.dy;
+            if (worldX >= bx - b.w / 2 && worldX <= bx + b.w / 2 &&
+                clientY >= by - b.h / 2 && clientY <= by + b.h / 2) {
+                // Prefer the beat whose CENTER is closest to the click
+                const d = Math.hypot(worldX - bx, clientY - by);
+                if (d < bestDist) { bestDist = d; best = b; }
+            }
+        }
+        return best;
+    }
+
+    // ── LORE CARD · canvas-drawn slide-up modal showing beat story ──
+    //   Pauses the world, ducks ambient audio. Auto-dismisses after 8s OR on
+    //   next click. Card scales to content (1-3 sentences). Color stripe on
+    //   the left matches the chapter color.
+    function openLoreCard(beat) {
+        if (!beat) return;
+        state.activeLore = beat;
+        state.loreShownAt = state.elapsedMs;
+        state.paused = true;
+        state.discoveredBeats.add(beat.ch + ':' + beat.id);
+        // Duck chapter ambient
+        if (chapterAudio && chapterAudio.master) {
+            chapterAudio.master.gain.setTargetAtTime(0.4, chapterAudio.ac.currentTime, 0.12);
+        }
+        // Save progress (extends Phase A4)
+        saveState();
+    }
+    function dismissLoreCard() {
+        state.activeLore = null;
+        state.paused = false;
+        if (chapterAudio && chapterAudio.master) {
+            chapterAudio.master.gain.setTargetAtTime(1.0, chapterAudio.ac.currentTime, 0.12);
+        }
+    }
+    function drawLoreCard() {
+        if (!state.activeLore) return;
+        const beat = state.activeLore;
+        const chapter = CHAPTERS.find(c => c.id === beat.ch);
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        // Auto-dismiss after 8 seconds
+        if (state.elapsedMs - state.loreShownAt > 8000) {
+            dismissLoreCard();
+            return;
+        }
+        // Slide-up animation: 0..300ms = anim, 300+ = settled
+        const t = state.elapsedMs - state.loreShownAt;
+        const animT = Math.min(1, t / 300);
+        const ease = 1 - Math.pow(1 - animT, 3);   // ease-out cubic
+        // Card geometry — bottom-center, slides up from below viewport
+        const cardW = Math.min(560, W * 0.86);
+        const cardH = 140;
+        const cardX = (W - cardW) / 2;
+        const cardYTarget = H - cardH - 60;
+        const cardY = H + (cardYTarget - H) * ease;
+        // Backdrop dim
+        ctx.save();
+        ctx.fillStyle = `rgba(8, 6, 4, ${0.45 * ease})`;
+        ctx.fillRect(0, 0, W, H);
+        // Card body · parchment with chapter color stripe on left
+        ctx.fillStyle = '#e9d8b0';
+        ctx.fillRect(cardX, cardY, cardW, cardH);
+        ctx.fillStyle = chapter ? chapter.color : '#5a3a22';
+        ctx.fillRect(cardX, cardY, 6, cardH);
+        // Brass border
+        ctx.strokeStyle = '#5a3a22';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cardX + 0.5, cardY + 0.5, cardW - 1, cardH - 1);
+        // Title
+        ctx.fillStyle = '#3a2418';
+        ctx.font = 'bold 16px "Cinzel", "IM Fell English", serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(beat.title.toUpperCase(), cardX + 22, cardY + 18);
+        // Period stamp (chapter context)
+        ctx.fillStyle = '#7a5a30';
+        ctx.font = 'italic 11px "IM Fell English", serif';
+        ctx.fillText(chapter ? chapter.period.toLowerCase() : '', cardX + 22, cardY + 40);
+        // Body lore · wraps if too long
+        ctx.fillStyle = '#2a1810';
+        ctx.font = '14px "IM Fell English", serif';
+        const words = (beat.lore || '').split(' ');
+        const maxW = cardW - 44;
+        let line = '', lineY = cardY + 64;
+        for (const word of words) {
+            const test = line ? line + ' ' + word : word;
+            const w = ctx.measureText(test).width;
+            if (w > maxW && line) {
+                ctx.fillText(line, cardX + 22, lineY);
+                line = word;
+                lineY += 18;
+            } else {
+                line = test;
+            }
+        }
+        if (line) ctx.fillText(line, cardX + 22, lineY);
+        // Dismiss hint
+        ctx.fillStyle = 'rgba(58, 36, 24, 0.55)';
+        ctx.font = 'italic 10px "IM Fell English", serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('click anywhere to dismiss', cardX + cardW - 16, cardY + cardH - 16);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
+    }
+
+    // ── PERSISTENCE · localStorage save/restore for cross-session continuity ──
+    const SAVE_KEY = 'journey_v1';
+    function saveState() {
+        try {
+            const snap = {
+                playerX:         state.playerX,
+                vehicle:         state.vehicle,
+                collected:       [...state.collected],
+                achievements:    [...state.achievements],
+                discoveredBeats: [...state.discoveredBeats],
+                savedAt:         Date.now(),
+            };
+            localStorage.setItem(SAVE_KEY, JSON.stringify(snap));
+        } catch (_) { /* localStorage unavailable; fail silently */ }
+    }
+    function restoreState() {
+        try {
+            const raw = localStorage.getItem(SAVE_KEY);
+            if (!raw) return false;
+            const snap = JSON.parse(raw);
+            if (!snap || typeof snap.playerX !== 'number') return false;
+            state.playerX      = snap.playerX;
+            state.vehicle      = snap.vehicle || 'walk';
+            state.collected    = new Set(snap.collected || []);
+            state.achievements = new Set(snap.achievements || []);
+            state.discoveredBeats = new Set(snap.discoveredBeats || []);
+            return true;
+        } catch (_) { return false; }
+    }
+    function clearSavedState() {
+        try { localStorage.removeItem(SAVE_KEY); } catch (_) {}
+    }
     window.addEventListener('keydown', (e) => {
         chapterAudioBoot();   // lazy-init ambient audio on first gesture
         const k = e.key;
@@ -484,6 +780,16 @@
             // triggerPeek() repeatedly. Only act on the initial press.
             if (e.repeat) { e.preventDefault(); return; }
             e.preventDefault(); triggerPeek();
+        } else if (k === 'p' || k === 'P') {
+            // Pause toggle. If a lore card is open, P dismisses it
+            // (since lore-card already pauses the world).
+            if (e.repeat) { e.preventDefault(); return; }
+            e.preventDefault();
+            if (state.activeLore) dismissLoreCard();
+            else state.paused = !state.paused;
+        } else if (k === 'Escape') {
+            // ESC dismisses lore card (without pause toggle)
+            if (state.activeLore) { e.preventDefault(); dismissLoreCard(); }
         }
     });
     window.addEventListener('keyup', (e) => {
@@ -493,6 +799,20 @@
     });
     canvas.addEventListener('pointerdown', (e) => {
         if (e.target !== canvas) return;
+        // If a lore card is open, ANY click dismisses it (don't start a walk).
+        if (state.activeLore) {
+            e.preventDefault();
+            dismissLoreCard();
+            return;
+        }
+        // Otherwise, check if click landed on a story beat. If yes, open lore.
+        const hit = hitTestBeat(e.clientX, e.clientY);
+        if (hit) {
+            e.preventDefault();
+            openLoreCard(hit);
+            return;
+        }
+        // Empty-space tap → existing hold-to-walk behavior
         state.touchHold = true;
         touchStartT = performance.now();
         touchMoved = false;
@@ -519,6 +839,16 @@
     updateProgress(0);
     updateVehicleCard();
     updateMission(0);
+
+    // wire end-card "start fresh" button if present
+    const $endRestart = document.getElementById('end-restart');
+    if ($endRestart) {
+        $endRestart.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearSavedState();
+            location.reload();
+        });
+    }
 
     // ── rendering helpers ────────────────────────────────────────────
 
@@ -4607,7 +4937,7 @@
         const horizonY = H * HORIZON_PCT;
         const groundY  = H * GROUND_PCT;
 
-        if (state.running && !state.ended) {
+        if (state.running && !state.ended && !state.paused) {
             state.elapsedMs += dt;
 
             // Mission tracker updates LIVE as player walks — was only
@@ -4647,6 +4977,27 @@
                 }
             }
             state.playerX += v.speed * (dt / 1000) * dir * speedMul;
+
+            // GLIDE-TELEPORT · when a progress dot is clicked, lerp playerX
+            // toward state.glideTargetX at ~900 px/s. Any direct input (key
+            // hold, touch hold) cancels the glide so the user retakes control.
+            if (state.glideTargetX !== null) {
+                if (movingForward || movingBack) {
+                    // user took control · cancel
+                    state.glideTargetX = null;
+                } else {
+                    const delta = state.glideTargetX - state.playerX;
+                    const sign  = Math.sign(delta);
+                    const step  = 900 * (dt / 1000);   // 900 px/s glide rate
+                    if (Math.abs(delta) <= step) {
+                        state.playerX = state.glideTargetX;
+                        state.glideTargetX = null;
+                    } else {
+                        state.playerX += sign * step;
+                    }
+                }
+            }
+
             if (state.playerX < 0) state.playerX = 0;
 
             // update per-chapter ambient audio gains based on player proximity
@@ -4692,6 +5043,7 @@
                     state.achievements.add(v.achId);
                     showAchievement({ icon: v.icon, achTitle: v.achTitle, achSub: v.achSub }, { kind: 'event' });
                 }
+                saveState();   // persist after vehicle upgrade
             }
 
             // chapter collection · player passes within range of chapter x
@@ -4716,6 +5068,7 @@
                     shake(10, 380);
                     // 28 particles radiating from the landmark · color-matched
                     burstParticles(W * 0.32 + 20, groundY - 36, ch.color, 28);
+                    saveState();   // persist after chapter collect
                 }
             }
 
@@ -4730,7 +5083,28 @@
             // end · past the last chapter
             if (state.collected.size >= CHAPTERS.length && state.playerX > CHAPTERS[CHAPTERS.length - 1].x + 150) {
                 state.ended = true;
-                if ($end) $end.hidden = false;
+                if ($end) {
+                    // Populate dynamic stats before showing.
+                    const $endStatChapters = document.getElementById('end-stat-chapters');
+                    const $endStatBeats    = document.getElementById('end-stat-beats');
+                    const $endStatTime     = document.getElementById('end-stat-time');
+                    if ($endStatChapters) {
+                        $endStatChapters.textContent =
+                            String(state.collected.size).padStart(2, '0') + ' / ' +
+                            String(CHAPTERS.length).padStart(2, '0');
+                    }
+                    if ($endStatBeats) {
+                        $endStatBeats.textContent =
+                            String(state.discoveredBeats.size).padStart(2, '0') + ' / ' +
+                            String(BEATS.length).padStart(2, '0');
+                    }
+                    if ($endStatTime) {
+                        const s = Math.floor(state.elapsedMs / 1000);
+                        $endStatTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+                    }
+                    $end.hidden = false;
+                }
+                saveState();
             }
         }
 
@@ -4772,6 +5146,28 @@
         drawParticles();
         drawPlayer(W, groundY);
         ctx.restore();
+
+        // Lore card draws ABOVE the world transform (no shake/translate),
+        // pinned to viewport so it stays steady regardless of camera state.
+        drawLoreCard();
+
+        // PAUSED indicator pill — small, top-center, only when manually paused
+        // (NOT during lore card open, since that has its own dim+card)
+        if (state.paused && !state.activeLore) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(8, 6, 4, 0.65)';
+            ctx.fillRect(W / 2 - 60, 60, 120, 32);
+            ctx.fillStyle = '#e9d8b0';
+            ctx.font = 'bold 13px "Cinzel", serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⏸ PAUSED', W / 2, 76);
+            ctx.font = 'italic 10px "IM Fell English", serif';
+            ctx.fillStyle = 'rgba(233, 216, 176, 0.6)';
+            ctx.fillText('press P to resume', W / 2, 90);
+            ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+            ctx.restore();
+        }
     }
     requestAnimationFrame(frame);
 

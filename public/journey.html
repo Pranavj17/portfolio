@@ -398,6 +398,75 @@
         .end .stats dd { margin: 4px 0 0; font-family: 'Cinzel', serif; font-size: 24px; font-weight: 700; color: var(--ink); }
         .end .contact { font-size: 11px; opacity: 0.85; line-height: 1.7; color: var(--paper-dim); }
         .end .contact a { color: var(--accent); text-decoration: none; }
+
+        /* CTA row · 4 buttons in pill form, brass border, hover lift.
+           This is the commercial point of the entire journey for a recruiter. */
+        .end .end-tagline {
+            margin: 18px 0 14px;
+            font-family: 'IM Fell English', serif;
+            font-style: italic;
+            font-size: 13px;
+            color: rgba(233, 216, 176, 0.7);
+        }
+        .end .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 8px 0 20px;
+        }
+        .end .cta-btn {
+            display: inline-block;
+            padding: 9px 22px;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--paper);
+            background: rgba(58, 36, 24, 0.55);
+            border: 1.5px solid var(--mahogany);
+            border-radius: 2px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform 180ms cubic-bezier(.2,.7,.3,1), background 180ms ease, box-shadow 180ms ease;
+        }
+        .end .cta-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(90, 58, 34, 0.85);
+            box-shadow: 0 4px 18px rgba(212, 166, 83, 0.25);
+        }
+        .end .cta-primary {
+            background: linear-gradient(180deg, var(--accent) 0%, #b8901a 100%);
+            color: var(--ink);
+            border-color: var(--accent);
+        }
+        .end .cta-primary:hover {
+            background: linear-gradient(180deg, #f0c060 0%, var(--accent) 100%);
+        }
+        .end .end-footer {
+            margin: 10px 0 0;
+            font-size: 11px;
+            opacity: 0.7;
+            font-family: 'IM Fell English', serif;
+        }
+        .end .end-footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .end .cta-link {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-family: inherit;
+            font-size: inherit;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline dotted;
+            opacity: 0.85;
+        }
+        .end .cta-link:hover { opacity: 1; }
+
         @keyframes endIn {
             from { opacity: 0; transform: scale(0.96); }
             to   { opacity: 1; transform: scale(1); }
@@ -569,20 +638,24 @@
             <h1>End of the Trail</h1>
             <p>13 years · 8 chapters · the journey complete</p>
             <div class="stats">
-                <div><dt>CHAPTERS</dt><dd>08 / 08</dd></div>
-                <div><dt>YEARS</dt><dd>13</dd></div>
-                <div><dt>HOME</dt><dd>BLR</dd></div>
+                <div><dt>CHAPTERS</dt><dd id="end-stat-chapters">08 / 08</dd></div>
+                <div><dt>BEATS</dt><dd id="end-stat-beats">0 / 44</dd></div>
+                <div><dt>TIME</dt><dd id="end-stat-time">0:00</dd></div>
             </div>
-            <p class="contact">
-                <a href="https://pranavjagadish.com">pranavjagadish.com</a> ·
-                <a href="https://github.com/Pranavj17">github.com/Pranavj17</a><br>
-                <a href="https://medium.com/@jpranav97">medium.com/@jpranav97</a> ·
-                <a href="mailto:jpranav97@gmail.com">jpranav97@gmail.com</a><br>
-                <span style="opacity:0.5;">open to senior eng / staff · ai infra · mcp tooling</span>
+            <p class="end-tagline">open to senior eng / staff · ai infra · mcp tooling</p>
+            <div class="cta-row">
+                <a class="cta-btn" href="https://github.com/Pranavj17" target="_blank" rel="noopener">GitHub</a>
+                <a class="cta-btn" href="https://www.linkedin.com/in/pranavj17" target="_blank" rel="noopener">LinkedIn</a>
+                <a class="cta-btn" href="https://medium.com/@jpranav97" target="_blank" rel="noopener">Medium</a>
+                <a class="cta-btn cta-primary" href="mailto:jpranav97@gmail.com">Email</a>
+            </div>
+            <p class="end-footer">
+                <a href="https://pranavjagadish.com">pranavjagadish.com</a>
+                <button id="end-restart" class="cta-link" type="button">· start fresh</button>
             </p>
         </div>
     </main>
 
-    <script src="/journey.js?v=20260518-28" defer></script>
+    <script src="/journey.js?v=20260518-29" defer></script>
 </body>
 </html>
