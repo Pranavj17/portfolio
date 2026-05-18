@@ -175,14 +175,51 @@
         distHills.push({ x, y });
     }
 
+    // Bangalore flowering canopy · per-chapter bloom color
+    //   gulmohar (delonix regia)   = saturated brick-red, peaks Apr–Jun
+    //   tabebuia rosea             = soft pink, peaks Feb–Mar
+    //   jacaranda mimosifolia      = purple, peaks Mar–Apr (desaturated for sepia)
+    //   copper pod (peltophorum)   = brass-yellow, peaks May–Jul
+    // Each chapter gets a dominant bloom so the world rotates through Bangalore's
+    // actual seasonal palette as the player walks the timeline left→right.
+    const CHAPTER_BLOOMS = {
+        itics:    '#e6b840',  // copper pod yellow · primary school = sunny
+        cmr:      '#8a6db8',  // jacaranda purple · PU = pressure/dusk
+        college:  '#d8442a',  // gulmohar red · DSCE = orange chapter accent
+        fever104: '#d8442a',  // gulmohar red carries radio-era heat
+        sakha:    '#e6b840',  // copper pod · first job = brass
+        scripbox: '#e88aa8',  // tabebuia pink against sage accent
+        vwgt:     '#d8442a',  // gulmohar red against burgundy
+        now:      '#e88aa8',  // tabebuia pink · present-tense softness
+    };
+    function bloomForWorldX(wx) {
+        // pick the chapter whose .x is nearest
+        let best = CHAPTERS[0]; let bestD = Infinity;
+        for (const ch of CHAPTERS) {
+            const d = Math.abs(ch.x - wx);
+            if (d < bestD) { bestD = d; best = ch; }
+        }
+        return CHAPTER_BLOOMS[best.id] || '#d8442a';
+    }
+
     // pre-generate mid-ground trees + telegraph poles at random x positions
     const midProps = [];
     for (let i = 0; i < 150; i++) {
         const x = i * 110 + (Math.random() - 0.5) * 50;
+        // mid-band parallax is 0.5, so screen-x ≈ world-x * 0.5; convert back
+        // to world-x for chapter lookup. (world coord that this prop "represents")
+        const worldX = x * 2;
+        const kind = Math.random() < 0.65 ? 'tree' : 'pole';
         midProps.push({
             x,
-            kind: Math.random() < 0.65 ? 'tree' : 'pole',
+            kind,
             scale: 0.85 + Math.random() * 0.35,
+            bloom: kind === 'tree' ? bloomForWorldX(worldX) : null,
+            // pre-baked petal sprinkle offsets so they don't shimmer per-frame
+            petals: kind === 'tree' ? Array.from({length: 5 + (Math.random() * 4 | 0)}, () => ({
+                dx: (Math.random() - 0.5) * 22,
+                dy: -2 - Math.random() * 6,
+            })) : null,
         });
     }
     // pre-generate foreground tufts
@@ -222,6 +259,14 @@
         cinematicT:      0,        // ms elapsed since cinematic started
         lockedCameraX:   null,     // when non-null, camera uses this instead of player-derived
         tireSmoke:       [],       // [{x,y,vx,vy,life,size}] · screen-coord particles
+        // BANGALORE AMBIENCE
+        petals:          [],       // [{x,y,vx,vy,life,color}] · falling flower petals
+        rain:            [],       // [{x,y,vx,vy,len}] · monsoon streaks (screen-space)
+        rainIntensity:   0,        // 0..1 · ramps up during a burst, decays after
+        rainNextAt:      45000,    // ms timestamp for next monsoon burst
+        autoX:           -200,     // world-x of the auto rickshaw (off-screen between trips)
+        autoNextAt:      18000,    // ms timestamp for next rickshaw pass
+        autoDir:         1,        // 1 = left→right, -1 = right→left
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
@@ -1302,12 +1347,26 @@
             const px = p.x + offset;
             if (px < -60 || px > W + 60) continue;
             if (p.kind === 'tree') {
+                // trunk
+                const trunkH = 26 * p.scale;
+                const canopyY = groundY - trunkH;
                 ctx.fillStyle = '#3a2418';
-                ctx.fillRect(px - 2, groundY - 24 * p.scale, 3, 24 * p.scale);
-                ctx.fillStyle = '#5a3a1f';
+                ctx.fillRect(px - 2, groundY - trunkH, 3, trunkH);
+                // 3-blob foliage crown · deep green base
+                ctx.fillStyle = '#3d5a2a';
+                const r = 11 * p.scale;
                 ctx.beginPath();
-                ctx.arc(px, groundY - 24 * p.scale, 12 * p.scale, 0, Math.PI * 2);
+                ctx.arc(px - 7 * p.scale, canopyY + 2, r,     0, Math.PI * 2);
+                ctx.arc(px,                canopyY - 4, r * 1.1, 0, Math.PI * 2);
+                ctx.arc(px + 7 * p.scale, canopyY + 2, r,     0, Math.PI * 2);
                 ctx.fill();
+                // bloom petals · saturated sprinkle on top of canopy
+                if (p.bloom && p.petals) {
+                    ctx.fillStyle = p.bloom;
+                    for (const pt of p.petals) {
+                        ctx.fillRect(px + pt.dx, canopyY + pt.dy, 3, 3);
+                    }
+                }
             } else {
                 // telegraph pole
                 ctx.fillStyle = '#2a1808';
@@ -1315,6 +1374,43 @@
                 ctx.fillRect(px - 8 * p.scale, groundY - 38 * p.scale, 16 * p.scale, 2);
             }
         }
+    }
+
+    /** Bangalore auto rickshaw · yellow-roof black-body 3-wheeler. Crosses
+     *  the mid-band in screen-space (no parallax) every ~25–40 seconds,
+     *  alternating direction. Keeps proportions small so it reads as scenery
+     *  not focal subject. */
+    function drawAutoRickshaw(W, groundY) {
+        const x = state.autoX;
+        if (x < -100 || x > W + 100) return;
+        const y = groundY - 32;      // sit on ground band
+        const dir = state.autoDir;   // 1 = facing right
+        ctx.save();
+        // body · black with brass trim
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(x, y, 36, 18);                            // main cabin
+        ctx.fillRect(x + (dir > 0 ? 32 : -4), y + 4, 8, 14);   // front pod
+        // yellow canopy roof · the unmistakable signature
+        ctx.fillStyle = '#e8b822';
+        ctx.beginPath();
+        ctx.moveTo(x - 2,  y);
+        ctx.lineTo(x + 38, y);
+        ctx.lineTo(x + 34, y - 8);
+        ctx.lineTo(x + 2,  y - 8);
+        ctx.closePath();
+        ctx.fill();
+        // windshield · slate
+        ctx.fillStyle = '#6a7a82';
+        ctx.fillRect(x + (dir > 0 ? 30 : 2), y + 4, 4, 8);
+        // wheels · 2 visible
+        ctx.fillStyle = '#0a0a0a';
+        ctx.beginPath(); ctx.arc(x + 8,  y + 20, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 28, y + 20, 4, 0, Math.PI * 2); ctx.fill();
+        // hubcap dots
+        ctx.fillStyle = '#cccccc';
+        ctx.fillRect(x + 7,  y + 19, 2, 2);
+        ctx.fillRect(x + 27, y + 19, 2, 2);
+        ctx.restore();
     }
 
     /** ground plane · warm dirt + texture marks · full parallax */
@@ -5187,12 +5283,16 @@
             }
 
             // ── CINEMATIC update · accelerate GT + spawn tire smoke ──
+            // Slower than gut-feel: 80 → 320 px/s over 3s, ease-out cubic.
+            // At 200→900 the GT exited the 1280-wide viewport in ~1.5s —
+            // too fast for the eye to register as "driving away" instead of
+            // "object disappeared." Slower curve gives ~600px of visible
+            // motion across 3 seconds, which lands as a real departure.
             if (state.endingCinematic) {
                 state.cinematicT += dt;
                 const tSec = state.cinematicT / 1000;
-                // Speed curve: 200 → 900 px/s over 2.5s, ease-out cubic
-                const ease = 1 - Math.pow(1 - Math.min(1, tSec / 2.5), 3);
-                const speed = 200 + 700 * ease;
+                const ease = 1 - Math.pow(1 - Math.min(1, tSec / 3), 3);
+                const speed = 80 + 240 * ease;
                 state.playerX += speed * dt / 1000;
                 // Spawn smoke at rear-wheel position (screen coords)
                 const gtScreenX = state.playerX - state.lockedCameraX;
@@ -5220,8 +5320,8 @@
                     p.size += dt * 0.014;   // expand as it fades
                     if (p.life <= 0) state.tireSmoke.splice(i, 1);
                 }
-                // After 3.5s, transition to end card
-                if (state.cinematicT > 3500) {
+                // After 5s, transition to end card (was 3.5 — longer breathing room)
+                if (state.cinematicT > 5000) {
                     state.ended = true;
                     state.endingCinematic = false;
                     state.lockedCameraX = null;      // release camera lock
@@ -5270,6 +5370,69 @@
             if (state.shake.t < 0) { state.shake.t = 0; state.shake.amp = 0; }
         }
 
+        // ── BANGALORE AMBIENCE · updates ──
+        if (!state.paused && !state.ended) {
+            // current bloom (used by petals + chapter lookup) follows player
+            const currentBloom = bloomForWorldX(state.playerX);
+
+            // 1. AMBIENT FLOWERING-PETAL FALL · cap at 14 on-screen, gentle wind drift
+            if (state.petals.length < 14 && Math.random() < 0.04) {
+                state.petals.push({
+                    x:  Math.random() * W,
+                    y:  -10,
+                    vx: 20 + Math.random() * 30,   // wind drifts right
+                    vy: 25 + Math.random() * 25,
+                    life: 1,
+                    color: currentBloom,
+                });
+            }
+            for (let i = state.petals.length - 1; i >= 0; i--) {
+                const p = state.petals[i];
+                p.x += p.vx * dt / 1000;
+                p.y += p.vy * dt / 1000;
+                // gentle vertical wobble
+                p.x += Math.sin(state.elapsedMs / 400 + i) * 0.3;
+                if (p.y > H + 10 || p.x > W + 30) state.petals.splice(i, 1);
+            }
+
+            // 2. AUTO RICKSHAW · yellow-and-black 3-wheeler crosses every ~25s
+            if (state.elapsedMs > state.autoNextAt) {
+                state.autoDir = Math.random() < 0.5 ? 1 : -1;
+                state.autoX = state.autoDir === 1 ? -120 : W + 120;
+                state.autoNextAt = state.elapsedMs + 22000 + Math.random() * 18000;
+            }
+            if (state.autoX > -200 && state.autoX < W + 200) {
+                state.autoX += state.autoDir * 85 * dt / 1000;  // ~85 px/s screen-space
+            }
+
+            // 3. MONSOON RAIN BURST · ramps up over 800ms, sustains, decays
+            if (state.elapsedMs > state.rainNextAt) {
+                state.rainIntensity = 1;
+                state.rainNextAt = state.elapsedMs + 65000 + Math.random() * 35000;
+            }
+            // decay rain intensity over ~12s (sustain ~8s, fade 4s)
+            if (state.rainIntensity > 0) {
+                state.rainIntensity = Math.max(0, state.rainIntensity - dt / 12000);
+            }
+            // spawn rain streaks proportional to intensity
+            const rainSpawn = Math.floor(state.rainIntensity * 6);
+            for (let i = 0; i < rainSpawn; i++) {
+                state.rain.push({
+                    x: Math.random() * (W + 200) - 100,
+                    y: -20,
+                    vy: 900 + Math.random() * 200,
+                    vx: 180,
+                    len: 14 + Math.random() * 10,
+                });
+            }
+            for (let i = state.rain.length - 1; i >= 0; i--) {
+                const r = state.rain[i];
+                r.x += r.vx * dt / 1000;
+                r.y += r.vy * dt / 1000;
+                if (r.y > H + 10) state.rain.splice(i, 1);
+            }
+        }
+
         // ── RENDER ──
         ctx.fillStyle = '#1f1610';
         ctx.fillRect(0, 0, W, H);
@@ -5287,6 +5450,7 @@
         drawGround(W, H, horizonY, groundY, cameraX);
         drawHolidayProps(W, horizonY, groundY, cameraX);
         drawMidProps(W, horizonY, groundY, cameraX);
+        drawAutoRickshaw(W, groundY);
         drawChapters(W, horizonY, groundY, cameraX);
         drawChatter(W, H, groundY, cameraX);
         drawParticles();
@@ -5300,42 +5464,69 @@
             }
         }
         drawPlayer(W, groundY);
+        // ambient flowering petals · screen-space (no parallax), foreground sheet
+        if (state.petals.length > 0) {
+            for (const pt of state.petals) {
+                ctx.fillStyle = pt.color;
+                ctx.fillRect(pt.x, pt.y, 4, 4);
+            }
+        }
+        // monsoon rain streaks · diagonal, very thin alpha
+        if (state.rainIntensity > 0 || state.rain.length > 0) {
+            ctx.strokeStyle = `rgba(180, 200, 220, ${0.35})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (const r of state.rain) {
+                ctx.moveTo(r.x, r.y);
+                ctx.lineTo(r.x - r.vx * r.len / 900, r.y - r.len);
+            }
+            ctx.stroke();
+            // wet-sheen overlay on the ground · darken ground band when raining
+            if (state.rainIntensity > 0.1) {
+                ctx.fillStyle = `rgba(20, 30, 40, ${state.rainIntensity * 0.18})`;
+                ctx.fillRect(0, 0, W, H);
+            }
+        }
         ctx.restore();
 
-        // "the journey continues" tooltip · appears in the smoke cloud area
-        // during the cinematic mid-point. Fade in at t=1.5s, hold, fade out
-        // before end-card at t=3.2s.
+        // "the journey continues" tooltip · positioned ABOVE the smoke cloud
+        // (was previously inside it — text got visually swallowed by the
+        // particle density). Now sits at H*0.35 (upper-middle of screen),
+        // larger font, stronger halo. Fade timing extended to match the
+        // longer 5s cinematic.
         if (state.endingCinematic) {
             const tSec = state.cinematicT / 1000;
             let textAlpha = 0;
-            if      (tSec >= 1.5 && tSec < 2.3) textAlpha = (tSec - 1.5) / 0.8;     // fade in
-            else if (tSec >= 2.3 && tSec < 3.0) textAlpha = 1;                       // hold
-            else if (tSec >= 3.0 && tSec < 3.4) textAlpha = 1 - (tSec - 3.0) / 0.4;  // fade out
+            if      (tSec >= 1.5 && tSec < 2.3) textAlpha = (tSec - 1.5) / 0.8;      // fade in (800ms)
+            else if (tSec >= 2.3 && tSec < 4.3) textAlpha = 1;                        // hold (2s)
+            else if (tSec >= 4.3 && tSec < 4.8) textAlpha = 1 - (tSec - 4.3) / 0.5;   // fade out (500ms)
             if (textAlpha > 0.02) {
                 ctx.save();
-                // Position: roughly where the smoke cloud is (center-right
-                // of the locked viewport, slightly above ground)
-                const tx = W * 0.55;
-                const ty = H * 0.55;
-                // Subtle drift up + sin-wobble for organic feel
-                const drift = (tSec - 1.5) * 4;
-                const wobble = Math.sin(tSec * 1.8) * 1.5;
-                // Soft halo behind text so it reads against any smoke density
-                const halo = ctx.createRadialGradient(tx + wobble, ty - drift, 0, tx + wobble, ty - drift, 220);
-                halo.addColorStop(0, `rgba(20, 14, 8, ${0.55 * textAlpha})`);
-                halo.addColorStop(1, `rgba(20, 14, 8, 0)`);
+                const tx = W * 0.5;
+                const ty = H * 0.35;                       // upper-middle, ABOVE smoke
+                const drift = (tSec - 1.5) * 3;            // slow upward drift
+                const wobble = Math.sin(tSec * 1.4) * 2;   // gentle horizontal sway
+                // Heavy halo behind text so it reads regardless of sky color
+                const halo = ctx.createRadialGradient(tx + wobble, ty - drift, 0, tx + wobble, ty - drift, 300);
+                halo.addColorStop(0,    `rgba(15, 10, 6, ${0.75 * textAlpha})`);
+                halo.addColorStop(0.5,  `rgba(15, 10, 6, ${0.40 * textAlpha})`);
+                halo.addColorStop(1,    `rgba(15, 10, 6, 0)`);
                 ctx.fillStyle = halo;
-                ctx.fillRect(tx - 220 + wobble, ty - drift - 80, 440, 160);
-                // Main text · italic serif, large
-                ctx.fillStyle = `rgba(245, 230, 195, ${textAlpha})`;
-                ctx.font = 'italic 26px "IM Fell English", "Cinzel", serif';
+                ctx.fillRect(tx - 300 + wobble, ty - drift - 120, 600, 240);
+                // Main text · italic serif, LARGER (was 26px → 36px)
+                ctx.fillStyle = `rgba(248, 232, 200, ${textAlpha})`;
+                ctx.font = 'italic 36px "IM Fell English", "Cinzel", serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                // Subtle text-shadow via offset draw
+                ctx.fillStyle = `rgba(20, 14, 8, ${textAlpha * 0.7})`;
+                ctx.fillText('the journey continues', tx + wobble + 2, ty - drift + 2);
+                ctx.fillStyle = `rgba(248, 232, 200, ${textAlpha})`;
                 ctx.fillText('the journey continues', tx + wobble, ty - drift);
-                // Subtle ellipsis line below, smaller
-                ctx.fillStyle = `rgba(212, 166, 83, ${textAlpha * 0.75})`;
-                ctx.font = '14px "IM Fell English", serif';
-                ctx.fillText('…', tx + wobble, ty - drift + 28);
+                // Brass ellipsis below
+                ctx.fillStyle = `rgba(212, 166, 83, ${textAlpha * 0.85})`;
+                ctx.font = '18px "IM Fell English", serif';
+                ctx.fillText('…', tx + wobble, ty - drift + 36);
                 ctx.textAlign = 'start';
                 ctx.textBaseline = 'alphabetic';
                 ctx.restore();
