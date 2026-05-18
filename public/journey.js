@@ -237,6 +237,34 @@
         { kind: 'hebbal_flyover', x: 5800, minChapterIdx: 0 },
     ];
 
+    // ── LANDMARK LORE · click any background structure to see its story ──
+    // Researched mini-encyclopedia about each Bangalore element. Keyed by:
+    //   SKYLINE.kind, BRIDGES.kind, metro station name (lowercased+underscored),
+    //   plus 'metro_viaduct' / 'metro_train' for generic infra.
+    const LANDMARK_LORE = {
+        bull_temple: { title: "Bull Temple (1537)", body: "Kempe Gowda built it around a single granite outcrop that kept growing under the chisel — local lore says a copper plate on the bull's forehead was placed to stop it expanding further." },
+        vidhana_soudha: { title: "Vidhana Soudha (1956)", body: "Built in Neo-Dravidian granite by Kengal Hanumanthaiah as a riposte to colonial architecture. The carved sign above the entrance reads 'Government Work is God's Work' — a motto more hopeful than descriptive." },
+        bangalore_palace: { title: "Bangalore Palace (1878)", body: "Modelled on Windsor Castle by the Wadiyars of Mysore on land bought from a British headmaster. A decades-long ownership dispute with the Karnataka government still drags through the courts." },
+        planetarium: { title: "Nehru Planetarium (1989)", body: "Run by BASE on Sankey Road, its GOTO Chronos projector threw stars onto the dome for a generation of schoolkids. The lawn outside hosts Bangalore's amateur astronomy club on clear weekends." },
+        kr_market: { title: "KR Market (1928)", body: "Built over the battlefield where Tipu Sultan fell defending Bangalore in 1791. Today it moves an estimated thousand tonnes of flowers, fruit and vegetables before sunrise each day." },
+        stadium: { title: "Kanteerava Stadium (1946)", body: "Named for the Mysore king who wrestled tigers, it now hosts Bengaluru FC's roaring West Block. The indoor aquatic dome next door trained most of Karnataka's national-level swimmers." },
+        chinnaswamy: { title: "Chinnaswamy Stadium (1969)", body: "First cricket stadium in India to install rooftop solar panels and a subsoil SubAir drainage system. Home of RCB — the team that played 17 IPL seasons without lifting a trophy until recently." },
+        ub_wtc: { title: "UB City & WTC (2008/2010)", body: "UB City rose on Vijay Mallya's family brewery land and gave Bangalore its first true luxury mall. The WTC tower on Brigade Gateway was the city's tallest building for nearly a decade." },
+        iskcon: { title: "ISKCON Rajajinagar (1997)", body: "Carved into Hare Krishna Hill by architect Jagat Kinkara Das, it blends gopuram and glass. The Sunday Govinda's queue snakes down the hill — most devotees come as much for the prasadam as the darshan." },
+        manyata: { title: "Manyata Embassy Park (2003)", body: "11,000 employees commute here daily across 121 acres of reclaimed Nagavara lakebed. Most of Bangalore's IT export revenue passes through this single complex." },
+        glass_cluster: { title: "Glass Tower Clusters (2010+)", body: "Bagmane, Embassy and Prestige stitched Outer Ring Road into one continuous SEZ corridor. The reflective facades are a known headache for BIAL flight paths and local bird populations alike." },
+        hebbal_flyover: { title: "Hebbal Flyover (2003)", body: "A five-level cloverleaf where NH-44, ORR and the airport expressway braid together. Designed for 60,000 vehicles a day, it now carries more than three times that — the reason your airport cab leaves two hours early." },
+        cable_stay: { title: "KR Puram Cable-Stay (2019)", body: "The Baiyappanahalli–KR Puram steel-deck bridge was India's first metro cable-stayed span over an active railway line. Erected in 12-hour night windows because the tracks below couldn't be shut." },
+        h_bridge: { title: "Iblur H-Pylon Bridge", body: "The signature H-shaped pylon at Iblur Junction was Bangalore's first asymmetric cable-stay — chosen so the cables wouldn't foul the ORR signal-free corridor below. It is quietly the most photographed flyover in the city." },
+        arch_bridge: { title: "Stone Arch Drain Bridge", body: "Cantonment-era arches like these still span the raja kaluves — storm-water drains that were once the lakes' overflow channels. Most are older than the roads that cross them." },
+        'VIDHANA SOUDHA': { title: "Vidhana Soudha Metro", body: "An underground Purple Line station tucked between the Soudha and Cubbon Park, blasted through Bangalore's notoriously hard gneiss bedrock. The granite cladding inside echoes the legislature above." },
+        'CUBBON PARK': { title: "Cubbon Park Metro", body: "The only BMRCL station built directly under a heritage park — engineers used a cut-and-cover method then replanted every disturbed tree. Exits emerge beside the bandstand and the High Court." },
+        'MG ROAD': { title: "MG Road Metro (2011)", body: "First stretch of Namma Metro opened here on 20 October 2011, six kilometres from Baiyappanahalli. The elevated platform replaced the much-loved tree-lined Boulevard that ran down the road's central spine." },
+        'HALASURU': { title: "Halasuru Metro", body: "Named for the 1,000-year-old Someshwara temple a short walk away. The station sits on the edge of Ulsoor's older Tamil-speaking quarter, where Kempe Gowda's lake still anchors the neighbourhood." },
+        'INDIRANAGAR': { title: "Indiranagar Metro (2016)", body: "Lifted Bangalore's pub district into the metro age — 100ft Road's bars suddenly accessible without a Friday-night auto fare negotiation. The station's curved canopy is a local landmark in its own right." },
+        'BYAPPANAHALLI': { title: "Byappanahalli Metro (2011)", body: "Eastern terminus and BMRCL's first depot, where the Purple Line's inaugural train rolled out in 2011. The depot's stabling yard holds the entire fleet overnight under floodlights visible from the ORR." },
+    };
+
     // Kites · only chapter 0-1 (school nostalgia, Sankranti coding)
     const kites = [
         { x:  300, baseY: 130, color: '#c89a5a' },
@@ -811,6 +839,64 @@
         return best;
     }
 
+    // ── LANDMARK HIT-TEST · click any background structure to see its story ──
+    // Tests against skyline silhouettes (parallax 0.30) + bridges (0.40) +
+    // metro stations (0.45). Returns a synthetic "beat-like" object that
+    // openLoreCard() can render the same way as a normal BEATS entry.
+    function hitTestLandmark(clientX, clientY) {
+        const H = window.innerHeight;
+        const W = window.innerWidth;
+        const horizonY = H * HORIZON_PCT;
+        const cameraX = state.playerX - W * 0.32;
+        const playerChapter = chapterIdxAt(state.playerX);
+
+        // Helper: test a landmark at world-x `wx` with parallax `parallax` and
+        // a hit-zone of `hw × hh` centered at screen-y `sy`. Returns true if
+        // the click is inside.
+        function inside(wx, parallax, hw, hh, sy) {
+            const sx = (wx - cameraX) * parallax + W * 0.32 * (1 - parallax);
+            return clientX >= sx - hw / 2 && clientX <= sx + hw / 2 &&
+                   clientY >= sy - hh / 2 && clientY <= sy + hh / 2;
+        }
+        // 1. SKYLINE landmarks (parallax 0.30, hit-zone at horizon top band)
+        for (const lm of SKYLINE) {
+            if (playerChapter < lm.minChapterIdx) continue;
+            const sy = horizonY - 30;
+            if (inside(lm.x, 0.30, 100, 80, sy)) {
+                const lore = LANDMARK_LORE[lm.kind];
+                if (lore) return { ch: 'landmark', id: lm.kind, title: lore.title, lore: lore.body };
+            }
+        }
+        // 2. BRIDGES (parallax 0.40, hit-zone at horizon level)
+        for (const br of BRIDGES) {
+            if (playerChapter < br.minChapterIdx) continue;
+            const sy = horizonY - 8;
+            if (inside(br.x, 0.40, 180, 60, sy)) {
+                const lore = LANDMARK_LORE[br.kind];
+                if (lore) return { ch: 'landmark', id: br.kind, title: lore.title, lore: lore.body };
+            }
+        }
+        // 3. METRO STATIONS (parallax 0.45, hit-zone above viaduct beam)
+        if (playerChapter >= 1) {
+            const stations = [
+                { x: 1700, name: 'VIDHANA SOUDHA' },
+                { x: 2350, name: 'CUBBON PARK' },
+                { x: 3000, name: 'MG ROAD' },
+                { x: 3650, name: 'HALASURU' },
+                { x: 4350, name: 'INDIRANAGAR' },
+                { x: 5100, name: 'BYAPPANAHALLI' },
+            ];
+            const sy = horizonY - 38;
+            for (const stn of stations) {
+                if (inside(stn.x, 0.45, 130, 30, sy)) {
+                    const lore = LANDMARK_LORE[stn.name];
+                    if (lore) return { ch: 'landmark', id: stn.name, title: lore.title, lore: lore.body };
+                }
+            }
+        }
+        return null;
+    }
+
     // ── LORE CARD · canvas-drawn slide-up modal showing beat story ──
     //   Pauses the world, ducks ambient audio. Auto-dismisses after 8s OR on
     //   next click. Card scales to content (1-3 sentences). Color stripe on
@@ -1058,6 +1144,13 @@
         if (hit) {
             e.preventDefault();
             openLoreCard(hit);
+            return;
+        }
+        // Or check if click landed on a Bangalore landmark/bridge/metro station
+        const lm = hitTestLandmark(e.clientX, e.clientY);
+        if (lm) {
+            e.preventDefault();
+            openLoreCard(lm);
             return;
         }
         // Empty-space tap → existing hold-to-walk behavior
@@ -5811,8 +5904,33 @@
         ctx.fillRect(handX - 1, handY - 1, 2, 3);
     }
 
+    /** Character height growth · school child (0.62×) → PU teen (0.78×)
+     *  → engineering young adult (0.90×) → working adult (1.00×). Scale is
+     *  applied around the foot anchor so the character grows UPWARD as
+     *  they age, never floating off the ground. */
+    function characterScale(playerX) {
+        // Anchor stages at chapter boundaries · smoothstep between
+        if (playerX < 1100)      return lerpScale(0.62, 0.78, playerX / 1100);   // ITICS rising into CMR
+        else if (playerX < 1700) return lerpScale(0.78, 0.88, (playerX - 1100) / 600); // CMR → DSCE
+        else if (playerX < 2500) return lerpScale(0.88, 1.0,  (playerX - 1700) / 800); // DSCE → working adult
+        else                     return 1.0;
+    }
+    function lerpScale(a, b, t) {
+        const c = Math.max(0, Math.min(1, t));
+        const e = c * c * (3 - 2 * c);   // smoothstep
+        return a + (b - a) * e;
+    }
+
     function drawWalker(cx, footY, phase, amp, lean, bob) {
         ctx.save();
+        // Apply growth scale around the foot anchor (so feet stay grounded
+        // and character grows upward over the timeline)
+        const growth = characterScale(state.playerX);
+        if (growth !== 1.0) {
+            ctx.translate(cx, footY);
+            ctx.scale(growth, growth);
+            ctx.translate(-cx, -footY);
+        }
         // Sepia-harmonized "Bangalore techie" palette (agent-recommended)
         const SK   = '#a47a52';      // skin · sepia warm-brown
         const SK_SHADE = '#7d5a3a';

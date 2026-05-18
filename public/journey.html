@@ -578,6 +578,31 @@
         body.cinematic .letterbox-bar { height: 9vh; }
         @media (max-width: 600px) {
             body.cinematic .letterbox-bar { height: 7vh; }
+            /* Compact HUD on phones · objective card was too big */
+            .mission-tracker {
+                bottom: 10px;
+                left: 10px;
+                max-width: 200px;
+                padding: 6px 10px 8px;
+            }
+            .mission-tracker .mission-text {
+                font-size: 12px;
+            }
+            .mission-tracker .mission-icon {
+                font-size: 14px;
+            }
+            .score-panel {
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+            .tap-hint {
+                font-size: 11px;
+                bottom: 14px;
+            }
+            .vehicle-card {
+                font-size: 11px;
+                padding: 5px 8px;
+            }
         }
     </style>
 
@@ -600,9 +625,9 @@
                 <div class="score-row"><span class="score-key">TIME</span><span class="score-val" id="score-time">0:00</span></div>
             </div>
 
-            <!-- mission tracker · bottom-left parchment · "feels like a game" element #2 -->
+            <!-- mission tracker · bottom-left parchment · header removed,
+                 directive text alone reads as imperative -->
             <div class="mission-tracker">
-                <div class="mission-tag">CURRENT OBJECTIVE</div>
                 <div class="mission-body" id="mission-body">
                     <span class="mission-icon" id="mission-icon">▸</span>
                     <span class="mission-text" id="mission-text">Begin the journey</span>
@@ -656,6 +681,6 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260518-42" defer></script>
+    <script src="/journey.js?v=20260518-43" defer></script>
 </body>
 </html>
