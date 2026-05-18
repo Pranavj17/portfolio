@@ -256,6 +256,10 @@
         });
     }
 
+    // ROAD INFRASTRUCTURE · Bangalore street layout
+    // Speed bumps every 600 world-px · zebra crossings at chapter boundaries
+    const speedBumps = [];
+    for (let i = 0; i < 12; i++) speedBumps.push(600 + i * 600);
     // Cirrus cloud streaks · the wispy curving sky-strokes from real Bangalore dawn.
     // Pre-generated so they don't shimmer per-frame; gentle scroll with parallax 0.05
     // makes them feel suspended above the world.
@@ -374,6 +378,9 @@
         autoX:           -200,     // world-x of the auto rickshaw (off-screen between trips)
         autoNextAt:      18000,    // ms timestamp for next rickshaw pass
         autoDir:         1,        // 1 = left→right, -1 = right→left
+        // ROAD TRAFFIC · Bangalore street vehicles (BMTC bus, Maruti, motorbike, lorry)
+        traffic:         [],       // [{kind, x, dir, speed}] · screen-space
+        trafficNextAt:   3000,
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
@@ -2005,21 +2012,54 @@
             ctx.fillRect(px + 2, yBot, 1, 32);
             ctx.fillStyle = '#5a3a22';
         }
-        // Metro station near Sakha chapter (world-x 3500)
-        const stationWX = 3500;
-        const stnSx = stationWX + offset;
-        if (stnSx > -120 && stnSx < W + 120) {
-            // Arched canopy roof
+        // Multiple Namma Metro Purple Line stations · real names, west→east
+        // Spacing ~650 world-px mirrors real ~1km station spacing
+        const METRO_STATIONS = [
+            { x: 1700, name: 'VIDHANA SOUDHA' },
+            { x: 2350, name: 'CUBBON PARK' },
+            { x: 3000, name: 'MG ROAD' },
+            { x: 3650, name: 'HALASURU' },
+            { x: 4350, name: 'INDIRANAGAR' },
+            { x: 5100, name: 'BYAPPANAHALLI' },
+        ];
+        for (const stn of METRO_STATIONS) {
+            const stnSx = stn.x + offset;
+            if (stnSx < -130 || stnSx > W + 130) continue;
+            // Arched canopy roof · the Namma Metro Phase-1 signature shallow arc
             ctx.fillStyle = '#5a3a22';
             ctx.beginPath();
             ctx.ellipse(stnSx, yTop - 6, 60, 10, 0, Math.PI, 0);
             ctx.fill();
-            // Support columns
+            // Roof rim highlight · brass detailing
+            ctx.fillStyle = '#c89a5a';
+            ctx.beginPath();
+            ctx.ellipse(stnSx, yTop - 8, 60, 2, 0, Math.PI, 0);
+            ctx.fill();
+            // Symmetrical support columns
+            ctx.fillStyle = '#5a3a22';
             ctx.fillRect(stnSx - 55, yTop - 4, 3, 22);
             ctx.fillRect(stnSx + 52, yTop - 4, 3, 22);
-            // Platform deck band
+            // Platform deck band (where passengers wait)
             ctx.fillStyle = '#8a6a48';
             ctx.fillRect(stnSx - 58, yTop + 6, 120, 3);
+            // Platform tactile-strip yellow edge
+            ctx.fillStyle = '#e6c285';
+            ctx.fillRect(stnSx - 58, yTop + 6, 120, 1);
+            // STATION NAME BOARD · purple field with cream text (BMRCL livery)
+            ctx.fillStyle = '#6e4a5c';
+            ctx.fillRect(stnSx - 32, yTop - 14, 64, 6);
+            ctx.fillStyle = '#d4b48a';
+            ctx.font = '4px "IM Fell English", serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(stn.name, stnSx, yTop - 11);
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+            // Tiny entrance staircase descending below platform on near side
+            ctx.fillStyle = '#3a2418';
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(stnSx + 40 + i * 2, yTop + 9 + i, 12, 2);
+            }
         }
     }
 
@@ -2378,6 +2418,136 @@
                 ctx.fillRect(px - 1.5, groundY - 40 * p.scale, 3, 40 * p.scale);
                 ctx.fillRect(px - 8 * p.scale, groundY - 38 * p.scale, 16 * p.scale, 2);
             }
+        }
+    }
+
+    /** Bangalore street road · asphalt surface with lane markings, speed bumps,
+     *  and zebra crossings at chapter boundaries. Parallax 0.55 — sits between
+     *  the mid-band trees and the player's foreground. */
+    function drawRoad(W, horizonY, groundY, cameraX) {
+        const parallax = 0.55;
+        const offset = -(cameraX * parallax);
+        const roadTop = groundY - 36;
+        const roadBot = groundY - 20;
+        // Asphalt surface · sepia-tinted dark
+        ctx.fillStyle = '#2a2218';
+        ctx.fillRect(0, roadTop, W, roadBot - roadTop);
+        // Subtle asphalt texture · faint horizontal scratch lines
+        ctx.fillStyle = 'rgba(58, 50, 40, 0.4)';
+        ctx.fillRect(0, roadTop + 5, W, 1);
+        ctx.fillRect(0, roadTop + 11, W, 1);
+        // White edge stripe (top · far side)
+        ctx.fillStyle = '#d4b48a';
+        ctx.fillRect(0, roadTop, W, 1);
+        // Yellow dashed center line · scrolls with parallax
+        const dashLen = 14, gapLen = 12;
+        const cycle = dashLen + gapLen;
+        const phase = ((-(cameraX * parallax)) % cycle + cycle) % cycle - cycle;
+        ctx.fillStyle = '#e6c285';
+        for (let x = phase; x < W; x += cycle) {
+            ctx.fillRect(x, roadTop + 8, dashLen, 1);
+        }
+        // White edge stripe (near side)
+        ctx.fillStyle = '#d4b48a';
+        ctx.fillRect(0, roadBot - 1, W, 1);
+        // Curb · raised concrete between road and player band
+        ctx.fillStyle = '#5a4a36';
+        ctx.fillRect(0, roadBot, W, 2);
+        ctx.fillStyle = '#8a7a5a';
+        ctx.fillRect(0, roadBot + 2, W, 1);
+        // Speed bumps · yellow-and-black painted humps (Indian-specific)
+        for (const bumpWX of speedBumps) {
+            const px = bumpWX + offset;
+            if (px < -10 || px > W + 10) continue;
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(px - 5, roadTop + 1, 10, 2);
+            ctx.fillStyle = '#e6c285';
+            ctx.fillRect(px - 4, roadTop + 1, 2, 2);
+            ctx.fillRect(px,     roadTop + 1, 2, 2);
+            ctx.fillRect(px + 4, roadTop + 1, 2, 2);
+        }
+        // Zebra crossings at chapter boundaries
+        for (const ch of CHAPTERS) {
+            const px = (ch.x - 80) + offset;
+            if (px < -50 || px > W + 50) continue;
+            ctx.fillStyle = '#d4b48a';
+            for (let i = 0; i < 7; i++) {
+                ctx.fillRect(px + i * 5, roadTop + 1, 3, roadBot - roadTop - 3);
+            }
+        }
+    }
+
+    /** Bangalore street traffic · vehicles passing on the road in both directions.
+     *  4 types: BMTC bus, Maruti hatchback, motorbike, Tata lorry. */
+    function drawRoadTraffic(W, groundY) {
+        const roadY = groundY - 30;   // sit on the road surface
+        for (const v of state.traffic) {
+            const x = v.x;
+            const flip = v.dir < 0;
+            ctx.save();
+            if (v.kind === 'hatchback') {
+                // White Maruti compact · the most common Bangalore car
+                ctx.fillStyle = '#c4baa8';
+                ctx.fillRect(x - 18, roadY - 4, 36, 8);
+                ctx.fillRect(x - 14, roadY - 10, 26, 6);   // cabin
+                ctx.fillStyle = '#3a4a55';
+                ctx.fillRect(x - 12, roadY - 9, 22, 4);     // windows
+                ctx.fillStyle = '#1a1a1a';
+                ctx.beginPath(); ctx.arc(x - 12, roadY + 5, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 12, roadY + 5, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#e6c285';
+                ctx.fillRect(x + (flip ? -18 : 16), roadY - 1, 2, 2);   // headlight
+            } else if (v.kind === 'bmtc_bus') {
+                // BMTC bus · faded red + yellow stripe + double-window pattern
+                ctx.fillStyle = '#8a3a2e';
+                ctx.fillRect(x - 28, roadY - 12, 56, 16);
+                ctx.fillStyle = '#e6c285';
+                ctx.fillRect(x - 28, roadY - 6, 56, 2);     // yellow body stripe
+                ctx.fillStyle = '#3a4a55';
+                for (let i = 0; i < 8; i++) ctx.fillRect(x - 26 + i * 7, roadY - 10, 5, 4);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.beginPath(); ctx.arc(x - 18, roadY + 5, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 18, roadY + 5, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(x - 6, roadY - 15, 12, 3);     // destination board
+                ctx.fillStyle = '#3a2418';
+                ctx.font = '3px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('BMTC', x, roadY - 13);
+                ctx.textAlign = 'start';
+            } else if (v.kind === 'motorbike') {
+                // Royal Enfield silhouette · upright rider
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(x - 8, roadY, 16, 3);          // frame
+                ctx.fillRect(x - 4, roadY - 3, 8, 4);        // tank
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(x - 2, roadY - 10, 4, 7);       // rider torso
+                ctx.fillStyle = '#3a2418';
+                ctx.beginPath(); ctx.arc(x, roadY - 11, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x - 8, roadY + 5, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 8, roadY + 5, 3, 0, Math.PI * 2); ctx.fill();
+            } else if (v.kind === 'lorry') {
+                // Tata lorry · wooden cargo box + separate cab
+                ctx.fillStyle = '#6a4a2a';
+                ctx.fillRect(x - 22, roadY - 12, 44, 18);    // cargo box
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(x + (flip ? -32 : 22), roadY - 6, 10, 12); // cab
+                ctx.fillStyle = '#3a4a55';
+                ctx.fillRect(x + (flip ? -31 : 23), roadY - 4, 4, 4);   // cab window
+                ctx.strokeStyle = '#3a2418';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x - 22, roadY - 12, 44, 18);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.beginPath(); ctx.arc(x - 14, roadY + 6, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 14, roadY + 6, 4, 0, Math.PI * 2); ctx.fill();
+                // "TATA" painted on cargo
+                ctx.fillStyle = '#d4b48a';
+                ctx.font = '4px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('TATA', x, roadY - 4);
+                ctx.textAlign = 'start';
+            }
+            ctx.restore();
         }
     }
 
@@ -6410,6 +6580,26 @@
                 state.autoX += state.autoDir * 85 * dt / 1000;  // ~85 px/s screen-space
             }
 
+            // 2.5 ROAD TRAFFIC · spawn vehicles passing on the asphalt
+            if (state.elapsedMs > state.trafficNextAt) {
+                const kinds = ['hatchback', 'hatchback', 'motorbike', 'motorbike',
+                               'bmtc_bus', 'lorry'];   // hatchbacks + motorbikes more common
+                const kind = kinds[(Math.random() * kinds.length) | 0];
+                const dir = Math.random() < 0.5 ? 1 : -1;
+                const speedMap = { hatchback: 90, motorbike: 120, bmtc_bus: 65, lorry: 55 };
+                const speed = speedMap[kind] + (Math.random() - 0.5) * 20;
+                state.traffic.push({
+                    kind, dir, speed,
+                    x: dir > 0 ? -60 : (W + 60),
+                });
+                state.trafficNextAt = state.elapsedMs + 1800 + Math.random() * 2800;
+            }
+            for (let i = state.traffic.length - 1; i >= 0; i--) {
+                const v = state.traffic[i];
+                v.x += v.dir * v.speed * dt / 1000;
+                if (v.x < -120 || v.x > W + 120) state.traffic.splice(i, 1);
+            }
+
             // 3. MONSOON RAIN BURST · ramps up over 800ms, sustains, decays
             if (state.elapsedMs > state.rainNextAt) {
                 state.rainIntensity = 1;
@@ -6481,7 +6671,11 @@
         drawPalms(W, horizonY, groundY, cameraX);
         // 0.50 — mid-band trees + telegraph poles (bloom canopy)
         drawMidProps(W, horizonY, groundY, cameraX);
-        // 1.00 (screen-space) — auto rickshaw crossing
+        // 0.55 — Bangalore road surface (asphalt + markings + speed bumps + zebras)
+        drawRoad(W, horizonY, groundY, cameraX);
+        // 1.00 (screen-space) — traffic vehicles on the road
+        drawRoadTraffic(W, groundY);
+        // 1.00 (screen-space) — auto rickshaw crossing (drawn over traffic)
         drawAutoRickshaw(W, groundY);
         // 1.00 — chapter markers (closest band before player)
         drawChapters(W, horizonY, groundY, cameraX);
