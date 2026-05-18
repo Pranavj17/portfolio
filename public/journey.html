@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com https://www.google.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; media-src 'self' https://www.youtube.com; connect-src 'self' https://www.youtube.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; child-src https://www.youtube.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; media-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <title>the journey — pranavjagadish:~$ ./play</title>
@@ -757,13 +757,6 @@
         </div>
     </main>
 
-    <!-- Hidden YouTube iframe player · plays after first movement gesture.
-         Video ID 2kntxizQIFI = user-selected background theme.
-         Sized 1×1 + offscreen positioned so it can play audio without UI. -->
-    <div id="yt-music-host" style="position:fixed; top:-100px; left:-100px; width:1px; height:1px; overflow:hidden; pointer-events:none; opacity:0;">
-        <div id="yt-music-player"></div>
-    </div>
-
-    <script src="/journey.js?v=20260518-47" defer></script>
+    <script src="/journey.js?v=20260519-49" defer></script>
 </body>
 </html>

@@ -670,13 +670,7 @@
     function chapterAudioTick() {
         if (_initialPlayerX === null) _initialPlayerX = state.playerX;
         const traveled = Math.abs(state.playerX - _initialPlayerX);
-        // YouTube background music · start playing once player has moved.
-        // YT IFrame API handles its own autoplay-policy gating via the user
-        // gesture that came in BEFORE this tick.
-        if (traveled > 40 && ytReady && !ytStarted) {
-            ytStarted = true;
-            try { ytPlayer.playVideo(); } catch (_) {}
-        }
+        // (Background MP3 removed · SFX is triggered per chapter-entry instead)
         if (!chapterAudio) return;
         const targetMaster = traveled > 40 ? 1 : 0;
         chapterAudio.master.gain.setTargetAtTime(
@@ -689,38 +683,11 @@
             lane.gain.gain.setTargetAtTime(target, chapterAudio.ac.currentTime, 0.12);
         }
     }
-    // ── YOUTUBE BACKGROUND MUSIC ──
-    // Plays a user-selected YouTube track via the IFrame API once the player
-    // has demonstrated intent by moving > 40px. Hidden 1×1 iframe so only
-    // audio reaches the user; YouTube IFrame API handles autoplay-policy
-    // gating internally.
-    const YT_VIDEO_ID = '2kntxizQIFI';
-    let ytPlayer = null, ytReady = false, ytStarted = false;
-    function bootYouTubeAPI() {
-        if (window.YT && window.YT.Player) { createYTPlayer(); return; }
-        if (document.getElementById('yt-iframe-api-script')) return;   // already loading
-        const tag = document.createElement('script');
-        tag.id = 'yt-iframe-api-script';
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
-        window.onYouTubeIframeAPIReady = createYTPlayer;
-    }
-    function createYTPlayer() {
-        if (ytPlayer || !window.YT || !document.getElementById('yt-music-player')) return;
-        ytPlayer = new YT.Player('yt-music-player', {
-            height: '1', width: '1',
-            videoId: YT_VIDEO_ID,
-            playerVars: {
-                autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1,
-                playsinline: 1, rel: 0, loop: 1, playlist: YT_VIDEO_ID,
-            },
-            events: {
-                onReady: () => { ytReady = true; ytPlayer.setVolume(35); },
-                onError: (e) => { console.log('YouTube player error', e); },
-            },
-        });
-    }
-    bootYouTubeAPI();
+    // ── BACKGROUND MUSIC REMOVED ──
+    // Per user request: no looping background track. Each chapter instead
+    // triggers a one-shot SFX sting when entered (see CHAPTER_STING_SFX below).
+    let bgMusicAudio = null, ytReady = false, ytStarted = false;
+    void bgMusicAudio; void ytReady; void ytStarted;
 
     // Audio auto-boots only after the player has actually MOVED into the
     // world (not on page load, not on idle tap). This means a viewer who
@@ -740,6 +707,219 @@
     window.addEventListener('touchstart', audioGesture, { passive: true, once: false });
     window.addEventListener('pointerdown', audioGesture, { passive: true, once: false });
     window.addEventListener('keydown', audioGesture, { passive: true, once: false });
+
+    // ── CHAPTER-ENTRY SOUND STINGS · one-shot SFX fired when crossing into
+    // a chapter. Each is procedural WebAudio (~1-2s), evocative of the era.
+    // Reuses the chapterAudio.ac context so it inherits autoplay-policy unlock.
+    function playChapterSting(id) {
+        if (!chapterAudio) return;
+        const ac = chapterAudio.ac;
+        const master = chapterAudio.master;
+        const t0 = ac.currentTime;
+
+        // small helpers · local copies of the ones in chapterAudioBoot scope
+        const o = (type, f) => { const n = ac.createOscillator(); n.type = type; n.frequency.value = f; return n; };
+        const gn = (v) => { const n = ac.createGain(); n.gain.value = v; return n; };
+        const lp = (f) => { const n = ac.createBiquadFilter(); n.type = 'lowpass'; n.frequency.value = f; return n; };
+        const bp = (f, q) => { const n = ac.createBiquadFilter(); n.type = 'bandpass'; n.frequency.value = f; n.Q.value = q; return n; };
+        const noiseBuf = (() => {
+            const b = ac.createBuffer(1, ac.sampleRate * 0.6, ac.sampleRate);
+            const d = b.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            return b;
+        })();
+        const nsrc = () => { const s = ac.createBufferSource(); s.buffer = noiseBuf; return s; };
+
+        // tone helper · plays a single note with envelope
+        function tone(type, freq, start, dur, vol) {
+            const osc = o(type, freq);
+            const g = gn(0);
+            osc.connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + start);
+            g.gain.linearRampToValueAtTime(vol, t0 + start + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
+            osc.start(t0 + start); osc.stop(t0 + start + dur + 0.05);
+        }
+        // noise burst helper
+        function burst(start, dur, vol, freq, q) {
+            const s = nsrc(); const f = bp(freq, q); const g = gn(0);
+            s.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + start);
+            g.gain.linearRampToValueAtTime(vol, t0 + start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
+            s.start(t0 + start); s.stop(t0 + start + dur + 0.05);
+        }
+
+        if (id === 'itics') {
+            // SCHOOL BELL · struck-metal bell (additive harmonics)
+            const bell = [1320, 1980, 2640, 3300];
+            const vols = [0.18, 0.10, 0.06, 0.04];
+            bell.forEach((f, i) => tone('sine', f, 0, 2.5, vols[i]));
+            tone('sine', 660, 0, 2.5, 0.06);
+        } else if (id === 'cmr') {
+            // STUDY HALL · page turn + pencil scratch + soft tick
+            burst(0,    0.18, 0.10, 2400, 4);   // page turn
+            burst(0.6,  0.12, 0.08, 3200, 6);   // pencil scratch
+            tone('sine', 1600, 1.0, 0.04, 0.08); // soft clock tick
+        } else if (id === 'college') {
+            // ENGINEERING · cycle bell ding + tool clink
+            tone('triangle', 1760, 0,    0.35, 0.12);   // cycle bell
+            tone('triangle', 1320, 0.10, 0.40, 0.10);
+            tone('square',    400, 0.7,  0.15, 0.06);   // tool clink
+            tone('square',    600, 0.75, 0.15, 0.06);
+        } else if (id === 'fever104') {
+            // RADIO TUNE-IN · static sweep into pentatonic note
+            burst(0,    0.5,  0.10, 2400, 3);
+            burst(0.2,  0.3,  0.07, 1800, 4);
+            tone('sine', 523.25, 0.7, 0.6, 0.10);   // C5 settle
+            tone('sine', 659.25, 0.9, 0.5, 0.08);   // E5
+        } else if (id === 'sakha') {
+            // FIRST JOB · mechanical keyboard cluster + soft chime
+            for (let i = 0; i < 6; i++) {
+                burst(0.05 * i, 0.025, 0.10, 3500 + (i % 3) * 800, 6);
+            }
+            tone('sine', 880, 0.5, 0.8, 0.08);   // task-complete chime
+        } else if (id === 'scripbox') {
+            // AI / SCRIPBOX · ascending arpeggio + shimmer
+            tone('triangle', 440,    0.0, 0.3, 0.08);
+            tone('triangle', 523.25, 0.15, 0.3, 0.08);
+            tone('triangle', 659.25, 0.30, 0.3, 0.08);
+            tone('triangle', 880,    0.45, 0.5, 0.09);
+            burst(0.5, 0.4, 0.05, 4500, 2);
+        } else if (id === 'vwgt') {
+            // CAR · door slam + engine rev
+            burst(0, 0.08, 0.18, 200, 2);          // door thunk
+            // Engine rev = sawtooth pitching down
+            const eng = o('sawtooth', 180);
+            const ef  = lp(400);
+            const eg  = gn(0);
+            eng.connect(ef).connect(eg).connect(master);
+            eg.gain.setValueAtTime(0, t0 + 0.4);
+            eg.gain.linearRampToValueAtTime(0.10, t0 + 0.5);
+            eng.frequency.setValueAtTime(110, t0 + 0.4);
+            eng.frequency.exponentialRampToValueAtTime(220, t0 + 0.8);
+            eng.frequency.exponentialRampToValueAtTime(90, t0 + 1.3);
+            eg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
+            eng.start(t0 + 0.4); eng.stop(t0 + 1.5);
+        } else if (id === 'now') {
+            // PRESENT · contemplative chime cluster (A minor add9)
+            tone('sine', 220,    0.0, 2.5, 0.10);
+            tone('sine', 329.63, 0.1, 2.5, 0.07);
+            tone('sine', 440,    0.2, 2.5, 0.06);
+            tone('sine', 587.33, 0.3, 2.5, 0.05);
+        }
+    }
+
+    // ── PROXIMITY SFX ZONES · ambient sound triggers near specific landmarks
+    const NEAR_SFX_ZONES = [
+        { wx:  780, range: 90,  kind: 'cinema_audience', cooldown: 25000 },
+        { wx: 1450, range: 100, kind: 'market_chatter',  cooldown: 32000 },
+        { wx: 1800, range: 100, kind: 'stadium_roar',    cooldown: 38000 },
+        { wx: 2150, range: 100, kind: 'cricket_crack',   cooldown: 42000 },
+        { wx: 4000, range: 110, kind: 'office_chatter',  cooldown: 35000 },
+    ];
+    const _zoneLastFired = {};
+    function tickProximitySFX() {
+        if (!chapterAudio || !_audioBooted) return;
+        const now = state.elapsedMs;
+        for (const z of NEAR_SFX_ZONES) {
+            const d = Math.abs(state.playerX - z.wx);
+            if (d > z.range) continue;
+            const last = _zoneLastFired[z.kind] || 0;
+            if (now - last < z.cooldown) continue;
+            _zoneLastFired[z.kind] = now;
+            playProximitySFX(z.kind);
+        }
+    }
+    function playProximitySFX(kind) {
+        if (!chapterAudio) return;
+        const ac = chapterAudio.ac;
+        const master = chapterAudio.master;
+        const t0 = ac.currentTime;
+        const o = (type, f) => { const n = ac.createOscillator(); n.type = type; n.frequency.value = f; return n; };
+        const gn = (v) => { const n = ac.createGain(); n.gain.value = v; return n; };
+        const bp = (f, q) => { const n = ac.createBiquadFilter(); n.type = 'bandpass'; n.frequency.value = f; n.Q.value = q; return n; };
+        const lp = (f) => { const n = ac.createBiquadFilter(); n.type = 'lowpass'; n.frequency.value = f; return n; };
+        const noiseBuf = (() => {
+            const b = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+            const d = b.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            return b;
+        })();
+        const ns = () => { const s = ac.createBufferSource(); s.buffer = noiseBuf; return s; };
+
+        if (kind === 'cinema_audience') {
+            const n = ns(); const f = bp(500, 0.8); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.06, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.5);
+            n.start(t0); n.stop(t0 + 2.6);
+            for (let i = 0; i < 3; i++) {
+                const cs = ns(); const cf = bp(2500, 1.5); const cg = gn(0);
+                cs.connect(cf).connect(cg).connect(master);
+                const ct = t0 + 0.5 + i * 0.6 + Math.random() * 0.2;
+                cg.gain.setValueAtTime(0.10, ct);
+                cg.gain.exponentialRampToValueAtTime(0.001, ct + 0.08);
+                cs.start(ct); cs.stop(ct + 0.1);
+            }
+            const w1 = o('triangle', 2200); const w2 = o('triangle', 2210);
+            const wg = gn(0); w1.connect(wg); w2.connect(wg); wg.connect(master);
+            const wt = t0 + 1.8;
+            wg.gain.setValueAtTime(0, wt);
+            wg.gain.linearRampToValueAtTime(0.06, wt + 0.04);
+            wg.gain.setValueAtTime(0.06, wt + 0.3);
+            wg.gain.exponentialRampToValueAtTime(0.001, wt + 0.4);
+            w1.start(wt); w2.start(wt); w1.stop(wt + 0.42); w2.stop(wt + 0.42);
+        } else if (kind === 'market_chatter') {
+            const n = ns(); const f = bp(600, 0.6); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.05, t0 + 0.5);
+            g.gain.linearRampToValueAtTime(0, t0 + 3.0);
+            n.start(t0); n.stop(t0 + 3.1);
+        } else if (kind === 'stadium_roar') {
+            const n = ns(); const f = bp(450, 0.5); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.12, t0 + 0.8);
+            g.gain.exponentialRampToValueAtTime(0.001, t0 + 2.8);
+            n.start(t0); n.stop(t0 + 2.9);
+            const w = o('triangle', 2400); const wg = gn(0);
+            w.connect(wg).connect(master);
+            wg.gain.setValueAtTime(0.08, t0 + 0.5);
+            wg.gain.setValueAtTime(0.08, t0 + 0.8);
+            wg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.9);
+            w.start(t0 + 0.5); w.stop(t0 + 0.95);
+        } else if (kind === 'cricket_crack') {
+            const cs = ns(); const cf = bp(3000, 4); const cg = gn(0);
+            cs.connect(cf).connect(cg).connect(master);
+            cg.gain.setValueAtTime(0.15, t0);
+            cg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
+            cs.start(t0); cs.stop(t0 + 0.08);
+            const n = ns(); const nf = bp(500, 0.8); const ng = gn(0);
+            n.connect(nf).connect(ng).connect(master);
+            ng.gain.setValueAtTime(0, t0 + 0.3);
+            ng.gain.linearRampToValueAtTime(0.10, t0 + 0.7);
+            ng.gain.exponentialRampToValueAtTime(0.001, t0 + 2.5);
+            n.start(t0 + 0.3); n.stop(t0 + 2.6);
+        } else if (kind === 'office_chatter') {
+            for (let i = 0; i < 8; i++) {
+                const ks = ns(); const kf = bp(3200, 5); const kg = gn(0);
+                ks.connect(kf).connect(kg).connect(master);
+                const kt = t0 + Math.random() * 2.5;
+                kg.gain.setValueAtTime(0.06, kt);
+                kg.gain.exponentialRampToValueAtTime(0.001, kt + 0.025);
+                ks.start(kt); ks.stop(kt + 0.05);
+            }
+            const n = ns(); const f = lp(500); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(0.03, t0 + 0.5);
+            g.gain.linearRampToValueAtTime(0, t0 + 2.8);
+            n.start(t0); n.stop(t0 + 2.9);
+        }
+    }
 
     // ── CHAPTER MUSIC · per-chapter .mp3 theme files (overrides procedural) ──
     // Drop files into /public/music/{id}.mp3 and they'll auto-load + crossfade
@@ -1387,18 +1567,12 @@
     canvas.addEventListener('pointerup', (e) => {
         const heldMs = performance.now() - touchStartT;
         state.touchHold = false;
-        // Quick tap with no movement:
-        //   1. Check if it landed on a Bangalore landmark/bridge/metro · open lore
-        //   2. Otherwise · peek the next chapter card
-        // This ordering preserves peek for empty-space taps · landmarks only
-        // trigger on deliberate clicks on the building silhouette itself.
-        if (heldMs < 220 && !touchMoved) {
+        // Quick tap with no movement = landmark click ONLY (peek removed per
+        // user feedback · "double tap" camera-lean felt glitchy).
+        // Empty-space taps do nothing now.
+        if (heldMs < 400 && !touchMoved) {
             const lm = hitTestLandmark(e.clientX, e.clientY);
-            if (lm) {
-                openLoreCard(lm);
-            } else {
-                triggerPeek();
-            }
+            if (lm) openLoreCard(lm);
         }
     });
     canvas.addEventListener('pointercancel', () => { state.touchHold = false; });
@@ -2581,42 +2755,55 @@
         const parallax = 0.45;
         const yTop = horizonY - 32;
         const trainY = yTop - 20;
-        // Train stations along the line (matches drawMetroViaduct stations)
+        // Train stations · the train STOPS at each (matches drawMetroViaduct)
         const STATION_STOPS = [1700, 2350, 3000, 3650, 4350, 5100];
-        // Longer cycle + start/end padded WAY off the viaduct so wraparound
-        // is invisible · train spends ~25% of cycle off-screen at each end
-        const cycle = 60000;
+        // Cycle = travel + 6 station-pauses. Train spends meaningful time
+        // AT each station (4s) so passengers can "board" visually.
+        const PAUSE_PER_STATION = 4000;   // 4 seconds paused at each platform
+        const SEGMENTS = STATION_STOPS.length + 1;   // 7 segments: 2 edges + 5 interior
+        const totalPause = PAUSE_PER_STATION * STATION_STOPS.length;
+        const cycle = 70000;   // total cycle time
+        const travelTime = cycle - totalPause;
+        const timePerSegment = travelTime / SEGMENTS;
+
         for (let trainIdx = 0; trainIdx < 2; trainIdx++) {
-            const phase = (state.elapsedMs + trainIdx * 30000) % cycle;
-            const t = phase / cycle;
+            const phase = (state.elapsedMs + trainIdx * 35000) % cycle;
             const dir = trainIdx === 0 ? 1 : -1;
-            // Start/end are 800 world-px OUTSIDE the viaduct so train is
-            // off-screen during the phase wrap (invisible teleport)
             const startWX = dir > 0 ?  700 : 7200;
             const endWX   = dir > 0 ? 7200 :  700;
-            // Apply station-stop pacing: train moves fast between stations,
-            // pauses briefly at each. Build a piecewise speed curve.
-            const totalDist = Math.abs(endWX - startWX);
-            const PAUSE_FRACTION = 0.04;   // 4% of cycle paused at each station
+            // Stations in travel direction
             const stationsInDir = STATION_STOPS.slice().sort((a, b) =>
                 dir > 0 ? a - b : b - a);
-            // Compute progress through the trip considering pauses
-            const runFraction = 1 - PAUSE_FRACTION * stationsInDir.length;
-            const tRun = Math.min(1, t / runFraction);   // time spent moving
-            const tPaused = Math.max(0, t - runFraction);
-            const baseHeadWX = startWX + (endWX - startWX) * tRun;
-            // Snap to closest station if currently in a "paused" window
-            let headWX = baseHeadWX;
-            for (let i = 0; i < stationsInDir.length; i++) {
-                const stWX = stationsInDir[i];
-                const distFromStart = dir > 0 ? stWX - startWX : startWX - stWX;
-                const stationT = distFromStart / totalDist * runFraction;
-                if (t > stationT && t < stationT + PAUSE_FRACTION) {
-                    headWX = stWX;   // hold at station
+            // Build waypoint list in order: [start, station0, station1, ..., end]
+            const waypoints = [startWX, ...stationsInDir, endWX];
+
+            // Walk through schedule to find current headWX
+            let elapsed = 0;
+            let headWX = startWX;
+            let isAtStation = false;
+            for (let i = 0; i < SEGMENTS; i++) {
+                const segStart = elapsed;
+                const segEnd = segStart + timePerSegment;
+                if (phase < segEnd) {
+                    // In travel segment i (from waypoints[i] to waypoints[i+1])
+                    const segT = (phase - segStart) / timePerSegment;
+                    headWX = waypoints[i] + (waypoints[i + 1] - waypoints[i]) * segT;
                     break;
                 }
+                elapsed = segEnd;
+                // After segment i, if there's a station (i.e. i < SEGMENTS - 1), pause
+                if (i < SEGMENTS - 1) {
+                    const pauseEnd = elapsed + PAUSE_PER_STATION;
+                    if (phase < pauseEnd) {
+                        // Currently paused at station waypoints[i+1] (which is stationsInDir[i])
+                        headWX = waypoints[i + 1];
+                        isAtStation = true;
+                        break;
+                    }
+                    elapsed = pauseEnd;
+                }
             }
-            void tPaused;
+            void isAtStation;
             const trainLen = 6 * 30 + 5 * 2;
             const offset = -(cameraX * parallax);
             const headSx = headWX + offset;
@@ -2795,30 +2982,144 @@
         if (chapterIdxAt(state.playerX) > 1) return;
         const offset = -(cameraX * 0.35);
         const t = state.elapsedMs / 1000;
+        const KITE_COLORS = [
+            { hi: '#a4332e', lo: '#7a221c' },   // red
+            { hi: '#e6c285', lo: '#a87a3a' },   // yellow
+            { hi: '#3a7a8a', lo: '#264a5a' },   // teal
+            { hi: '#7a8a3a', lo: '#4a5a2a' },   // olive green
+        ];
         for (let i = 0; i < kites.length; i++) {
             const k = kites[i];
             const px = k.x + offset;
-            if (px < -20 || px > W + 20) continue;
-            const bob = Math.sin(t * 0.8 + i) * 3;
-            const sway = Math.cos(t * 0.5 + i * 1.3) * 2;
+            if (px < -30 || px > W + 30) continue;
+            const bob = Math.sin(t * 0.8 + i) * 5;
+            const sway = Math.cos(t * 0.5 + i * 1.3) * 4;
             const ky = horizonY - k.baseY + bob;
             const kx = px + sway;
-            // Diamond
-            ctx.fillStyle = k.color;
+            const pal = KITE_COLORS[i % KITE_COLORS.length];
+            // Diamond fighter-kite shape · larger + 2-tone panels
+            const W2 = 7, H2 = 10;
+            // Left half (light)
+            ctx.fillStyle = pal.hi;
             ctx.beginPath();
-            ctx.moveTo(kx, ky - 4);
-            ctx.lineTo(kx + 3, ky);
-            ctx.lineTo(kx, ky + 4);
-            ctx.lineTo(kx - 3, ky);
+            ctx.moveTo(kx, ky - H2);
+            ctx.lineTo(kx, ky + H2);
+            ctx.lineTo(kx - W2, ky);
             ctx.closePath();
             ctx.fill();
-            // Tail string · diagonal 30px
-            ctx.strokeStyle = 'rgba(58, 36, 24, 0.5)';
+            // Right half (dark)
+            ctx.fillStyle = pal.lo;
+            ctx.beginPath();
+            ctx.moveTo(kx, ky - H2);
+            ctx.lineTo(kx, ky + H2);
+            ctx.lineTo(kx + W2, ky);
+            ctx.closePath();
+            ctx.fill();
+            // Spine + cross-spar
+            ctx.strokeStyle = 'rgba(28, 18, 10, 0.7)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(kx, ky - H2); ctx.lineTo(kx, ky + H2);
+            ctx.moveTo(kx - W2, ky); ctx.lineTo(kx + W2, ky);
+            ctx.stroke();
+            // Tail string · curving down with 3 ribbon-bow ties
+            ctx.strokeStyle = 'rgba(58, 36, 24, 0.55)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(kx, ky + 4);
-            ctx.lineTo(kx - 16, ky + 30);
+            const tail1x = kx - 10 + Math.sin(t * 1.2 + i) * 2;
+            const tail2x = tail1x - 8 + Math.cos(t * 1.1 + i) * 3;
+            const tail3x = tail2x - 6 + Math.sin(t * 1.3 + i) * 3;
+            ctx.moveTo(kx, ky + H2);
+            ctx.quadraticCurveTo(tail1x, ky + H2 + 12, tail2x, ky + H2 + 24);
+            ctx.quadraticCurveTo(tail3x, ky + H2 + 36, tail3x - 4, ky + H2 + 48);
             ctx.stroke();
+            // Ribbon bows at tail intervals
+            ctx.fillStyle = pal.hi;
+            ctx.fillRect(tail1x - 1.5, ky + H2 + 11, 3, 2);
+            ctx.fillRect(tail2x - 1.5, ky + H2 + 23, 3, 2);
+            ctx.fillRect(tail3x - 1.5, ky + H2 + 35, 3, 2);
+        }
+    }
+
+    /** Fireworks over Vidhana Soudha · brief bursts every ~6s at night.
+     *  Each firework rises, peaks, then bursts into 14 colored sparks
+     *  that fall with gravity. Color is patriotic (saffron/white/green). */
+    const fireworks = [];
+    function spawnFirework() {
+        const wx = 600 + (Math.random() - 0.5) * 200;   // near Vidhana Soudha
+        const targetY = 70 + Math.random() * 50;
+        fireworks.push({
+            wx,
+            y: 0,
+            targetY,
+            phase: 'rising',
+            sparks: [],
+            color: ['#c47540', '#d4b48a', '#5a6a4a'][(Math.random() * 3) | 0],
+            t: 0,
+        });
+    }
+    function updateFireworks(dt) {
+        // Auto-spawn every 5.5-9s if chapter is night-ish (after first move)
+        if (_initialPlayerX !== null && state.playerX > _initialPlayerX + 40) {
+            if (!updateFireworks.nextSpawn) updateFireworks.nextSpawn = state.elapsedMs + 2000;
+            if (state.elapsedMs > updateFireworks.nextSpawn && fireworks.length < 3) {
+                spawnFirework();
+                updateFireworks.nextSpawn = state.elapsedMs + 5500 + Math.random() * 3500;
+            }
+        }
+        for (let i = fireworks.length - 1; i >= 0; i--) {
+            const fw = fireworks[i];
+            fw.t += dt;
+            if (fw.phase === 'rising') {
+                fw.y += 220 * dt / 1000;
+                if (fw.y >= fw.targetY) {
+                    fw.phase = 'burst';
+                    // emit 14 sparks
+                    for (let s = 0; s < 14; s++) {
+                        const a = (s / 14) * Math.PI * 2;
+                        fw.sparks.push({
+                            x: 0, y: 0,
+                            vx: Math.cos(a) * (60 + Math.random() * 40),
+                            vy: Math.sin(a) * (60 + Math.random() * 40),
+                            life: 1.0,
+                        });
+                    }
+                }
+            } else {
+                for (const sp of fw.sparks) {
+                    sp.x += sp.vx * dt / 1000;
+                    sp.y += sp.vy * dt / 1000;
+                    sp.vy += 90 * dt / 1000;   // gravity
+                    sp.life -= dt / 1400;
+                }
+                if (fw.sparks.every(s => s.life <= 0)) fireworks.splice(i, 1);
+            }
+        }
+    }
+    function drawFireworks(W, horizonY, cameraX) {
+        if (chapterIdxAt(state.playerX) > 1) return;
+        const offset = -(cameraX * 0.25);
+        for (const fw of fireworks) {
+            const px = fw.wx + offset;
+            if (px < -30 || px > W + 30) continue;
+            if (fw.phase === 'rising') {
+                // Trail · 4 fading dots behind the rocket
+                for (let i = 0; i < 4; i++) {
+                    ctx.fillStyle = `rgba(212, 180, 138, ${0.35 - i * 0.08})`;
+                    ctx.fillRect(px - 1, horizonY - fw.y + i * 4, 2, 2);
+                }
+                // Rocket head
+                ctx.fillStyle = fw.color;
+                ctx.fillRect(px - 1.5, horizonY - fw.y - 2, 3, 4);
+            } else {
+                for (const sp of fw.sparks) {
+                    if (sp.life <= 0) continue;
+                    ctx.fillStyle = fw.color;
+                    ctx.globalAlpha = Math.max(0, sp.life);
+                    ctx.fillRect(px + sp.x - 1, horizonY - fw.targetY + sp.y - 1, 2, 2);
+                }
+                ctx.globalAlpha = 1;
+            }
         }
     }
 
@@ -4590,12 +4891,21 @@
         // ON AIR sign
         drawOnAirSign(px, gY - 30, t * 0.003);
 
-        // 104 FM marquee
-        ctx.font = 'bold 8px monospace';
-        ctx.textAlign = 'center';
-        const scroll = (t * 0.05) % 40;
-        ctx.fillStyle = `rgba(255, 200, 160, ${a * 0.7})`;
-        ctx.fillText('· 104 FM · FEVER · 104 FM ·', px - scroll, gY - 9);
+        // 104 FM marquee · clipped to building width (56px) to prevent overflow
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(px - 28, gY - 20, 56, 12);
+        ctx.clip();
+        ctx.font = 'bold 5px monospace';
+        ctx.textAlign = 'left';
+        const scroll = (t * 0.05) % 60;
+        ctx.fillStyle = `rgba(255, 200, 160, ${a * 0.85})`;
+        // Draw the marquee text twice so it scrolls seamlessly through the clip
+        const marqueeText = '· FEVER 104 FM · FEVER 104 FM ';
+        ctx.fillText(marqueeText, px - 28 - scroll, gY - 11);
+        ctx.fillText(marqueeText, px - 28 - scroll + 60, gY - 11);
+        ctx.restore();
+        ctx.textAlign = 'start';
 
         // FLOATING MUSIC NOTES drift up from booth
         for (let i = 0; i < 5; i++) {
@@ -7088,6 +7398,9 @@
 
             // update per-chapter ambient audio gains based on player proximity
             chapterAudioTick();
+            // proximity SFX · fires near-landmark sounds (cinema audience,
+            // stadium roar, market chatter, cricket bat crack, office keys)
+            tickProximitySFX();
 
             // walking leg-phase only advances when actually walking/running
             if ((state.vehicle === 'walk' || state.vehicle === 'run') && dir !== 0) {
@@ -7149,17 +7462,11 @@
                     }
                     updateMission(i);
                     setTimeout(() => updateMission(pickNextObjective()), 1400);
-                    triggerLetterbox(2400);
-                    // CINEMATIC INTERTITLE · ACT card with quote · 2.4s reveal
-                    const card = CHAPTER_INTERTITLES[ch.id];
-                    const $it = document.getElementById('intertitle');
-                    if (card && $it) {
-                        document.getElementById('intertitle-act').textContent = card.act;
-                        document.getElementById('intertitle-title').textContent = card.title;
-                        document.getElementById('intertitle-quote').textContent = card.quote;
-                        $it.classList.add('shown');
-                        setTimeout(() => $it.classList.remove('shown'), 2200);
-                    }
+                    triggerLetterbox(1100);
+                    // CHAPTER-ENTRY STING · fire a one-shot procedural SFX for
+                    // this chapter (school bell, study scratch, engineering bell,
+                    // radio static, keyboard, AI shimmer, engine rev, chime).
+                    try { playChapterSting(ch.id); } catch (_) {}
                     sfxCollect();
                     shake(10, 380);
                     // 28 particles radiating from the landmark · color-matched
@@ -7277,6 +7584,7 @@
 
         // particles update (gravity, drag, fade)
         updateParticles(dt);
+        updateFireworks(dt);
 
         // screen-shake decay
         if (state.shake.t > 0) {
@@ -7393,6 +7701,8 @@
         drawDistantCanopy(W, horizonY, groundY, cameraX);
         // 0.35 — kites floating high (only ITICS+CMR)
         drawKites(W, horizonY, cameraX);
+        // 0.25 — fireworks over Vidhana Soudha (only ITICS+CMR)
+        drawFireworks(W, horizonY, cameraX);
         // 0.35 — raintree fillers between skyline and infrastructure
         drawRaintrees(W, horizonY, groundY, cameraX);
         // 0.40 — bridges (road infrastructure)
