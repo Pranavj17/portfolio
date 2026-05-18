@@ -839,10 +839,13 @@
 
     // ── PROXIMITY SFX ZONES · ambient sound triggers near specific landmarks
     const NEAR_SFX_ZONES = [
+        { wx:  300, range: 90,  kind: 'prayer_bell',     cooldown: 40000 },   // Bull Temple
         { wx:  780, range: 90,  kind: 'cinema_audience', cooldown: 25000 },
         { wx: 1450, range: 100, kind: 'market_chatter',  cooldown: 32000 },
+        { wx: 1550, range: 85,  kind: 'food_vendor',     cooldown: 28000 },   // food carts near KR Market
         { wx: 1800, range: 100, kind: 'stadium_roar',    cooldown: 38000 },
         { wx: 2150, range: 100, kind: 'cricket_crack',   cooldown: 42000 },
+        { wx: 3050, range: 90,  kind: 'prayer_bell',     cooldown: 42000 },   // ISKCON Temple
         { wx: 4000, range: 110, kind: 'office_chatter',  cooldown: 35000 },
     ];
     const _zoneLastFired = {};
@@ -1150,21 +1153,21 @@
             burst(0.8, 0.15, 0.06, 2800, 4);
         } else if (kind === 'classroom_quiet') {
             // Soft pencil scratch + clock tick · concentration
-            burst(0.1, 0.15, 0.07, 3200, 5);    // pencil
-            tone('sine', 1600, 0.6, 0.04, 0.06);  // tick
-            tone('sine', 1600, 1.6, 0.04, 0.06);
-            burst(2.0, 0.15, 0.06, 3200, 5);
+            burst(0.1, 0.15, 0.09, 3200, 5);    // pencil
+            tone('sine', 1600, 0.6, 0.04, 0.08);  // tick
+            tone('sine', 1600, 1.6, 0.04, 0.08);
+            burst(2.0, 0.15, 0.08, 3200, 5);
         } else if (kind === 'lunch_chatter') {
             // Cafeteria · plates + chatter + laughter
             const n = ns(); const f = bp(650, 0.55); const g = gn(0);
             n.connect(f).connect(g).connect(master);
             g.gain.setValueAtTime(0, t0);
-            g.gain.linearRampToValueAtTime(0.07, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0.09, t0 + 0.3);
             g.gain.linearRampToValueAtTime(0, t0 + 2.6);
             n.start(t0); n.stop(t0 + 2.7);
             // Plate clink
-            burst(0.5, 0.08, 0.10, 2400, 6);
-            burst(1.4, 0.08, 0.10, 2600, 6);
+            burst(0.5, 0.08, 0.12, 2400, 6);
+            burst(1.4, 0.08, 0.12, 2600, 6);
         } else if (kind === 'school_bell_distant') {
             // Distant struck bell · gentle
             const freqs = [1320, 1980, 2640];
@@ -1262,11 +1265,75 @@
             eng.start(t0); eng.stop(t0 + 2.4);
         } else if (kind === 'morning_ambient') {
             // Bird chirp + soft chime · contemplative morning
-            tone('sine', 2400, 0.0, 0.15, 0.05);   // chirp 1
-            tone('sine', 2200, 0.18, 0.15, 0.05);
-            tone('sine', 2600, 1.0, 0.15, 0.05);   // chirp 2
-            tone('sine', 220, 0.3, 2.0, 0.07);
-            tone('sine', 329, 0.5, 1.8, 0.06);
+            tone('sine', 2400, 0.0, 0.15, 0.07);   // chirp 1
+            tone('sine', 2200, 0.18, 0.15, 0.07);
+            tone('sine', 2600, 1.0, 0.15, 0.07);   // chirp 2
+            tone('sine', 220, 0.3, 2.0, 0.10);
+            tone('sine', 329, 0.5, 1.8, 0.09);
+        } else if (kind === 'food_vendor') {
+            // Street food sizzle + vendor calling · cumin + spice market
+            // Hiss = sizzling oil (filtered noise)
+            const sizzle = ns(); const sf = bp(3200, 1.5); const sg = gn(0);
+            sizzle.connect(sf).connect(sg).connect(master);
+            sg.gain.setValueAtTime(0, t0);
+            sg.gain.linearRampToValueAtTime(0.10, t0 + 0.3);
+            sg.gain.linearRampToValueAtTime(0, t0 + 2.5);
+            sizzle.start(t0); sizzle.stop(t0 + 2.6);
+            // Vendor call · short rising pitch sweep (voice-like)
+            const callOsc = o('sawtooth', 220);
+            const callFilt = lp(900);
+            const callGain = gn(0);
+            callOsc.connect(callFilt).connect(callGain).connect(master);
+            callGain.gain.setValueAtTime(0, t0 + 0.8);
+            callGain.gain.linearRampToValueAtTime(0.08, t0 + 0.95);
+            callGain.gain.setValueAtTime(0.08, t0 + 1.2);
+            callGain.gain.exponentialRampToValueAtTime(0.001, t0 + 1.5);
+            callOsc.frequency.setValueAtTime(220, t0 + 0.8);
+            callOsc.frequency.linearRampToValueAtTime(310, t0 + 1.0);
+            callOsc.frequency.linearRampToValueAtTime(190, t0 + 1.4);
+            callOsc.start(t0 + 0.8); callOsc.stop(t0 + 1.6);
+        } else if (kind === 'prayer_bell') {
+            // Temple bell · brass struck-metal harmonics + low chant murmur
+            // Bell: fundamental + 3 inharmonic partials
+            const partials = [
+                { f: 880,  v: 0.16 },
+                { f: 1320, v: 0.10 },
+                { f: 1760, v: 0.07 },
+                { f: 2640, v: 0.05 },
+            ];
+            for (const p of partials) tone('sine', p.f, 0, 3.2, p.v);
+            tone('sine', 440, 0, 2.8, 0.10);   // sub-tone
+            // Low murmur (chanting) sustained underneath
+            const n = ns(); const f = lp(500); const g = gn(0);
+            n.connect(f).connect(g).connect(master);
+            g.gain.setValueAtTime(0, t0 + 0.3);
+            g.gain.linearRampToValueAtTime(0.04, t0 + 0.8);
+            g.gain.linearRampToValueAtTime(0, t0 + 3.0);
+            n.start(t0 + 0.3); n.stop(t0 + 3.1);
+        } else if (kind === 'monsoon_thunder') {
+            // Distant thunder rumble + intensifying rain hiss
+            // Thunder: low-frequency noise burst with delayed echo
+            const rumble = ns(); const rf = lp(180); const rg = gn(0);
+            rumble.connect(rf).connect(rg).connect(master);
+            rg.gain.setValueAtTime(0, t0);
+            rg.gain.linearRampToValueAtTime(0.18, t0 + 0.4);
+            rg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.8);
+            rumble.start(t0); rumble.stop(t0 + 1.9);
+            // Echo after 0.4s · quieter
+            const echo = ns(); const ef = lp(160); const eg = gn(0);
+            echo.connect(ef).connect(eg).connect(master);
+            eg.gain.setValueAtTime(0, t0 + 0.6);
+            eg.gain.linearRampToValueAtTime(0.10, t0 + 0.9);
+            eg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.8);
+            echo.start(t0 + 0.6); echo.stop(t0 + 1.9);
+            // Rain hiss · sustained high-band noise
+            const rain = ns(); const raf = bp(3000, 0.8); const rag = gn(0);
+            rain.connect(raf).connect(rag).connect(master);
+            rag.gain.setValueAtTime(0, t0);
+            rag.gain.linearRampToValueAtTime(0.06, t0 + 0.5);
+            rag.gain.setValueAtTime(0.06, t0 + 2.0);
+            rag.gain.linearRampToValueAtTime(0, t0 + 3.0);
+            rain.start(t0); rain.stop(t0 + 3.1);
         }
     }
 
@@ -8300,6 +8367,8 @@
             if (state.elapsedMs > state.rainNextAt) {
                 state.rainIntensity = 1;
                 state.rainNextAt = state.elapsedMs + 65000 + Math.random() * 35000;
+                // Thunder SFX with rain burst · ambient soundscape match
+                try { playBeatSFX('monsoon_thunder'); } catch (_) {}
             }
             // decay rain intensity over ~12s (sustain ~8s, fade 4s)
             if (state.rainIntensity > 0) {
