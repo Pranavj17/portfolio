@@ -1332,6 +1332,70 @@
         const t = state.elapsedMs;
         ctx.globalAlpha = a;
 
+        // === DAY/NIGHT CYCLE near tuitions · the PU GRIND ===
+        // Days blur into nights blur into days. Sun rises → moon → sun rises
+        // again. 10-second full cycle, visible as celestial body arcing
+        // across the sky above CMR. Stars appear at night phase. The local
+        // sky tint also shifts subtly to reinforce day/night.
+        const cycleLen = 10000;
+        const cyc = (t % cycleLen) / cycleLen;   // 0..1
+        // celestial body arcs from left horizon → overhead → right horizon
+        // for sun (0..0.5), then moon traces same arc (0.5..1.0)
+        const isNight = cyc >= 0.5;
+        const subCyc = isNight ? (cyc - 0.5) * 2 : cyc * 2;   // 0..1 within sun OR moon phase
+        const arcX = px + Math.cos(Math.PI - subCyc * Math.PI) * 110;
+        const arcY = gY - 60 - Math.sin(subCyc * Math.PI) * 48;
+        // dawn/dusk warm glow when celestial body is near horizon
+        const nearHorizon = Math.abs(subCyc - 0.5) > 0.35 ? 1 : (0.5 - Math.abs(subCyc - 0.5)) * 2;
+        // STARS at night (cyc > 0.55 to cyc < 0.95)
+        if (cyc > 0.55 && cyc < 0.95) {
+            const starAlpha = Math.min(1, (cyc - 0.55) * 6) * Math.min(1, (0.95 - cyc) * 6);
+            ctx.fillStyle = `rgba(233, 216, 176, ${0.6 * starAlpha})`;
+            const starSeed = [13, 47, 81, 109, 131, 167, 191, 223, 257, 281];
+            for (let i = 0; i < 10; i++) {
+                const sx = px - 80 + (starSeed[i] % 160);
+                const sy = gY - 110 + (starSeed[i] * 7 % 60);
+                const twinkle = 0.5 + 0.5 * Math.sin(t * 0.003 + i * 1.3);
+                ctx.globalAlpha = a * starAlpha * twinkle;
+                ctx.beginPath(); ctx.arc(sx, sy, 0.9, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.globalAlpha = a;
+        }
+        // SUN (day phase) · warm yellow with halo
+        if (!isNight) {
+            const sunGrad = ctx.createRadialGradient(arcX, arcY, 0, arcX, arcY, 22);
+            sunGrad.addColorStop(0, 'rgba(255, 230, 140, 0.9)');
+            sunGrad.addColorStop(0.4, 'rgba(255, 180, 80, 0.5)');
+            sunGrad.addColorStop(1, 'rgba(255, 140, 60, 0)');
+            ctx.fillStyle = sunGrad;
+            ctx.fillRect(arcX - 22, arcY - 22, 44, 44);
+            ctx.fillStyle = '#ffe4a0';
+            ctx.beginPath(); ctx.arc(arcX, arcY, 5.5, 0, Math.PI * 2); ctx.fill();
+        } else {
+            // MOON (night phase) · pale blue-white with crescent shadow
+            ctx.fillStyle = 'rgba(220, 230, 240, 0.92)';
+            ctx.beginPath(); ctx.arc(arcX, arcY, 5, 0, Math.PI * 2); ctx.fill();
+            // crescent shadow
+            ctx.fillStyle = 'rgba(40, 40, 60, 0.85)';
+            ctx.beginPath(); ctx.arc(arcX + 1.5, arcY - 0.5, 4.5, 0, Math.PI * 2); ctx.fill();
+            // moon glow halo
+            const moonGrad = ctx.createRadialGradient(arcX, arcY, 0, arcX, arcY, 14);
+            moonGrad.addColorStop(0, 'rgba(220, 230, 240, 0.25)');
+            moonGrad.addColorStop(1, 'rgba(220, 230, 240, 0)');
+            ctx.fillStyle = moonGrad;
+            ctx.fillRect(arcX - 14, arcY - 14, 28, 28);
+        }
+        // DAWN/DUSK warm horizon glow (when celestial body near horizon)
+        if (nearHorizon > 0.4) {
+            const horG = ctx.createLinearGradient(0, gY - 30, 0, gY);
+            const horAlpha = (nearHorizon - 0.4) * 0.6;
+            horG.addColorStop(0, `rgba(255, 140, 70, 0)`);
+            horG.addColorStop(0.5, `rgba(255, 140, 70, ${horAlpha * 0.4})`);
+            horG.addColorStop(1, `rgba(120, 50, 30, ${horAlpha * 0.2})`);
+            ctx.fillStyle = horG;
+            ctx.fillRect(px - 200, gY - 30, 400, 30);
+        }
+
         // TUITION CENTER billboard
         const bx = px - 230, by = gY - 78;
         ctx.fillStyle = '#3a2418'; ctx.fillRect(bx - 1, by, 2, 78);
@@ -4182,10 +4246,205 @@
             case 'bike':
                 drawBikeWithRider(cx, groundY);
                 break;
+            case 'alto':
+                drawAltoWithRider(cx, groundY);
+                break;
+            case 'vw':
+                drawVirtusGT(cx, groundY);
+                break;
             default:
                 drawVehicleEmoji(cx, groundY, VEHICLES[state.vehicle].icon, bob);
                 break;
         }
+    }
+
+    /** Maruti Alto 800 · the iconic Indian first-car. Compact city hatchback,
+     *  TALL greenhouse, BOXY rear, short wheelbase, round headlight, small
+     *  alloys. Cream/silver body — the classic Indian middle-class beige. */
+    function drawAltoWithRider(cx, footY) {
+        const moving = state.keys.right || state.touchHold;
+        const jitter = moving ? Math.sin(state.bobT * 0.05) * 0.4 : 0;
+        ctx.save();
+        ctx.translate(0, jitter);
+
+        const wheelR = 11;
+        const wheelY = footY - wheelR;
+        const wLx = cx - 22, wRx = cx + 22;
+        const BODY = '#d9c9a0';     // cream-silver Alto body
+        const SHADOW = '#a89878';
+        const WINDOW = 'rgba(30, 40, 50, 0.75)';
+
+        // shadow under
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(cx, footY + 3, 34, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+        // body lower band
+        ctx.fillStyle = BODY;
+        ctx.fillRect(cx - 30, wheelY - 6, 60, 8);
+        // body shadow line
+        ctx.fillStyle = SHADOW;
+        ctx.fillRect(cx - 30, wheelY - 2, 60, 1);
+        // GREENHOUSE · tall + short (Alto signature)
+        ctx.fillStyle = BODY;
+        ctx.beginPath();
+        ctx.moveTo(cx - 24, wheelY - 6);
+        ctx.lineTo(cx - 20, wheelY - 22);     // rear A-pillar (boxy)
+        ctx.lineTo(cx + 14, wheelY - 22);     // roofline (short)
+        ctx.lineTo(cx + 20, wheelY - 6);      // front A-pillar (slight slope)
+        ctx.closePath();
+        ctx.fill();
+        // windows · 2 doors visible
+        ctx.fillStyle = WINDOW;
+        ctx.fillRect(cx - 18, wheelY - 20, 14, 12);   // rear door window
+        ctx.fillRect(cx - 2,  wheelY - 20, 14, 12);   // front door window
+        // B-pillar between doors
+        ctx.fillStyle = BODY;
+        ctx.fillRect(cx - 4, wheelY - 21, 2, 13);
+        // driver silhouette through window
+        ctx.fillStyle = '#2a1810';
+        ctx.beginPath(); ctx.arc(cx + 5, wheelY - 16, 2.5, 0, Math.PI * 2); ctx.fill();
+        // round headlight (Alto classic round)
+        ctx.fillStyle = '#fff4c2';
+        ctx.beginPath(); ctx.arc(cx + 26, wheelY - 5, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#d4a653';
+        ctx.beginPath(); ctx.arc(cx + 26, wheelY - 5, 1.2, 0, Math.PI * 2); ctx.fill();
+        // tail lamp
+        ctx.fillStyle = '#a4332e';
+        ctx.fillRect(cx - 29, wheelY - 8, 2.5, 3);
+        // door handle line
+        ctx.strokeStyle = SHADOW; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(cx - 18, wheelY - 4); ctx.lineTo(cx + 18, wheelY - 4); ctx.stroke();
+        // tiny "ALTO" badge on rear door
+        ctx.fillStyle = '#5a3a22';
+        ctx.font = 'bold 3.5px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('ALTO', cx - 22, wheelY - 9);
+        ctx.textAlign = 'start';
+        // bumper
+        ctx.fillStyle = '#5a3a22';
+        ctx.fillRect(cx - 28, wheelY + 1, 56, 1.5);
+        // wheels · small alloys
+        drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+        drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+        ctx.restore();
+    }
+
+    /** VW Virtus GT · 4-door sporty sedan. Long, low, fastback-ish roofline,
+     *  3-box silhouette with distinct trunk, GT spoiler, gold racing stripe,
+     *  LED headlights, larger alloys. NOT a Formula car — this is a road
+     *  sedan with GT trim. Color: deep red (Wild Cherry Red) matching the
+     *  GT lineup, with black accents. */
+    function drawVirtusGT(cx, footY) {
+        const moving = state.keys.right || state.touchHold;
+        const jitter = moving ? Math.sin(state.bobT * 0.05) * 0.4 : 0;
+        ctx.save();
+        ctx.translate(0, jitter);
+
+        const wheelR = 13;
+        const wheelY = footY - wheelR;
+        const wLx = cx - 28, wRx = cx + 28;
+        const BODY = '#a83020';      // Wild Cherry Red (Virtus GT signature)
+        const BODY_DARK = '#7a2218';
+        const TRIM = '#1a0d08';      // glossy black trim
+        const ACCENT = '#d4a653';    // gold racing accent
+
+        // shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.ellipse(cx, footY + 3, 44, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+        // lower body (long sedan profile)
+        ctx.fillStyle = BODY;
+        ctx.fillRect(cx - 40, wheelY - 8, 80, 8);
+        // belt line shadow
+        ctx.fillStyle = BODY_DARK;
+        ctx.fillRect(cx - 40, wheelY - 1, 80, 1);
+        // GREENHOUSE · 4-door sedan with sloped C-pillar (fastback hint)
+        ctx.fillStyle = BODY;
+        ctx.beginPath();
+        ctx.moveTo(cx - 34, wheelY - 8);
+        ctx.lineTo(cx - 28, wheelY - 16);   // trunk top start
+        ctx.lineTo(cx - 12, wheelY - 22);   // C-pillar (sloped, fastback)
+        ctx.lineTo(cx + 6,  wheelY - 24);   // roof apex (lower than alto)
+        ctx.lineTo(cx + 18, wheelY - 22);   // A-pillar
+        ctx.lineTo(cx + 28, wheelY - 14);   // hood line (long hood)
+        ctx.lineTo(cx + 36, wheelY - 8);    // front bumper
+        ctx.closePath();
+        ctx.fill();
+
+        // 4 windows visible (sedan)
+        ctx.fillStyle = 'rgba(20, 30, 40, 0.78)';
+        // rear-most quarter window
+        ctx.beginPath();
+        ctx.moveTo(cx - 26, wheelY - 16);
+        ctx.lineTo(cx - 22, wheelY - 21);
+        ctx.lineTo(cx - 14, wheelY - 21);
+        ctx.lineTo(cx - 14, wheelY - 16);
+        ctx.closePath(); ctx.fill();
+        // rear door window
+        ctx.fillRect(cx - 12, wheelY - 21, 11, 13);
+        // front door window
+        ctx.fillRect(cx + 1, wheelY - 22, 11, 14);
+        // windshield triangle
+        ctx.beginPath();
+        ctx.moveTo(cx + 14, wheelY - 22);
+        ctx.lineTo(cx + 22, wheelY - 17);
+        ctx.lineTo(cx + 22, wheelY - 14);
+        ctx.lineTo(cx + 14, wheelY - 14);
+        ctx.closePath(); ctx.fill();
+
+        // B-pillar between doors (4-door tell)
+        ctx.fillStyle = TRIM;
+        ctx.fillRect(cx - 1, wheelY - 21, 1.5, 13);
+
+        // driver silhouette through front window
+        ctx.fillStyle = '#1a0d08';
+        ctx.beginPath(); ctx.arc(cx + 7, wheelY - 18, 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(cx + 4, wheelY - 16, 6, 4);
+
+        // GT racing stripe (gold, runs along belt line)
+        ctx.fillStyle = ACCENT;
+        ctx.fillRect(cx - 38, wheelY - 5, 76, 0.8);
+
+        // REAR SPOILER (GT trim signature — small ducktail)
+        ctx.fillStyle = TRIM;
+        ctx.beginPath();
+        ctx.moveTo(cx - 34, wheelY - 16);
+        ctx.lineTo(cx - 34, wheelY - 18);
+        ctx.lineTo(cx - 28, wheelY - 18);
+        ctx.lineTo(cx - 28, wheelY - 16);
+        ctx.closePath(); ctx.fill();
+
+        // LED headlight (narrow strip, sporty)
+        ctx.fillStyle = '#fff4c2';
+        ctx.fillRect(cx + 32, wheelY - 11, 4, 1.5);
+        ctx.fillStyle = '#7fc4ff';
+        ctx.fillRect(cx + 32, wheelY - 9, 3, 0.6);
+
+        // LED tail lamp (modern wraparound)
+        ctx.fillStyle = '#a4332e';
+        ctx.fillRect(cx - 38, wheelY - 13, 3, 4);
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fillRect(cx - 38, wheelY - 12, 3, 1);
+
+        // grille hint
+        ctx.fillStyle = TRIM;
+        ctx.fillRect(cx + 30, wheelY - 7, 6, 4);
+        ctx.fillStyle = ACCENT;
+        ctx.fillRect(cx + 31, wheelY - 5, 4, 0.6);
+
+        // "GT" badge on rear quarter
+        ctx.fillStyle = ACCENT;
+        ctx.font = 'bold 4px "Cinzel", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('GT', cx - 30, wheelY - 9);
+        ctx.textAlign = 'start';
+
+        // skirt + lower bumper (sporty)
+        ctx.fillStyle = TRIM;
+        ctx.fillRect(cx - 38, wheelY, 76, 2);
+
+        // 18" alloy wheels (sportier than Alto)
+        drawWheel(wLx, wheelY, wheelR, state.wheelPhase);
+        drawWheel(wRx, wheelY, wheelR, state.wheelPhase);
+        ctx.restore();
     }
 
     /** College-stage motorbike + rider · procedural side-view facing RIGHT.
