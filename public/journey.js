@@ -691,7 +691,11 @@
         );
         for (const lane of chapterAudio.lanes) {
             const d = Math.abs(state.playerX - lane.x);
-            const prox = d >= 400 ? 0 : 1 - d / 400;
+            // Wider proximity range (700 vs 400) so chapters overlap and the
+            // player never walks through a "dead zone" with no chapter music.
+            // ITICS at x=500 now reaches back to world-x -200 (covers
+            // pre-school zone with all the beats at wx 120-240).
+            const prox = d >= 700 ? 0 : 1 - d / 700;
             const target = prox * lane.cap;
             lane.gain.gain.setTargetAtTime(target, chapterAudio.ac.currentTime, 0.12);
         }
@@ -903,8 +907,8 @@
         'forward-horizon': 'morning_ambient',
     };
     const _beatLastFired = {};
-    const BEAT_COOLDOWN = 18000;       // 18s between same-beat firings
-    const BEAT_RANGE_WX = 60;          // world-x distance to trigger
+    const BEAT_COOLDOWN = 8000;        // 8s between same-beat firings (was 18s)
+    const BEAT_RANGE_WX = 80;          // world-x distance to trigger (was 60)
 
     function tickProximitySFX() {
         if (!chapterAudio || !_audioBooted) return;
