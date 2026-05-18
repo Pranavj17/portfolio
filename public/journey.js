@@ -74,27 +74,27 @@
         // ── ITICS (primary school, until 2013) ──
         { ch:'itics', id:'exam-anxiety',    dx:-380, dy:-18, w:48, h:48, title:'Exam anxiety',     lore:'Drank water and actually studied — the last 3 days before the exam.' },
         { ch:'itics', id:'trips',           dx:-340, dy:-15, w:48, h:48, title:'School trips',     lore:'Bus trips to school, school trips by train to nearby places in Karnataka.' },
-        { ch:'itics', id:'chit-chat',       dx:-300, dy:-18, w:48, h:48, title:'Chit-chat',        lore:'Casual timepass with friends.' },
+        { ch:'itics', id:'chit-chat',       dx:-300, dy:-18, w:48, h:48, title:'Chit-chat',        lore:'Casual timepass with friends.', chatter:['lunch?','maths sucks','wanna swap?','recess soon'] },
         { ch:'itics', id:'assembly-stage',  dx:-260, dy:-22, w:54, h:60, title:'Morning assembly', lore:'Every day at 8:30 AM. Lined up, sang, marched in.' },
-        { ch:'itics', id:'football-match',  dx:-380, dy:-80, w:64, h:48, title:'Football match',   lore:'Intra and inter-school competitions. Played striker.' },
+        { ch:'itics', id:'football-match',  dx:-380, dy:-80, w:64, h:48, title:'Football match',   lore:'Intra and inter-school competitions. Played striker.', chatter:['PASS!','on me!','GOAL!','foul!','shoot!'] },
         { ch:'itics', id:'sports-day',      dx:-340, dy:-80, w:64, h:48, title:'Sports day',       lore:'Great fun. Won.' },
-        { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka.' },
-        { ch:'itics', id:'cultural-dance',  dx:-260, dy:-80, w:64, h:48, title:'Cultural dance',   lore:'Did it as part of school activity.' },
+        { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka.', chatter:['HOWZAT!','SIX!','caught!','no-ball','run!'] },
+        { ch:'itics', id:'cultural-dance',  dx:-260, dy:-80, w:64, h:48, title:'Cultural dance',   lore:'Did it as part of school activity.', chatter:['together!','and... go','one more','smile!'] },
 
         // ── CMR NATIONAL (PU, 2013–2015) ──
-        { ch:'cmr', id:'tuition-rush',      dx:-380, dy:-13, w:44, h:40, title:'Tuition rush',     lore:'Went for IIT JEE.' },
+        { ch:'cmr', id:'tuition-rush',      dx:-380, dy:-13, w:44, h:40, title:'Tuition rush',     lore:'Went for IIT JEE.', chatter:['fast!','late again','physics first','JEE in 8 months'] },
         { ch:'cmr', id:'mock-test',         dx:-340, dy:-24, w:44, h:40, title:'Mock test',        lore:'Didn\'t study.' },
         { ch:'cmr', id:'study-lamp',        dx:-300, dy:-22, w:44, h:48, title:'Study lamp',       lore:'Had room lights. Late nights.' },
         { ch:'cmr', id:'pu-graduation',     dx:-260, dy:-8,  w:44, h:32, title:'PU graduation',    lore:'Fun.' },
-        { ch:'cmr', id:'group-study',       dx:-540, dy:-12, w:54, h:44, title:'Group study',      lore:'Did do it during exam times.' },
-        { ch:'cmr', id:'movie-night',       dx:-490, dy:-30, w:54, h:60, title:'Movie night',      lore:'Watched Bahubali with girlfriend.' },
+        { ch:'cmr', id:'group-study',       dx:-540, dy:-12, w:54, h:44, title:'Group study',      lore:'Did do it during exam times.', chatter:['ch 12 done?','ya','this one?','ugh','5 more chapters'] },
+        { ch:'cmr', id:'movie-night',       dx:-490, dy:-30, w:54, h:60, title:'Movie night',      lore:'Watched Bahubali with girlfriend.', chatter:['bahubali wild','best fight','one more sat?','popcorn?'] },
         { ch:'cmr', id:'cricket-weekend',   dx:-440, dy:-10, w:54, h:40, title:'Cricket weekend',  lore:'Yes — every weekend at the ITI pavilion.' },
         { ch:'cmr', id:'first-crush',       dx:-390, dy:-20, w:48, h:40, title:'First crush',      lore:'Yes — at tuition.' },
 
         // ── D.S.C.E. (mech eng, 2015–2019) ──
-        { ch:'college', id:'hostel-room',   dx:-380, dy:-30, w:48, h:64, title:'Hostel room',      lore:'Didn\'t go to hostel. Travelled every day — walking to 3 bus changes to college walk.' },
-        { ch:'college', id:'fest-stage',    dx:-340, dy:-25, w:54, h:54, title:'Fest stage',       lore:'Great fun. Did a dance in the fest.' },
-        { ch:'college', id:'group-ride',    dx:-300, dy:-12, w:54, h:36, title:'Group ride',       lore:'Yes — every day, triples.' },
+        { ch:'college', id:'hostel-room',   dx:-380, dy:-30, w:48, h:64, title:'Hostel room',      lore:'Didn\'t go to hostel. Travelled every day — walking to 3 bus changes to college walk.', chatter:['zzz...','light off','4am bro','let me sleep'] },
+        { ch:'college', id:'fest-stage',    dx:-340, dy:-25, w:54, h:54, title:'Fest stage',       lore:'Great fun. Did a dance in the fest.', chatter:['LETS GOOO','encore!','one more!','hands up!'] },
+        { ch:'college', id:'group-ride',    dx:-300, dy:-12, w:54, h:36, title:'Group ride',       lore:'Yes — every day, triples.', chatter:['race u to mess!','too late','wait up','catch me'] },
         { ch:'college', id:'convocation',   dx:-260, dy:-30, w:54, h:64, title:'Convocation',      lore:'Attended with parents.' },
 
         // ── FEVER 104 FM (Mar–May 2019) ──
@@ -109,16 +109,16 @@
         { ch:'sakha', id:'team-lunch',      dx:-300, dy:-20, w:48, h:40, title:'Team lunch',       lore:'Lunches with the team.' },
         { ch:'sakha', id:'first-paycheck',  dx:-260, dy:-8,  w:48, h:32, title:'First paycheck',   lore:'Bought a watch and a saree — for dad and mum.' },
         { ch:'sakha', id:'wfh-covid',       dx:-540, dy:-30, w:60, h:56, title:'WFH · COVID',      lore:'Changed my life. Got bored eventually.' },
-        { ch:'sakha', id:'office-standup',  dx:-490, dy:-25, w:48, h:48, title:'Office standup',   lore:'New experience.' },
-        { ch:'sakha', id:'late-night-coding',dx:-440,dy:-20, w:54, h:48, title:'Late-night coding',lore:'Yes — was passionate.' },
-        { ch:'sakha', id:'team-outing',     dx:-390, dy:-22, w:54, h:44, title:'Team outing',      lore:'Yes — did.' },
+        { ch:'sakha', id:'office-standup',  dx:-490, dy:-25, w:48, h:48, title:'Office standup',   lore:'New experience.', chatter:['blockers?','shipping today','merge ready','done by EOD'] },
+        { ch:'sakha', id:'late-night-coding',dx:-440,dy:-20, w:54, h:48, title:'Late-night coding',lore:'Yes — was passionate.', chatter:['one more bug','just one more','sleep at 3','it works!'] },
+        { ch:'sakha', id:'team-outing',     dx:-390, dy:-22, w:54, h:44, title:'Team outing',      lore:'Yes — did.', chatter:['to the team!','CHEERS','one more round?','great work'] },
 
         // ── SCRIPBOX (AI/MCP era, Sep 2022 – present) ──
         { ch:'scripbox', id:'onboarding',     dx:-380, dy:-15, w:48, h:36, title:'Onboarding',       lore:'Great fun. Met a lot of friends.' },
-        { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Did.' },
+        { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Did.', chatter:['lgtm','hmm wait','edge case?','good catch'] },
         { ch:'scripbox', id:'anthropic-catalog',dx:-300,dy:-30,w:48, h:48, title:'Anthropic catalog',lore:'Was excited. Did show off after.' },
-        { ch:'scripbox', id:'whiteboard',     dx:-260, dy:-30, w:54, h:48, title:'Whiteboard',       lore:'Gave knowledge transfer on things I learn — with my peers.' },
-        { ch:'scripbox', id:'claude-code',    dx:-540, dy:-25, w:54, h:48, title:'Claude Code',      lore:'Best AI skill I\'ve learnt as of now — for me.' },
+        { ch:'scripbox', id:'whiteboard',     dx:-260, dy:-30, w:54, h:48, title:'Whiteboard',       lore:'Gave knowledge transfer on things I learn — with my peers.', chatter:['MCP → SRV','see?','questions?','any blockers?'] },
+        { ch:'scripbox', id:'claude-code',    dx:-540, dy:-25, w:54, h:48, title:'Claude Code',      lore:'Best AI skill I\'ve learnt as of now — for me.', chatter:['> claude','thinking...','done','one more pass'] },
         { ch:'scripbox', id:'anthropic-talk', dx:-490, dy:-25, w:54, h:48, title:'Anthropic talk',   lore:'Success.' },
         { ch:'scripbox', id:'coffee-setup',   dx:-440, dy:-15, w:64, h:36, title:'Coffee setup',     lore:'Timepass.' },
         { ch:'scripbox', id:'bangalore-traffic',dx:-390,dy:-15,w:54, h:40, title:'Bangalore traffic',lore:'Okay sometimes.' },
@@ -126,8 +126,8 @@
         // ── THE GT (Nov 16 2025) ──
         { ch:'vwgt', id:'test-drive',       dx:-380, dy:-12, w:54, h:32, title:'Test drive',       lore:'Yes.' },
         { ch:'vwgt', id:'documents-signing',dx:-340, dy:-12, w:36, h:28, title:'Documents',        lore:'Yes.' },
-        { ch:'vwgt', id:'keys-handover',    dx:-300, dy:-20, w:40, h:40, title:'Keys handover',    lore:'Yes.' },
-        { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Yes.' },
+        { ch:'vwgt', id:'keys-handover',    dx:-300, dy:-20, w:40, h:40, title:'Keys handover',    lore:'Yes.', chatter:['congrats!','thanks!','enjoy!','drive safe'] },
+        { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Yes.', chatter:['VROOM','finally','home wait','GT!'] },
 
         // ── NOW (2026 – present) ──
         { ch:'now', id:'morning-routine',   dx:-380, dy:-25, w:48, h:56, title:'Morning routine',  lore:'Coffee, phone, sunrise. The new day.' },
@@ -664,6 +664,83 @@
             chapterAudio.master.gain.setTargetAtTime(1.0, chapterAudio.ac.currentTime, 0.12);
         }
     }
+    // ── CHATTER · ambient speech bubbles above active beats ──
+    // Each beat with a `chatter` array rotates through its lines, one
+    // visible at a time. Bubble appears above the beat with a tail,
+    // fades in/out, gentle bob. Cycle = 2800ms per line (fade 200ms
+    // each side, hold 2400ms middle).
+    function drawChatter(W, H, groundY, cameraX) {
+        if (state.paused) return;     // freeze chatter when paused/lore-open
+        const tNow = state.elapsedMs;
+        const CYCLE = 2800;
+        ctx.save();
+        ctx.lineCap = 'butt';
+        for (const beat of BEATS) {
+            if (!beat.chatter || beat.chatter.length === 0) continue;
+            const ch = CHAPTERS.find(c => c.id === beat.ch);
+            if (!ch) continue;
+            // World→screen
+            const worldX = ch.x + beat.dx;
+            const screenX = worldX - cameraX;
+            if (screenX < -100 || screenX > W + 100) continue;
+            const screenY = groundY + beat.dy;
+            // Stagger each beat's cycle phase by its dx so multiple beats
+            // aren't all showing line 0 at the same moment
+            const beatPhase = (beat.dx * 7 + ch.x) % CYCLE;
+            const phase = ((tNow + beatPhase) % CYCLE) / CYCLE;   // 0..1
+            const idx = Math.floor((tNow + beatPhase) / CYCLE) % beat.chatter.length;
+            const line = beat.chatter[idx];
+            // Fade curve: 0..0.07 fade in, 0.07..0.93 hold, 0.93..1 fade out
+            let alpha = 1;
+            if      (phase < 0.07) alpha = phase / 0.07;
+            else if (phase > 0.93) alpha = (1 - phase) / 0.07;
+            if (alpha <= 0.02) continue;
+            // Bob: gentle 1-2px sinusoidal lift
+            const bob = Math.sin(tNow * 0.003 + beat.dx * 0.01) * 1.4;
+            // Bubble dimensions · auto-sized to text
+            ctx.font = 'bold 10px "Cinzel", "IM Fell English", serif';
+            const padX = 6, padY = 4;
+            const textW = ctx.measureText(line).width;
+            const bubW = textW + padX * 2;
+            const bubH = 16;
+            // Bubble position · centered horizontally above beat
+            const bx = screenX - bubW / 2;
+            const by = screenY - beat.h / 2 - bubH - 6 + bob;
+            // Parchment background
+            ctx.globalAlpha = alpha * 0.95;
+            ctx.fillStyle = '#f0e2b8';
+            ctx.fillRect(bx, by, bubW, bubH);
+            // Brass border
+            ctx.strokeStyle = '#7a5a30';
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(bx + 0.5, by + 0.5, bubW - 1, bubH - 1);
+            // Tail · small triangle pointing down to beat
+            ctx.fillStyle = '#f0e2b8';
+            ctx.beginPath();
+            ctx.moveTo(screenX - 3, by + bubH - 0.5);
+            ctx.lineTo(screenX, by + bubH + 3);
+            ctx.lineTo(screenX + 3, by + bubH - 0.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#7a5a30';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(screenX - 3, by + bubH - 0.5);
+            ctx.lineTo(screenX, by + bubH + 3);
+            ctx.lineTo(screenX + 3, by + bubH - 0.5);
+            ctx.stroke();
+            // Text
+            ctx.fillStyle = '#3a2418';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(line, screenX, by + bubH / 2 + 0.5);
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
     function drawLoreCard() {
         if (!state.activeLore) return;
         const beat = state.activeLore;
@@ -5143,6 +5220,7 @@
         drawHolidayProps(W, horizonY, groundY, cameraX);
         drawMidProps(W, horizonY, groundY, cameraX);
         drawChapters(W, horizonY, groundY, cameraX);
+        drawChatter(W, H, groundY, cameraX);
         drawParticles();
         drawPlayer(W, groundY);
         ctx.restore();
