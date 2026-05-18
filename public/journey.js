@@ -539,63 +539,114 @@
             lanes.push(lane);
         };
         const every = (ms, fn) => setInterval(fn, ms);
-        // ITICS · bandpass noise + bell every 8s
-        mk('itics', 0.06, (lane) => {
-            const n = noise(), f = bp(1200, 0.8), atten = g(0.12);
-            n.connect(f).connect(atten).connect(lane.gain);
-            every(8000, () => ping(lane, 'triangle', 880, 1.2, 0.05));
+        // ITICS · Bhupali pentatonic music-box, school nostalgia (C major pentatonic)
+        mk('itics', 0.14, (lane) => {
+            const d1 = osc('sine', 65.41), d2 = osc('sine', 98.00), dg = g(0.06);
+            d1.connect(dg); d2.connect(dg); dg.connect(lane.gain);
+            const bhupali = [523.25, 587.33, 659.25, 783.99, 880.00];
+            const phrases = [[0,2,4,2,1], [4,3,2,0,2], [0,1,2,4,2], [2,4,3,2,0]];
+            let phraseIdx = 0, noteIdx = 0;
+            every(700, () => {
+                const phrase = phrases[phraseIdx];
+                const f = bhupali[phrase[noteIdx]];
+                ping(lane, 'triangle', f, 1.4, 0.08);
+                if (noteIdx === 0) ping(lane, 'sine', f / 2, 1.8, 0.05);
+                noteIdx++;
+                if (noteIdx >= phrase.length) {
+                    noteIdx = 0;
+                    phraseIdx = (phraseIdx + 1) % phrases.length;
+                }
+            });
+            every(14000, () => ping(lane, 'sine', 261.63, 3.0, 0.08));
         });
-        // CMR · pencil scratch + clock tick
-        mk('cmr', 0.06, (lane) => {
-            every(1500, () => noisePulse(lane, 0.18, 0.10, 3200, 4));
-            every(1000, () => ping(lane, 'sine', 800, 0.04, 0.06));
+        // CMR · anxious pre-university pressure (A minor with chromatic neighbor)
+        mk('cmr', 0.14, (lane) => {
+            const d = osc('sawtooth', 55), df = lp(180), dg = g(0.04);
+            d.connect(df).connect(dg).connect(lane.gain);
+            const aminor = [440, 523.25, 493.88, 440, 415.30];   // A C B A G#
+            let i = 0;
+            every(600, () => ping(lane, 'triangle', aminor[i++ % aminor.length], 0.5, 0.07));
+            every(1000, () => ping(lane, 'sine', 1760, 0.04, 0.08));   // clock tick
+            every(4000, () => noisePulse(lane, 0.18, 0.06, 3200, 4));   // pencil scratch
         });
-        // DSCE · hostel chatter LFO'd + cycle bell every 10s
-        mk('college', 0.06, (lane) => {
-            const n = noise(), f = bp(700, 1.2), atten = g(0.14);
+        // DSCE · engineering · youthful expansive D major
+        mk('college', 0.14, (lane) => {
+            const a = osc('triangle', 146.83), b = osc('triangle', 220), c = osc('triangle', 277.18);
+            const pad = g(0.05);
+            a.connect(pad); b.connect(pad); c.connect(pad); pad.connect(lane.gain);
+            const dmaj = [293.66, 369.99, 440, 587.33, 554.37];
+            let i = 0;
+            every(900, () => ping(lane, 'sine', dmaj[i++ % dmaj.length], 1.0, 0.07));
+            every(1800, () => ping(lane, 'sine', 73.42, 0.12, 0.10));    // bass kick
+            const n = noise(), f = bp(700, 1.2), atten = g(0.04);
             const lfo = osc('sine', 0.3), lfoG = g(220);
             lfo.connect(lfoG).connect(f.frequency);
             n.connect(f).connect(atten).connect(lane.gain);
-            every(10000, () => {
-                ping(lane, 'triangle', 1760, 0.25, 0.07);
-                setTimeout(() => ping(lane, 'triangle', 1320, 0.35, 0.06), 90);
+        });
+        // FEVER 104 · F major pentatonic radio jingle vibe
+        mk('fever104', 0.14, (lane) => {
+            const wobble = osc('sine', 0.5), wf = lp(800), wg = g(220);
+            wobble.connect(wg).connect(wf.frequency);
+            const n = noise(), atten = g(0.05);
+            n.connect(wf).connect(atten).connect(lane.gain);
+            const fpenta = [349.23, 440, 523.25, 587.33, 698.46];
+            const phrases = [[0,2,4,3,2], [4,2,0,2,4], [2,4,3,4,2]];
+            let pi = 0, ni = 0;
+            every(450, () => {
+                const ph = phrases[pi];
+                ping(lane, 'triangle', fpenta[ph[ni]], 0.6, 0.09);
+                ni++;
+                if (ni >= ph.length) { ni = 0; pi = (pi + 1) % phrases.length; }
             });
         });
-        // FEVER 104 · radio static + random pentatonic notes
-        mk('fever104', 0.06, (lane) => {
-            const n = noise(), f = bp(2400, 0.6), atten = g(0.18);
+        // SAKHA · lo-fi melancholy first-job (E minor)
+        mk('sakha', 0.14, (lane) => {
+            const a = osc('sine', 82.41), b = osc('sine', 123.47);
+            const pad = g(0.06);
+            a.connect(pad); b.connect(pad); pad.connect(lane.gain);
+            const eminor = [329.63, 392, 493.88, 440, 392];
+            let i = 0;
+            every(1500, () => ping(lane, 'triangle', eminor[i++ % eminor.length], 1.4, 0.08));
+            const n = noise(), f = lp(350), atten = g(0.04);
             n.connect(f).connect(atten).connect(lane.gain);
-            const penta = [392, 440, 523, 587, 698];
-            every(2200, () => ping(lane, 'sine', penta[(Math.random() * penta.length) | 0], 0.4, 0.04));
         });
-        // SAKHA · keystrokes + low-pass murmur
-        mk('sakha', 0.06, (lane) => {
-            const n = noise(), f = lp(350), atten = g(0.08);
-            n.connect(f).connect(atten).connect(lane.gain);
-            const tick = () => { noisePulse(lane, 0.025, 0.12, 4000, 6); setTimeout(tick, rand(30, 180)); };
+        // SCRIPBOX · purposeful modern building (A minor → C major arpeggio)
+        mk('scripbox', 0.14, (lane) => {
+            const subOsc = osc('sine', 55), sg = g(0.05);
+            subOsc.connect(sg).connect(lane.gain);
+            // 16th-note arpeggio · A C E G E C E G
+            const arp = [440, 523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99];
+            let i = 0;
+            every(220, () => ping(lane, 'triangle', arp[i++ % arp.length], 0.25, 0.06));
+            // Keystroke ticks
+            const tick = () => { noisePulse(lane, 0.022, 0.08, 4500, 6); setTimeout(tick, rand(80, 220)); };
             tick();
+            // AI shimmer every 8s
+            every(8000, () => {
+                ping(lane, 'sine', 1760, 0.6, 0.06);
+                setTimeout(() => ping(lane, 'sine', 2093, 0.6, 0.05), 100);
+            });
         });
-        // SCRIPBOX · faster keys + cursor tick + AI pad
-        mk('scripbox', 0.06, (lane) => {
-            const tick = () => { noisePulse(lane, 0.022, 0.14, 4500, 6); setTimeout(tick, rand(25, 120)); };
-            tick();
-            every(500, () => ping(lane, 'square', 1500, 0.015, 0.05));
-            const p1 = osc('triangle', 110), p2 = osc('triangle', 164.81), pg = g(0.05);
-            p1.connect(pg); p2.connect(pg); pg.connect(lane.gain);
-        });
-        // VWGT · engine idle hum
-        mk('vwgt', 0.06, (lane) => {
-            const o = osc('sawtooth', 80), f = lp(220), atten = g(0.10);
+        // VWGT · triumphant G major fanfare + engine idle
+        mk('vwgt', 0.14, (lane) => {
+            const o = osc('sawtooth', 80), f = lp(220), atten = g(0.08);
             o.connect(f).connect(atten).connect(lane.gain);
+            const fanfare = [392, 493.88, 587.33, 783.99, 493.88];
+            let i = 0;
+            every(800, () => ping(lane, 'sawtooth', fanfare[i++ % fanfare.length], 0.5, 0.06));
+            every(400, () => noisePulse(lane, 0.02, 0.04, 6000, 4));   // light hi-hat
         });
-        // NOW · minor-third pad + breathing LFO
-        mk('now', 0.06, (lane) => {
+        // NOW · contemplative A minor add9 pad
+        mk('now', 0.14, (lane) => {
             const a1 = osc('sine', 220), b1 = osc('sine', 277.18), c1 = osc('sine', 329.63);
             const pad = g(0.10);
             a1.connect(pad); b1.connect(pad); c1.connect(pad);
             const lfo2 = osc('sine', 0.08), lfoG2 = g(0.06);
             lfo2.connect(lfoG2).connect(pad.gain);
             pad.connect(lane.gain);
+            const motif = [440, 523.25, 659.25, 493.88];
+            let i = 0;
+            every(2400, () => ping(lane, 'triangle', motif[i++ % motif.length], 2.5, 0.08));
         });
         chapterAudio = { ac, master, lanes };
     }
@@ -608,9 +659,18 @@
             lane.gain.gain.setTargetAtTime(target, chapterAudio.ac.currentTime, 0.12);
         }
     }
-    // Boot ambient audio on first user gesture
-    window.addEventListener('touchstart', chapterAudioBoot, { passive: true, once: false });
-    window.addEventListener('pointerdown', chapterAudioBoot, { passive: true, once: false });
+    // Boot ambient audio on first user gesture · resume on EVERY gesture
+    // (iOS can re-suspend the AudioContext after backgrounding the tab)
+    function audioGesture() {
+        chapterAudioBoot();
+        // Force resume on EVERY gesture, not just first
+        if (chapterAudio && chapterAudio.ac && chapterAudio.ac.state !== 'running') {
+            chapterAudio.ac.resume().catch(() => {});
+        }
+    }
+    window.addEventListener('touchstart', audioGesture, { passive: true, once: false });
+    window.addEventListener('pointerdown', audioGesture, { passive: true, once: false });
+    window.addEventListener('keydown', audioGesture, { passive: true, once: false });
 
     // ── CHAPTER MUSIC · per-chapter .mp3 theme files (overrides procedural) ──
     // Drop files into /public/music/{id}.mp3 and they'll auto-load + crossfade
@@ -1283,6 +1343,42 @@
             clearSavedState();
             location.reload();
         });
+    }
+
+    // Music toggle · bottom-right brass button · persisted in localStorage
+    const $musicBtn = document.getElementById('music-btn');
+    if ($musicBtn) {
+        let muted = localStorage.getItem('journey_muted') === '1';
+        const updateBtn = () => {
+            $musicBtn.textContent = muted ? '🔇' : '🔊';
+            $musicBtn.classList.toggle('muted', muted);
+            if (chapterAudio && chapterAudio.master) {
+                chapterAudio.master.gain.setTargetAtTime(
+                    muted ? 0 : 1,
+                    chapterAudio.ac.currentTime,
+                    0.15
+                );
+            }
+            if (chapterMusic) {
+                for (const t of chapterMusic.tracks) {
+                    if (t.playing && muted) t.audio.pause();
+                }
+            }
+        };
+        $musicBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            muted = !muted;
+            localStorage.setItem('journey_muted', muted ? '1' : '0');
+            // Ensure audio is booted before changing volume
+            chapterAudioBoot();
+            if (chapterAudio && chapterAudio.ac.state !== 'running') {
+                chapterAudio.ac.resume().catch(() => {});
+            }
+            updateBtn();
+        });
+        // Apply on page load
+        setTimeout(updateBtn, 100);
     }
 
     // ── rendering helpers ────────────────────────────────────────────

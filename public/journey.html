@@ -576,8 +576,30 @@
         .letterbox-bar.top    { top: 0; }
         .letterbox-bar.bottom { bottom: 0; }
         body.cinematic .letterbox-bar { height: 9vh; }
+        /* MUSIC TOGGLE · brass-rim circular button bottom-right */
+        .music-btn {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1.5px solid var(--mahogany);
+            background:
+                linear-gradient(180deg, rgba(233,216,176,0.94) 0%, rgba(201,181,140,0.94) 100%);
+            color: var(--mahogany);
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 0 8px rgba(90,46,26,0.2);
+            transition: transform 0.12s ease, background 0.12s ease;
+            pointer-events: auto;
+        }
+        .music-btn:hover { transform: scale(1.06); }
+        .music-btn.muted { color: rgba(90,46,26,0.4); }
+
         @media (max-width: 600px) {
             body.cinematic .letterbox-bar { height: 7vh; }
+            .music-btn { width: 38px; height: 38px; font-size: 16px; bottom: 10px; right: 10px; }
             /* Compact HUD on phones · objective card was too big */
             .mission-tracker {
                 bottom: 10px;
@@ -636,6 +658,9 @@
 
             <!-- tap hint · bottom-center · fades after first interaction -->
             <div class="tap-hint" id="tap-hint">hold → to walk · tap to peek · tap buildings for stories</div>
+
+            <!-- music mute toggle · bottom-right corner -->
+            <button class="music-btn" id="music-btn" type="button" aria-label="Toggle music">🔊</button>
         </div>
 
         <div class="vehicle-card" id="vehicle-card">
@@ -681,6 +706,6 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260518-44" defer></script>
+    <script src="/journey.js?v=20260518-45" defer></script>
 </body>
 </html>
