@@ -592,6 +592,63 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, horizonY);
 
+        // === CMR DAY/NIGHT BACKGROUND CYCLE ===
+        // When player is within ±500px of CMR (x=1200), overlay a 10-second
+        // day/night sky cycle on top of the chapter-tint base. The PU grind
+        // happened across day/night/day/night — the sky reflects it.
+        const cmrDist = Math.abs(state.playerX - 1200);
+        if (cmrDist < 500) {
+            const proximity = 1 - cmrDist / 500;                // 0 at edge, 1 at CMR center
+            const cyc = (state.elapsedMs % 10000) / 10000;
+            // sky tint per cycle phase:
+            //   0.00 dawn (warm pink), 0.10 day (light blue), 0.40 dusk (orange),
+            //   0.55 twilight (deep blue), 0.75 midnight (very dark), 0.90 pre-dawn
+            let nightStrength;            // 0 = full day, 1 = full night
+            if (cyc < 0.05)      nightStrength = 1 - cyc * 20;       // dawn rising
+            else if (cyc < 0.45) nightStrength = 0;                  // full day
+            else if (cyc < 0.55) nightStrength = (cyc - 0.45) * 10;  // dusk falling
+            else if (cyc < 0.95) nightStrength = 1;                  // full night
+            else                  nightStrength = 1 - (cyc - 0.95) * 20; // pre-dawn
+
+            // Dawn/dusk warm tint (when transitioning)
+            const isDawn = cyc < 0.05 || cyc > 0.95;
+            const isDusk = cyc > 0.45 && cyc < 0.55;
+            const warm = (isDawn || isDusk) ? 1 : 0;
+
+            // Night sky overlay · deep blue with star-friendly darkness
+            if (nightStrength > 0) {
+                const nightG = ctx.createLinearGradient(0, 0, 0, horizonY);
+                nightG.addColorStop(0,    `rgba(8, 14, 36, ${0.78 * nightStrength * proximity})`);
+                nightG.addColorStop(0.55, `rgba(20, 28, 56, ${0.65 * nightStrength * proximity})`);
+                nightG.addColorStop(1,    `rgba(48, 40, 60, ${0.45 * nightStrength * proximity})`);
+                ctx.fillStyle = nightG;
+                ctx.fillRect(0, 0, W, horizonY);
+            }
+            // Dawn/dusk warm tint band near horizon
+            if (warm > 0) {
+                const warmG = ctx.createLinearGradient(0, horizonY - 80, 0, horizonY);
+                warmG.addColorStop(0, `rgba(255, 120, 60, 0)`);
+                warmG.addColorStop(0.5, `rgba(255, 130, 70, ${0.35 * proximity})`);
+                warmG.addColorStop(1, `rgba(255, 90, 50, ${0.25 * proximity})`);
+                ctx.fillStyle = warmG;
+                ctx.fillRect(0, horizonY - 80, W, 80);
+            }
+            // Stars across full night sky (not just near CMR landmark)
+            if (nightStrength > 0.5) {
+                const starAlpha = (nightStrength - 0.5) * 2 * proximity;
+                ctx.fillStyle = `rgba(233, 216, 176, ${0.7 * starAlpha})`;
+                const starSeed = [13, 47, 81, 109, 131, 167, 191, 223, 257, 281, 311, 337, 367, 401, 419];
+                for (let i = 0; i < 15; i++) {
+                    const sx = (starSeed[i] * 13) % W;
+                    const sy = (starSeed[i] * 7) % (horizonY - 20);
+                    const twinkle = 0.5 + 0.5 * Math.sin(state.elapsedMs * 0.003 + i * 1.3);
+                    ctx.globalAlpha = 0.7 * starAlpha * twinkle;
+                    ctx.beginPath(); ctx.arc(sx, sy, 0.9, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
+
         // SUN · drawn with composite='lighter' (additive) so the radial
         // gradient's BOUNDING RECTANGLE produces no visible edge · only
         // the bright glow blends on top of the sky. Previously source-over
@@ -4591,6 +4648,16 @@
 
         if (state.running && !state.ended) {
             state.elapsedMs += dt;
+
+            // Mission tracker updates LIVE as player walks — was only
+            // updating on chapter collect, so it stayed stale during the
+            // long approach. Now pickNextObjective() runs every frame
+            // (cheap — DOM textContent setter no-ops when value unchanged).
+            const nextIdx = pickNextObjective();
+            if (nextIdx !== state.lastMissionIdx) {
+                state.lastMissionIdx = nextIdx;
+                updateMission(nextIdx);
+            }
             state.bobT += dt;
 
             // INPUT-DRIVEN forward/back motion · NO auto-walk.
