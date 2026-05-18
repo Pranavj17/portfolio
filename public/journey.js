@@ -245,10 +245,15 @@
         { x: 1450, baseY: 115, color: '#a47a52' },
     ];
 
-    // Power-line spans · sagging catenaries every ~500 world-px
-    const powerSpans = [];
-    for (let i = 0; i < 14; i++) {
-        powerSpans.push({ x0: i * 500, x1: i * 500 + 320, y: 80 + (i % 3) * 6 });
+    // Utility poles · continuous network along the whole world.
+    // Each pole anchors the spans coming in from its neighbors — no gaps.
+    const powerPoles = [];
+    for (let i = 0; i < 36; i++) {
+        powerPoles.push({
+            x: i * 200,
+            h: 22 + (i % 3) * 3,       // shorter so they don't compete with metro
+            armW: 10 + (i % 2) * 1,    // narrower cross-arm
+        });
     }
 
     // Cirrus cloud streaks · the wispy curving sky-strokes from real Bangalore dawn.
@@ -1720,55 +1725,42 @@
      *  matches the sky color at the horizon. The effect: distant buildings
      *  visibly fade into the smog/fog at their base. */
     function drawAtmosphericHaze(W, horizonY) {
-        // Sample the current sky color near the horizon to harmonize
-        const skyCol = skyAtChapter(state.playerX);
-        // haze sits above and just below horizon line
-        const hazeTop    = horizonY - 60;
-        const hazeBot    = horizonY + 6;
+        // Subtle aerial-perspective wash that only fades the FAR bands
+        // (back-ridge + distHills + skyline). Drawn BEFORE the closer bands
+        // so it doesn't muddy bridges/metro/raintrees.
+        const hazeTop = horizonY - 50;
+        const hazeBot = horizonY + 2;
         const grad = ctx.createLinearGradient(0, hazeTop, 0, hazeBot);
-        grad.addColorStop(0,    `rgba(220, 180, 140, 0)`);
-        grad.addColorStop(0.4,  `rgba(220, 180, 140, 0.22)`);
-        grad.addColorStop(0.7,  `rgba(220, 180, 140, 0.34)`);
-        grad.addColorStop(1,    `rgba(220, 180, 140, 0.45)`);
+        grad.addColorStop(0,   `rgba(220, 180, 140, 0)`);
+        grad.addColorStop(0.5, `rgba(220, 180, 140, 0.08)`);
+        grad.addColorStop(1,   `rgba(220, 180, 140, 0.16)`);
         ctx.fillStyle = grad;
         ctx.fillRect(0, hazeTop, W, hazeBot - hazeTop);
-        // Suppress unused-var lint
-        void skyCol;
     }
 
     /** Distant tree canopy · 0.32× parallax · dense green band between
      *  skyline and the player band. Matches the thick tree cover that
      *  fronts the city in the real Bangalore photo. */
     function drawDistantCanopy(W, horizonY, groundY, cameraX) {
+        // Thin strip of canopy lumps just below horizon · doesn't extend down
+        // to ground (was previously filling the entire mid-band, blocking
+        // bridges + metro). Now it's a 12-px-tall vegetation strip only.
         const offset = -(cameraX * 0.32);
-        const y = horizonY + 14;
-        ctx.fillStyle = '#2a3a1a';   // deep canopy green · sepia-leaning
+        const y = horizonY + 4;
+        ctx.fillStyle = '#3a4a26';   // muted green · less saturated than before
         ctx.beginPath();
-        ctx.moveTo(0, y + 18);
-        // Lumpy canopy line using cached cosine seeds
+        ctx.moveTo(0, y + 10);
         for (let i = 0; i < 200; i++) {
             const wx = i * 38;
             const px = wx + offset;
             if (px > -50 && px < W + 50) {
-                const bump = Math.sin(i * 0.62) * 5 + Math.cos(i * 0.31 + 1.7) * 3;
+                const bump = Math.sin(i * 0.62) * 4 + Math.cos(i * 0.31 + 1.7) * 2;
                 ctx.lineTo(px, y + bump);
             }
         }
-        ctx.lineTo(W + 100, y + 18);
-        ctx.lineTo(W + 100, groundY);
-        ctx.lineTo(-100, groundY);
+        ctx.lineTo(W + 100, y + 10);
         ctx.closePath();
         ctx.fill();
-        // Subtle highlight rim on top edge of canopy
-        ctx.fillStyle = 'rgba(90, 110, 60, 0.4)';
-        for (let i = 0; i < 200; i++) {
-            const wx = i * 38;
-            const px = wx + offset;
-            if (px > -10 && px < W + 10) {
-                const bump = Math.sin(i * 0.62) * 5 + Math.cos(i * 0.31 + 1.7) * 3;
-                ctx.fillRect(px - 6, y + bump - 1, 12, 1);
-            }
-        }
     }
 
     /** Bangalore road bridges · 0.40× parallax · sits just below metro band.
@@ -2102,23 +2094,62 @@
         }
     }
 
-    /** Power-line catenaries · 0.40× parallax · sagging cables across the sky.
-     *  Simple but adds urban depth. */
+    /** Utility poles + power lines · 0.40× parallax · CONTINUOUS pole-to-pole
+     *  network. Each pole has a cross-arm with ceramic insulators; spans
+     *  run between every adjacent pair of poles so there are no air gaps.
+     *  Multiple sagging cables (4 lines) per span — classic Indian street pole. */
     function drawPowerLines(W, horizonY, cameraX) {
         const offset = -(cameraX * 0.40);
-        ctx.strokeStyle = '#3a2418';
+        // Draw poles + arms first
+        for (let i = 0; i < powerPoles.length; i++) {
+            const p = powerPoles[i];
+            const px = p.x + offset;
+            if (px < -30 || px > W + 30) continue;
+            const topY = horizonY - p.h;
+            // Pole shaft · slight taper, weathered concrete
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(px - 1, topY, 2, p.h);
+            // Cross-arm · horizontal beam at top
+            ctx.fillRect(px - p.armW, topY + 2, p.armW * 2, 2);
+            // Upper cross-arm · smaller, higher
+            ctx.fillRect(px - p.armW * 0.6, topY - 3, p.armW * 1.2, 1.5);
+            // Ceramic insulators · pale dots on cross-arm
+            ctx.fillStyle = '#d4b48a';
+            ctx.fillRect(px - p.armW + 1, topY + 1, 2, 2);
+            ctx.fillRect(px - 1,          topY + 1, 2, 2);
+            ctx.fillRect(px + p.armW - 3, topY + 1, 2, 2);
+            ctx.fillStyle = '#c89a5a';
+            ctx.fillRect(px - p.armW * 0.5, topY - 4, 1.5, 1.5);
+            ctx.fillRect(px + p.armW * 0.5, topY - 4, 1.5, 1.5);
+        }
+        // Now draw the continuous catenary wires · pole[i] → pole[i+1]
+        ctx.strokeStyle = 'rgba(40, 28, 20, 0.78)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (const sp of powerSpans) {
-            const x0 = sp.x0 + offset;
-            const x1 = sp.x1 + offset;
+        for (let i = 0; i < powerPoles.length - 1; i++) {
+            const p0 = powerPoles[i];
+            const p1 = powerPoles[i + 1];
+            const x0 = p0.x + offset;
+            const x1 = p1.x + offset;
             if (x1 < -20 || x0 > W + 20) continue;
-            const y = horizonY - sp.y;
+            const y0 = horizonY - p0.h;
+            const y1 = horizonY - p1.h;
             const midX = (x0 + x1) / 2;
-            const sagY = y + 6;
-            // 2 parallel lines
-            ctx.moveTo(x0, y);     ctx.quadraticCurveTo(midX, sagY, x1, y);
-            ctx.moveTo(x0, y - 4); ctx.quadraticCurveTo(midX, sagY - 4, x1, y - 4);
+            // 3 lines from the lower cross-arm (sag amount varies per line)
+            // Outer-left wire
+            ctx.moveTo(x0 - p0.armW + 2, y0 + 3);
+            ctx.quadraticCurveTo(midX, ((y0 + y1) / 2) + 10, x1 - p1.armW + 2, y1 + 3);
+            // Center wire
+            ctx.moveTo(x0, y0 + 3);
+            ctx.quadraticCurveTo(midX, ((y0 + y1) / 2) + 8, x1, y1 + 3);
+            // Outer-right wire
+            ctx.moveTo(x0 + p0.armW - 2, y0 + 3);
+            ctx.quadraticCurveTo(midX, ((y0 + y1) / 2) + 10, x1 + p1.armW - 2, y1 + 3);
+            // Upper cross-arm has 2 thinner wires
+            ctx.moveTo(x0 - p0.armW * 0.5, y0 - 3);
+            ctx.quadraticCurveTo(midX, ((y0 + y1) / 2) + 3, x1 - p1.armW * 0.5, y1 - 3);
+            ctx.moveTo(x0 + p0.armW * 0.5, y0 - 3);
+            ctx.quadraticCurveTo(midX, ((y0 + y1) / 2) + 3, x1 + p1.armW * 0.5, y1 - 3);
         }
         ctx.stroke();
     }
@@ -6420,23 +6451,39 @@
             ctx.translate((Math.random() - 0.5) * k * 2, (Math.random() - 0.5) * k * 2);
         }
         drawSky(W, H, horizonY, progress);
-        // ── Bangalore background bands · far→near ──
+        // ── Strict far→near depth stack · clean layer ordering ──
+        // 0.10 — back ridge mountains (farthest land)
         drawBackRidge(W, horizonY, cameraX);
+        // 0.20 — distant hills
         drawDistHills(W, horizonY, cameraX);
+        // 0.30 — skyline silhouettes (Vidhana Soudha, Bangalore Palace, etc.)
         drawSkyline(W, horizonY, cameraX);
-        drawPowerLines(W, horizonY, cameraX);
+        // ATMOSPHERIC HAZE · only fades the distant layers above this line
+        drawAtmosphericHaze(W, horizonY);
+        // 0.32 — distant tree canopy band
+        drawDistantCanopy(W, horizonY, groundY, cameraX);
+        // 0.35 — kites floating high (only ITICS+CMR)
         drawKites(W, horizonY, cameraX);
+        // 0.35 — raintree fillers between skyline and infrastructure
+        drawRaintrees(W, horizonY, groundY, cameraX);
+        // 0.40 — bridges (road infrastructure)
         drawBridges(W, horizonY, cameraX);
+        // 0.45 — metro viaduct + train (passes OVER bridges where they overlap)
         drawMetroViaduct(W, horizonY, cameraX);
         drawMetroTrain(W, horizonY, cameraX);
-        drawAtmosphericHaze(W, horizonY);
-        drawDistantCanopy(W, horizonY, groundY, cameraX);
-        drawRaintrees(W, horizonY, groundY, cameraX);
+        // GROUND plane · separates background bands from foreground
         drawGround(W, H, horizonY, groundY, cameraX);
+        // 0.40 — utility poles + wires (closer than bridges, in front of ground)
+        drawPowerLines(W, horizonY, cameraX);
+        // 0.45 — holiday props (beach, mountain, etc.)
         drawHolidayProps(W, horizonY, groundY, cameraX);
+        // 0.50 — palm crowns
         drawPalms(W, horizonY, groundY, cameraX);
+        // 0.50 — mid-band trees + telegraph poles (bloom canopy)
         drawMidProps(W, horizonY, groundY, cameraX);
+        // 1.00 (screen-space) — auto rickshaw crossing
         drawAutoRickshaw(W, groundY);
+        // 1.00 — chapter markers (closest band before player)
         drawChapters(W, horizonY, groundY, cameraX);
         drawChatter(W, H, groundY, cameraX);
         drawParticles();
