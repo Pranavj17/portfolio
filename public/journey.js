@@ -175,6 +175,19 @@
         distHills.push({ x, y });
     }
 
+    // ── CINEMATIC INTERTITLES · "ACT" cards shown when entering a new chapter
+    // Each fires once · stored in shownChapterTitles so re-visits stay quiet
+    const CHAPTER_INTERTITLES = {
+        itics:    { act: 'ACT I',    title: 'THE BEGINNING',         quote: '"School. Football. Cricket."' },
+        cmr:      { act: 'ACT II',   title: 'THE PRESSURE COOKER',   quote: '"Two years to crack JEE."' },
+        college:  { act: 'ACT III',  title: 'ENGINEERING DAYS',      quote: '"Three buses. Triples on the bike."' },
+        fever104: { act: 'INTERLUDE', title: 'ON AIR · 104 FM',      quote: '"Three months in the radio booth."' },
+        sakha:    { act: 'ACT IV',   title: 'FIRST JOB',             quote: '"Frontend developer. Maruti Alto."' },
+        scripbox: { act: 'ACT V',    title: 'SCRIPBOX · AI',          quote: '"Fullstack. Infra. Anthropic."' },
+        vwgt:     { act: 'ACT VI',   title: 'THE GT',                quote: '"VW Virtus. 1.5 TSI. November 16, 2025."' },
+        now:      { act: 'EPILOGUE', title: 'NOW',                   quote: '"2026 — present."' },
+    };
+
     // ── BANGALORE BACKGROUND LAYERS ──
     // Far back-ridge (0.10× parallax) sits even BEHIND distHills · Deccan plateau read
     // One prominent Nandi-like asymmetric peak near world-x 4200 (vwgt era)
@@ -213,6 +226,7 @@
     const SKYLINE = [
         { kind: 'bull_temple',    x:  300, minChapterIdx: 0 },  // 1537 · Dravidian gopuram · always
         { kind: 'vidhana_soudha', x:  600, minChapterIdx: 0 },  // 1956 · always
+        { kind: 'cinema',         x:  780, minChapterIdx: 0 },  // 1980s movie theatre · Rajini era
         { kind: 'bangalore_palace', x: 900, minChapterIdx: 0 }, // 1878 · Tudor-style · always
         { kind: 'planetarium',    x: 1150, minChapterIdx: 0 },
         { kind: 'kr_market',      x: 1450, minChapterIdx: 0 },  // 1928 · barrel-vault market · always
@@ -243,6 +257,7 @@
     //   plus 'metro_viaduct' / 'metro_train' for generic infra.
     const LANDMARK_LORE = {
         bull_temple: { title: "Bull Temple (1537)", body: "Kempe Gowda built it around a single granite outcrop that kept growing under the chisel — local lore says a copper plate on the bull's forehead was placed to stop it expanding further." },
+        cinema: { title: "Single-Screen Cinema", body: "RAJINIKANTH NOW SHOWING. The old single-screens — Plaza, Pallavi, Santosh — would queue around the block for a Thalaiva first-day-first-show. Five-rupee tickets, hand-painted hoardings, audience whistling at every punch dialogue." },
         vidhana_soudha: { title: "Vidhana Soudha (1956)", body: "Built in Neo-Dravidian granite by Kengal Hanumanthaiah as a riposte to colonial architecture. The carved sign above the entrance reads 'Government Work is God's Work' — a motto more hopeful than descriptive." },
         bangalore_palace: { title: "Bangalore Palace (1878)", body: "Modelled on Windsor Castle by the Wadiyars of Mysore on land bought from a British headmaster. A decades-long ownership dispute with the Karnataka government still drags through the courts." },
         planetarium: { title: "Nehru Planetarium (1989)", body: "Run by BASE on Sankey Road, its GOTO Chronos projector threw stars onto the dome for a generation of schoolkids. The lawn outside hosts Bangalore's amateur astronomy club on clear weekends." },
@@ -653,11 +668,16 @@
         chapterAudio = { ac, master, lanes };
     }
     function chapterAudioTick() {
-        if (!chapterAudio) return;
-        // MASTER gain ramps from 0 → 1 ONLY after player has moved > 40px from
-        // start. Silent until then so a casual visitor hears nothing on page load.
         if (_initialPlayerX === null) _initialPlayerX = state.playerX;
         const traveled = Math.abs(state.playerX - _initialPlayerX);
+        // YouTube background music · start playing once player has moved.
+        // YT IFrame API handles its own autoplay-policy gating via the user
+        // gesture that came in BEFORE this tick.
+        if (traveled > 40 && ytReady && !ytStarted) {
+            ytStarted = true;
+            try { ytPlayer.playVideo(); } catch (_) {}
+        }
+        if (!chapterAudio) return;
         const targetMaster = traveled > 40 ? 1 : 0;
         chapterAudio.master.gain.setTargetAtTime(
             targetMaster, chapterAudio.ac.currentTime, 0.4
@@ -669,6 +689,39 @@
             lane.gain.gain.setTargetAtTime(target, chapterAudio.ac.currentTime, 0.12);
         }
     }
+    // ── YOUTUBE BACKGROUND MUSIC ──
+    // Plays a user-selected YouTube track via the IFrame API once the player
+    // has demonstrated intent by moving > 40px. Hidden 1×1 iframe so only
+    // audio reaches the user; YouTube IFrame API handles autoplay-policy
+    // gating internally.
+    const YT_VIDEO_ID = '2kntxizQIFI';
+    let ytPlayer = null, ytReady = false, ytStarted = false;
+    function bootYouTubeAPI() {
+        if (window.YT && window.YT.Player) { createYTPlayer(); return; }
+        if (document.getElementById('yt-iframe-api-script')) return;   // already loading
+        const tag = document.createElement('script');
+        tag.id = 'yt-iframe-api-script';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+        window.onYouTubeIframeAPIReady = createYTPlayer;
+    }
+    function createYTPlayer() {
+        if (ytPlayer || !window.YT || !document.getElementById('yt-music-player')) return;
+        ytPlayer = new YT.Player('yt-music-player', {
+            height: '1', width: '1',
+            videoId: YT_VIDEO_ID,
+            playerVars: {
+                autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1,
+                playsinline: 1, rel: 0, loop: 1, playlist: YT_VIDEO_ID,
+            },
+            events: {
+                onReady: () => { ytReady = true; ytPlayer.setVolume(35); },
+                onError: (e) => { console.log('YouTube player error', e); },
+            },
+        });
+    }
+    bootYouTubeAPI();
+
     // Audio auto-boots only after the player has actually MOVED into the
     // world (not on page load, not on idle tap). This means a viewer who
     // glances at the page in a shared environment hears nothing. Once
@@ -1281,11 +1334,11 @@
             e.preventDefault(); state.keys.right = true;
         } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
             e.preventDefault(); state.keys.left = true;
-        } else if (k === ' ' || k === 'Enter') {
-            // ignore OS-driven auto-repeat: holding Space must not fire
-            // triggerPeek() repeatedly. Only act on the initial press.
-            if (e.repeat) { e.preventDefault(); return; }
-            e.preventDefault(); triggerPeek();
+        } else if (k === ' ') {
+            // Space-bar previously triggered peek but the camera-lean
+            // forward-and-back felt like the character was glitching.
+            // Suppress the default page-scroll without doing anything else.
+            e.preventDefault();
         } else if (k === 'p' || k === 'P') {
             // Pause toggle. If a lore card is open, P dismisses it
             // (since lore-card already pauses the world).
@@ -1730,6 +1783,47 @@
                 ctx.fillStyle = '#c47540'; ctx.fillRect(sx, baseY - H_BODY - 40 + flagWave, 6, 2);  // saffron
                 ctx.fillStyle = '#d4b48a'; ctx.fillRect(sx, baseY - H_BODY - 38 + flagWave, 6, 1);  // white
                 ctx.fillStyle = '#5a6a4a'; ctx.fillRect(sx, baseY - H_BODY - 37 + flagWave, 6, 2);  // green
+            } else if (lm.kind === 'cinema') {
+                // Single-screen cinema · marquee + theatre block with Rajini hoarding
+                const cx = sx;
+                // Building base
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(cx - 28, baseY - 36, 56, 36);
+                // Roof cornice line
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(cx - 30, baseY - 36, 60, 2);
+                // Marquee · vertical-format "NOW SHOWING" sign with hand-painted hoarding
+                ctx.fillStyle = '#a4332e';   // red Rajini-coded hoarding
+                ctx.fillRect(cx - 8, baseY - 36, 16, 26);
+                ctx.fillStyle = '#e6c285';   // yellow paint
+                ctx.fillRect(cx - 6, baseY - 33, 12, 1);
+                ctx.fillRect(cx - 6, baseY - 30, 12, 1);
+                ctx.fillRect(cx - 6, baseY - 22, 12, 1);
+                ctx.fillRect(cx - 6, baseY - 14, 12, 1);
+                // Tiny "RAJINI" text suggestion (1-px painted lines)
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(cx - 5, baseY - 28, 10, 2);
+                ctx.fillRect(cx - 5, baseY - 19, 10, 2);
+                // Entrance · dark archway
+                ctx.fillStyle = '#1a1208';
+                ctx.fillRect(cx - 6, baseY - 9, 12, 9);
+                ctx.beginPath();
+                ctx.arc(cx, baseY - 9, 6, Math.PI, 0); ctx.fill();
+                // Marquee bulb dots (animated · twinkling for "first show feel")
+                ctx.fillStyle = '#e6c285';
+                const blink = Math.sin(state.elapsedMs / 300);
+                if (blink > 0) {
+                    for (let i = 0; i < 5; i++) {
+                        ctx.fillRect(cx - 22 + i * 10, baseY - 34, 2, 2);
+                    }
+                }
+                // Tiny stick figures queueing at entrance (3 figures)
+                ctx.fillStyle = '#3a2418';
+                for (let i = 0; i < 3; i++) {
+                    const fx = cx + 10 + i * 4;
+                    ctx.fillRect(fx, baseY - 6, 1, 4);   // body
+                    ctx.fillRect(fx - 0.5, baseY - 8, 2, 2);   // head
+                }
             } else if (lm.kind === 'kr_market') {
                 // KR Market (1928) · 4 curved barrel-vault roofs in a row
                 // The unmistakable Bangalore commercial-heritage silhouette
@@ -2486,16 +2580,43 @@
         if (chapterIdxAt(state.playerX) < 1) return;
         const parallax = 0.45;
         const yTop = horizonY - 32;
-        const trainY = yTop - 20;   // sits on top of viaduct
-        // Two trains alternating direction · phase by elapsed time
-        const cycle = 32000;
+        const trainY = yTop - 20;
+        // Train stations along the line (matches drawMetroViaduct stations)
+        const STATION_STOPS = [1700, 2350, 3000, 3650, 4350, 5100];
+        // Longer cycle + start/end padded WAY off the viaduct so wraparound
+        // is invisible · train spends ~25% of cycle off-screen at each end
+        const cycle = 60000;
         for (let trainIdx = 0; trainIdx < 2; trainIdx++) {
-            const phase = (state.elapsedMs + trainIdx * 16000) % cycle;
-            const t = phase / cycle;        // 0..1
+            const phase = (state.elapsedMs + trainIdx * 30000) % cycle;
+            const t = phase / cycle;
             const dir = trainIdx === 0 ? 1 : -1;
-            const startWX = dir > 0 ? 1300 : 6500;
-            const endWX   = dir > 0 ? 6500 : 1300;
-            const headWX = startWX + (endWX - startWX) * t;
+            // Start/end are 800 world-px OUTSIDE the viaduct so train is
+            // off-screen during the phase wrap (invisible teleport)
+            const startWX = dir > 0 ?  700 : 7200;
+            const endWX   = dir > 0 ? 7200 :  700;
+            // Apply station-stop pacing: train moves fast between stations,
+            // pauses briefly at each. Build a piecewise speed curve.
+            const totalDist = Math.abs(endWX - startWX);
+            const PAUSE_FRACTION = 0.04;   // 4% of cycle paused at each station
+            const stationsInDir = STATION_STOPS.slice().sort((a, b) =>
+                dir > 0 ? a - b : b - a);
+            // Compute progress through the trip considering pauses
+            const runFraction = 1 - PAUSE_FRACTION * stationsInDir.length;
+            const tRun = Math.min(1, t / runFraction);   // time spent moving
+            const tPaused = Math.max(0, t - runFraction);
+            const baseHeadWX = startWX + (endWX - startWX) * tRun;
+            // Snap to closest station if currently in a "paused" window
+            let headWX = baseHeadWX;
+            for (let i = 0; i < stationsInDir.length; i++) {
+                const stWX = stationsInDir[i];
+                const distFromStart = dir > 0 ? stWX - startWX : startWX - stWX;
+                const stationT = distFromStart / totalDist * runFraction;
+                if (t > stationT && t < stationT + PAUSE_FRACTION) {
+                    headWX = stWX;   // hold at station
+                    break;
+                }
+            }
+            void tPaused;
             const trainLen = 6 * 30 + 5 * 2;
             const offset = -(cameraX * parallax);
             const headSx = headWX + offset;
@@ -2954,7 +3075,8 @@
     /** Bangalore street traffic · vehicles passing on the road in both directions.
      *  4 types: BMTC bus, Maruti hatchback, motorbike, Tata lorry. */
     function drawRoadTraffic(W, groundY) {
-        const roadY = groundY - 30;   // sit on the road surface
+        // Vehicle reference Y · wheels at roadY+5 land on road bottom (groundY-20)
+        const roadY = groundY - 25;
         for (const v of state.traffic) {
             const x = v.x;
             const flip = v.dir < 0;
@@ -3032,7 +3154,9 @@
     function drawAutoRickshaw(W, groundY) {
         const x = state.autoX;
         if (x < -100 || x > W + 100) return;
-        const y = groundY - 32;      // sit on ground band
+        // y is the TOP of the cabin body · wheels at y+20 should land on the
+        // road bottom (groundY-20). So y = groundY-40.
+        const y = groundY - 40;
         const dir = state.autoDir;   // 1 = facing right
         ctx.save();
         // body · black with brass trim
@@ -7025,7 +7149,17 @@
                     }
                     updateMission(i);
                     setTimeout(() => updateMission(pickNextObjective()), 1400);
-                    triggerLetterbox(1100);
+                    triggerLetterbox(2400);
+                    // CINEMATIC INTERTITLE · ACT card with quote · 2.4s reveal
+                    const card = CHAPTER_INTERTITLES[ch.id];
+                    const $it = document.getElementById('intertitle');
+                    if (card && $it) {
+                        document.getElementById('intertitle-act').textContent = card.act;
+                        document.getElementById('intertitle-title').textContent = card.title;
+                        document.getElementById('intertitle-quote').textContent = card.quote;
+                        $it.classList.add('shown');
+                        setTimeout(() => $it.classList.remove('shown'), 2200);
+                    }
                     sfxCollect();
                     shake(10, 380);
                     // 28 particles radiating from the landmark · color-matched

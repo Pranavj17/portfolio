@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; media-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com https://www.google.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; media-src 'self' https://www.youtube.com; connect-src 'self' https://www.youtube.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; child-src https://www.youtube.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <title>the journey — pranavjagadish:~$ ./play</title>
@@ -576,6 +576,51 @@
         .letterbox-bar.top    { top: 0; }
         .letterbox-bar.bottom { bottom: 0; }
         body.cinematic .letterbox-bar { height: 9vh; }
+        /* CINEMATIC INTERTITLE · ACT card briefly shown between chapters */
+        .intertitle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.96);
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            color: var(--cream);
+            text-shadow: 0 2px 12px rgba(0,0,0,0.85);
+        }
+        .intertitle.shown {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .intertitle-act {
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            letter-spacing: 0.5em;
+            color: var(--accent);
+            margin-bottom: 14px;
+        }
+        .intertitle-title {
+            font-family: 'IM Fell English SC', serif;
+            font-size: 42px;
+            letter-spacing: 0.18em;
+            line-height: 1.1;
+            margin-bottom: 18px;
+        }
+        .intertitle-quote {
+            font-family: 'IM Fell English', serif;
+            font-size: 16px;
+            font-style: italic;
+            opacity: 0.85;
+            letter-spacing: 0.05em;
+        }
+        @media (max-width: 600px) {
+            .intertitle-title { font-size: 28px; }
+            .intertitle-quote { font-size: 13px; }
+            .intertitle-act { font-size: 10px; }
+        }
+
         /* MUSIC TOGGLE · brass-rim circular button bottom-right */
         .music-btn {
             position: absolute;
@@ -660,7 +705,9 @@
             <div class="tap-hint" id="tap-hint">hold → to walk · tap to peek · tap buildings for stories</div>
         </div>
 
-        <div class="vehicle-card" id="vehicle-card">
+        <!-- vehicle-card removed per user request · was showing "MARUTI ALTO" etc.
+             cluttering the top-right corner -->
+        <div class="vehicle-card" id="vehicle-card" style="display:none">
             <span class="icon" id="vehicle-icon">🎒</span>
             <div>
                 <div class="label" id="vehicle-label">ON FOOT</div>
@@ -674,6 +721,13 @@
         <!-- letterbox bars · briefly retract from top/bottom on chapter entry -->
         <div class="letterbox-bar top"></div>
         <div class="letterbox-bar bottom"></div>
+
+        <!-- Cinematic intertitle · ACT card shown briefly between chapters -->
+        <div id="intertitle" class="intertitle">
+            <div class="intertitle-act" id="intertitle-act">ACT II</div>
+            <div class="intertitle-title" id="intertitle-title">THE PRESSURE COOKER</div>
+            <div class="intertitle-quote" id="intertitle-quote">"Two years to crack JEE."</div>
+        </div>
 
         <div class="splash" id="splash">
             <h1>The Journey</h1>
@@ -703,6 +757,13 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260518-46" defer></script>
+    <!-- Hidden YouTube iframe player · plays after first movement gesture.
+         Video ID 2kntxizQIFI = user-selected background theme.
+         Sized 1×1 + offscreen positioned so it can play audio without UI. -->
+    <div id="yt-music-host" style="position:fixed; top:-100px; left:-100px; width:1px; height:1px; overflow:hidden; pointer-events:none; opacity:0;">
+        <div id="yt-music-player"></div>
+    </div>
+
+    <script src="/journey.js?v=20260518-47" defer></script>
 </body>
 </html>
