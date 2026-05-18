@@ -211,9 +211,14 @@
 
     // Skyline landmarks · individually era-gated · world-x positions per agent plan
     const SKYLINE = [
-        { kind: 'vidhana_soudha', x:  600, minChapterIdx: 0 },  // always
-        { kind: 'planetarium',    x: 1100, minChapterIdx: 0 },
+        { kind: 'bull_temple',    x:  300, minChapterIdx: 0 },  // 1537 · Dravidian gopuram · always
+        { kind: 'vidhana_soudha', x:  600, minChapterIdx: 0 },  // 1956 · always
+        { kind: 'bangalore_palace', x: 900, minChapterIdx: 0 }, // 1878 · Tudor-style · always
+        { kind: 'planetarium',    x: 1150, minChapterIdx: 0 },
+        { kind: 'kr_market',      x: 1450, minChapterIdx: 0 },  // 1928 · barrel-vault market · always
+        { kind: 'stadium',        x: 1800, minChapterIdx: 0 },  // Kanteerava + dome · 1946 · always
         { kind: 'ub_wtc',         x: 2400, minChapterIdx: 2 },  // UB City 2008, WTC 2010 → DSCE era
+        { kind: 'chinnaswamy',    x: 2150, minChapterIdx: 0 },  // 1969 · cricket stadium · always
         { kind: 'iskcon',         x: 3050, minChapterIdx: 0 },
         { kind: 'manyata',        x: 4000, minChapterIdx: 4 },  // tech park · Sakha era
         { kind: 'glass_cluster',  x: 5500, minChapterIdx: 5 },  // dense fill · Scripbox era
@@ -228,6 +233,7 @@
         { kind: 'hebbal_flyover', x: 1800, minChapterIdx: 0 },
         { kind: 'arch_bridge',    x: 2650, minChapterIdx: 0 },
         { kind: 'cable_stay',     x: 4700, minChapterIdx: 4 },
+        { kind: 'h_bridge',       x: 5200, minChapterIdx: 4 },  // Iblur-style twin H-pylons
         { kind: 'hebbal_flyover', x: 5800, minChapterIdx: 0 },
     ];
 
@@ -243,6 +249,23 @@
     const powerSpans = [];
     for (let i = 0; i < 14; i++) {
         powerSpans.push({ x0: i * 500, x1: i * 500 + 320, y: 80 + (i % 3) * 6 });
+    }
+
+    // Cirrus cloud streaks · the wispy curving sky-strokes from real Bangalore dawn.
+    // Pre-generated so they don't shimmer per-frame; gentle scroll with parallax 0.05
+    // makes them feel suspended above the world.
+    const cirrusClouds = [];
+    for (let i = 0; i < 18; i++) {
+        const wx = i * 380 + (Math.random() - 0.5) * 200;
+        cirrusClouds.push({
+            x: wx,
+            y: 30 + Math.random() * 90,             // top-band placement
+            len: 120 + Math.random() * 180,
+            curve: 12 + Math.random() * 28,         // arc height
+            thickness: 1.5 + Math.random() * 2,
+            alpha: 0.18 + Math.random() * 0.22,
+            tilt: (Math.random() - 0.5) * 0.3,      // slight diagonal
+        });
     }
 
     // Bangalore flowering canopy · per-chapter bloom color
@@ -1185,6 +1208,47 @@
             ctx.fillRect(0, horizonY - 100, W, 100);
         }
 
+        // --- 4.5 Cirrus cloud streaks · wispy curving brush-strokes
+        //          The "real Bangalore dawn" signature — high cirrus catching
+        //          golden light. Parallax 0.05 makes them feel suspended.
+        const cirrusOffset = -(state.playerX * 0.05);
+        const cirrusBaseAlpha = horizonGlow * 0.85 + (1 - nightStrength) * 0.5;
+        if (cirrusBaseAlpha > 0.05) {
+            ctx.save();
+            for (let i = 0; i < cirrusClouds.length; i++) {
+                const cl = cirrusClouds[i];
+                const cx = (cl.x % (W * 3)) + cirrusOffset;
+                // wrap clouds in screen-space
+                const wrappedX = ((cx % (W + 600)) + (W + 600)) % (W + 600) - 300;
+                if (wrappedX < -cl.len - 50 || wrappedX > W + 50) continue;
+                // tinted golden if dawn/dusk, cool grey otherwise
+                const r = 240 - (1 - horizonGlow) * 80;
+                const g = 220 - (1 - horizonGlow) * 60;
+                const b = 180 - horizonGlow * 60;
+                ctx.strokeStyle = `rgba(${r|0}, ${g|0}, ${b|0}, ${cl.alpha * cirrusBaseAlpha})`;
+                ctx.lineWidth = cl.thickness;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(wrappedX, cl.y);
+                ctx.quadraticCurveTo(
+                    wrappedX + cl.len * 0.5, cl.y - cl.curve,
+                    wrappedX + cl.len, cl.y + cl.tilt * cl.len
+                );
+                ctx.stroke();
+                // Secondary thinner stroke offset slightly · feathered look
+                ctx.lineWidth = cl.thickness * 0.4;
+                ctx.strokeStyle = `rgba(${r|0}, ${g|0}, ${b|0}, ${cl.alpha * cirrusBaseAlpha * 0.5})`;
+                ctx.beginPath();
+                ctx.moveTo(wrappedX, cl.y + 3);
+                ctx.quadraticCurveTo(
+                    wrappedX + cl.len * 0.5, cl.y - cl.curve + 4,
+                    wrappedX + cl.len, cl.y + cl.tilt * cl.len + 3
+                );
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
         // --- 5. Stars (visible at night, twinkling) ---
         if (nightStrength > 0.5) {
             const starAlpha = (nightStrength - 0.5) * 2;
@@ -1293,28 +1357,134 @@
             if (sx < -200 || sx > W + 200) continue;
             const baseY = horizonY - 2;
             if (lm.kind === 'vidhana_soudha') {
-                // Stepped granite base
+                // Vidhana Soudha · Mysore-Neo-Dravidian, 1956
+                // CORRECTED: extremely horizontal (real-world 700×175 ft ≈ 6:1 ratio)
+                // Long arcaded body + corner pavilion towers with stepped finials
+                // + central dome drum + Sarnath lion + tricolor flag
+                const W_BODY = 180, H_BODY = 20;
+                const bx = sx - W_BODY / 2;
+                // Granite stepped base · 3-tier
                 ctx.fillStyle = '#5a3a22';
-                ctx.fillRect(sx - 50, baseY - 18, 100, 18);
-                // 4 corner domes
-                ctx.beginPath();
-                ctx.arc(sx - 42, baseY - 18, 4, Math.PI, 0); ctx.fill();
-                ctx.beginPath();
-                ctx.arc(sx + 42, baseY - 18, 4, Math.PI, 0); ctx.fill();
-                ctx.beginPath();
-                ctx.arc(sx - 22, baseY - 20, 3, Math.PI, 0); ctx.fill();
-                ctx.beginPath();
-                ctx.arc(sx + 22, baseY - 20, 3, Math.PI, 0); ctx.fill();
-                // Central dome on drum
-                ctx.fillRect(sx - 10, baseY - 22, 20, 4);
-                ctx.beginPath();
-                ctx.arc(sx, baseY - 22, 14, Math.PI, 0); ctx.fill();
-                // Sarnath lion finial · 1-px nub
-                ctx.fillStyle = '#c89a5a';
-                ctx.fillRect(sx - 1, baseY - 38, 2, 2);
-                // Column hints
+                ctx.fillRect(bx - 4, baseY - 3, W_BODY + 8, 3);
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(bx - 2, baseY - 6, W_BODY + 4, 3);
+                // Main body block
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(bx, baseY - H_BODY - 6, W_BODY, H_BODY);
+                // Continuous arcade · arched openings along full length
                 ctx.fillStyle = '#3a2418';
-                for (let i = -4; i <= 4; i++) ctx.fillRect(sx + i * 9, baseY - 14, 1, 12);
+                for (let i = 4; i < W_BODY - 4; i += 5) {
+                    ctx.fillRect(bx + i, baseY - 18, 3, 10);
+                    ctx.beginPath();
+                    ctx.arc(bx + i + 1.5, baseY - 18, 1.5, Math.PI, 0); ctx.fill();
+                }
+                // Roof cornice line · gold
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(bx, baseY - H_BODY - 7, W_BODY, 1);
+                // Corner pavilion towers · 4 with stepped finials
+                const towerXs = [bx - 2, bx + W_BODY / 2 - 30, bx + W_BODY / 2 + 28, bx + W_BODY - 4];
+                for (const tx of towerXs) {
+                    ctx.fillStyle = '#8a6a48';
+                    ctx.fillRect(tx, baseY - H_BODY - 18, 8, 12);     // tower body
+                    ctx.fillStyle = '#c89a5a';
+                    ctx.fillRect(tx + 1, baseY - H_BODY - 22, 6, 4);  // stepped cap
+                    ctx.fillRect(tx + 2, baseY - H_BODY - 26, 4, 4);  // upper step
+                    ctx.fillStyle = '#d4b48a';
+                    ctx.fillRect(tx + 3, baseY - H_BODY - 30, 2, 4);  // spire
+                }
+                // Central porch · larger projecting entrance
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 14, baseY - H_BODY - 4, 28, 4);  // porch roof projection
+                // Central dome on drum
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(sx - 12, baseY - H_BODY - 14, 24, 8);   // octagonal drum
+                ctx.fillStyle = '#c89a5a';
+                ctx.beginPath();
+                ctx.arc(sx, baseY - H_BODY - 14, 12, Math.PI, 0); ctx.fill();
+                // Lantern + Sarnath Lion finial in gold
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(sx - 2, baseY - H_BODY - 30, 4, 5);     // lantern
+                ctx.fillStyle = '#e6c285';
+                ctx.fillRect(sx - 1, baseY - H_BODY - 34, 2, 4);     // lion finial · gold catches light
+                // Indian tricolor flag flying from central dome
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sx - 1, baseY - H_BODY - 40, 1, 6);     // flagpole
+                const flagWave = Math.sin(state.elapsedMs / 600) * 2;
+                ctx.fillStyle = '#c47540'; ctx.fillRect(sx, baseY - H_BODY - 40 + flagWave, 6, 2);  // saffron
+                ctx.fillStyle = '#d4b48a'; ctx.fillRect(sx, baseY - H_BODY - 38 + flagWave, 6, 1);  // white
+                ctx.fillStyle = '#5a6a4a'; ctx.fillRect(sx, baseY - H_BODY - 37 + flagWave, 6, 2);  // green
+            } else if (lm.kind === 'kr_market') {
+                // KR Market (1928) · 4 curved barrel-vault roofs in a row
+                // The unmistakable Bangalore commercial-heritage silhouette
+                const km = sx - 60;
+                // Base building block
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(km, baseY - 14, 120, 14);
+                // 4 segmental barrel-vault roofs
+                ctx.fillStyle = '#8a6a48';
+                for (let i = 0; i < 4; i++) {
+                    const vx = km + 12 + i * 26;
+                    ctx.beginPath();
+                    ctx.ellipse(vx + 11, baseY - 14, 13, 8, 0, Math.PI, 0);
+                    ctx.fill();
+                }
+                // Roof ridge highlights
+                ctx.fillStyle = '#c89a5a';
+                for (let i = 0; i < 4; i++) {
+                    const vx = km + 12 + i * 26;
+                    ctx.fillRect(vx - 1, baseY - 21, 24, 1);
+                }
+                // Frontage shop awnings · darker stripe
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(km, baseY - 6, 120, 2);
+                // Window grid · cross-vent pattern
+                ctx.fillStyle = '#3a2418';
+                for (let i = 0; i < 8; i++) {
+                    ctx.fillRect(km + 10 + i * 14, baseY - 12, 2, 4);
+                }
+            } else if (lm.kind === 'stadium') {
+                // Sree Kanteerava Stadium + Indoor Dome (1946 / 1995)
+                // Oval stadium with 4 floodlight towers + adjacent dome silhouette
+                const sm = sx;
+                // Stadium oval seating ring
+                ctx.fillStyle = '#5a3a22';
+                ctx.beginPath();
+                ctx.ellipse(sm, baseY - 12, 50, 14, 0, Math.PI, 0);
+                ctx.fill();
+                // Inner pitch · darker green for grass
+                ctx.fillStyle = '#3a4a26';
+                ctx.beginPath();
+                ctx.ellipse(sm, baseY - 12, 40, 10, 0, Math.PI, 0);
+                ctx.fill();
+                // Upper canopy roof rim · curving along top of stand
+                ctx.fillStyle = '#8a6a48';
+                ctx.beginPath();
+                ctx.ellipse(sm, baseY - 22, 52, 8, 0, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#3a2418';
+                ctx.beginPath();
+                ctx.ellipse(sm, baseY - 20, 48, 4, 0, Math.PI, 0);
+                ctx.fill();
+                // Four floodlight towers at corners · tall masts with light boxes
+                const floodXs = [sm - 50, sm - 18, sm + 18, sm + 50];
+                for (const fx of floodXs) {
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(fx - 1, baseY - 38, 2, 26);
+                    ctx.fillStyle = '#e6c285';
+                    ctx.fillRect(fx - 4, baseY - 42, 8, 5);
+                    // Light beam glow · subtle radial
+                    ctx.fillStyle = 'rgba(230, 194, 133, 0.18)';
+                    ctx.beginPath();
+                    ctx.arc(fx, baseY - 40, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Indoor dome companion · behind/right of stadium
+                ctx.fillStyle = '#5a3a22';
+                ctx.beginPath();
+                ctx.ellipse(sm + 65, baseY - 14, 22, 14, 0, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sm + 43, baseY - 4, 44, 4);  // base band
             } else if (lm.kind === 'planetarium') {
                 ctx.fillStyle = '#5a3a22';
                 ctx.fillRect(sx - 20, baseY - 8, 40, 8);
@@ -1337,6 +1507,44 @@
                 ctx.fillRect(sx + 18, baseY - 70, 10, 70);
                 ctx.fillStyle = '#8a6a48';
                 ctx.fillRect(sx + 22, baseY - 68, 2, 66);  // central mullion
+            } else if (lm.kind === 'chinnaswamy') {
+                // M. Chinnaswamy Stadium (1969) · home of RCB · cricket-specific
+                // Wider oval than football stadium, no track, RCB red+gold accents
+                const cm = sx;
+                // Stadium oval — larger than Kanteerava
+                ctx.fillStyle = '#5a3a22';
+                ctx.beginPath();
+                ctx.ellipse(cm, baseY - 14, 58, 16, 0, Math.PI, 0);
+                ctx.fill();
+                // Cricket pitch · circular green field
+                ctx.fillStyle = '#3a4a26';
+                ctx.beginPath();
+                ctx.ellipse(cm, baseY - 14, 46, 12, 0, Math.PI, 0);
+                ctx.fill();
+                // Wicket strip · vertical lighter mark in center
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(cm - 1, baseY - 18, 2, 6);
+                // Roof canopy · curving along stand · RCB red+gold accent
+                ctx.fillStyle = '#a4332e';   // RCB red (sepia-desaturated)
+                ctx.beginPath();
+                ctx.ellipse(cm, baseY - 26, 60, 6, 0, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#c89a5a';   // RCB gold band
+                ctx.beginPath();
+                ctx.ellipse(cm, baseY - 24, 60, 3, 0, Math.PI, 0);
+                ctx.fill();
+                // 4 floodlight towers · classic cricket-stadium pattern
+                const cflood = [cm - 56, cm - 22, cm + 22, cm + 56];
+                for (const fx of cflood) {
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(fx - 1, baseY - 42, 2, 28);
+                    ctx.fillStyle = '#e6c285';
+                    ctx.fillRect(fx - 5, baseY - 46, 10, 6);
+                    ctx.fillStyle = 'rgba(230, 194, 133, 0.22)';
+                    ctx.beginPath();
+                    ctx.arc(fx, baseY - 43, 14, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             } else if (lm.kind === 'iskcon') {
                 // Stepped pyramid temple · gold finial
                 ctx.fillStyle = '#5a3a22';
@@ -1345,6 +1553,81 @@
                 }
                 ctx.fillStyle = '#c89a5a';
                 ctx.fillRect(sx - 1, baseY - 22, 2, 4);
+            } else if (lm.kind === 'bull_temple') {
+                // Bull Temple gopuram (1537) · Dravidian 4-tier stepped pyramid
+                // Sharper taper than ISKCON · kalasha finial on top
+                const bx = sx - 25;
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(bx,      baseY - 28, 50, 28);   // tier 1 base
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(bx + 4,  baseY - 50, 42, 22);   // tier 2
+                ctx.fillStyle = '#c89a5a';
+                ctx.fillRect(bx + 9,  baseY - 68, 32, 18);   // tier 3
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(bx + 14, baseY - 82, 22, 14);   // tier 4 top
+                // Cornice shadow strips between tiers
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(bx,      baseY - 30, 50, 2);
+                ctx.fillRect(bx + 4,  baseY - 52, 42, 2);
+                ctx.fillRect(bx + 9,  baseY - 70, 32, 2);
+                ctx.fillRect(bx + 14, baseY - 84, 22, 2);
+                // Kalasha finial (dome + spire + pointed tip)
+                ctx.fillStyle = '#d4b48a';
+                ctx.beginPath();
+                ctx.arc(bx + 25, baseY - 84, 4, Math.PI, 0); ctx.fill();
+                ctx.fillRect(bx + 24, baseY - 92, 2, 6);
+                ctx.beginPath();
+                ctx.moveTo(bx + 22, baseY - 92);
+                ctx.lineTo(bx + 25, baseY - 96);
+                ctx.lineTo(bx + 28, baseY - 92);
+                ctx.closePath();
+                ctx.fill();
+                // Central doorway · deep shadow anchors silhouette
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(bx + 22, baseY - 18, 6, 18);
+                // Sculpture tick rows · 1-px verticals suggest carved figures
+                for (let i = 4; i < 46; i += 4) ctx.fillRect(bx + i, baseY - 24, 1, 4);
+                for (let i = 8; i < 42; i += 4) ctx.fillRect(bx + i, baseY - 46, 1, 3);
+            } else if (lm.kind === 'bangalore_palace') {
+                // Bangalore Palace (1878) · Tudor-style with crenellation + corner
+                // turrets + central pointed gable + lancet windows
+                const px = sx - 60;
+                // Main body block
+                ctx.fillStyle = '#8a6a48';
+                ctx.fillRect(px, baseY - 50, 120, 50);
+                // Four corner turrets · slightly taller than body
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(px - 4,   baseY - 70, 16, 70);
+                ctx.fillRect(px + 28,  baseY - 65, 12, 65);
+                ctx.fillRect(px + 80,  baseY - 65, 12, 65);
+                ctx.fillRect(px + 108, baseY - 70, 16, 70);
+                // Crenellations · 2-px teeth on each turret top
+                ctx.fillStyle = '#3a2418';
+                const turrets = [[-4, 16], [28, 12], [80, 12], [108, 16]];
+                for (const [tx, tw] of turrets) {
+                    for (let i = 0; i < tw; i += 4) ctx.fillRect(px + tx + i, baseY - 72, 2, 4);
+                }
+                // Crenellation along main parapet
+                for (let i = 12; i < 108; i += 6) ctx.fillRect(px + i, baseY - 52, 3, 4);
+                // Central Tudor pointed gable
+                ctx.fillStyle = '#c89a5a';
+                ctx.beginPath();
+                ctx.moveTo(px + 50, baseY - 50);
+                ctx.lineTo(px + 60, baseY - 72);
+                ctx.lineTo(px + 70, baseY - 50);
+                ctx.closePath();
+                ctx.fill();
+                // Lancet (pointed) arched windows · 3 across
+                ctx.fillStyle = '#3a2418';
+                for (const wx of [20, 56, 92]) {
+                    ctx.fillRect(px + wx, baseY - 30, 6, 14);
+                    ctx.beginPath();
+                    ctx.arc(px + wx + 3, baseY - 30, 3, Math.PI, 0); ctx.fill();
+                }
+                // Edge highlight · catches dawn light on left turret face
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(px - 4, baseY - 70, 1, 70);
+                ctx.fillRect(px + 108, baseY - 70, 1, 70);
             } else if (lm.kind === 'manyata') {
                 // Tech park cluster · 8 boxes of varied heights
                 ctx.fillStyle = '#5a3a22';
@@ -1372,6 +1655,38 @@
                 }
                 ctx.fillStyle = '#c89a5a';
                 for (let i = 0; i < 4; i++) ctx.fillRect(sx - 38 + i * 22, baseY - 20, 2, 2);
+                // CONSTRUCTION CRANE atop the tallest tower · the modern-Bangalore
+                // signature. Every glass tower in BLR is next to a crane.
+                const craneBaseX = sx - 40 + 2 * 22 + 9;   // top of tallest (50) tower
+                const craneBaseY = baseY - 50;
+                ctx.strokeStyle = '#3a2418';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                // Vertical mast
+                ctx.moveTo(craneBaseX, craneBaseY);
+                ctx.lineTo(craneBaseX, craneBaseY - 28);
+                // Horizontal jib (forward arm + short counter-jib)
+                ctx.moveTo(craneBaseX - 8, craneBaseY - 28);
+                ctx.lineTo(craneBaseX + 22, craneBaseY - 28);
+                // Diagonal tension cables · A-frame topper
+                ctx.moveTo(craneBaseX, craneBaseY - 34);
+                ctx.lineTo(craneBaseX - 7, craneBaseY - 28);
+                ctx.moveTo(craneBaseX, craneBaseY - 34);
+                ctx.lineTo(craneBaseX + 20, craneBaseY - 28);
+                ctx.stroke();
+                // Operator cab · small square at jib root
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(craneBaseX - 2, craneBaseY - 30, 4, 3);
+                // Hook line dangling from jib end
+                ctx.strokeStyle = 'rgba(58, 36, 24, 0.6)';
+                ctx.beginPath();
+                ctx.moveTo(craneBaseX + 18, craneBaseY - 28);
+                ctx.lineTo(craneBaseX + 18, craneBaseY - 10);
+                ctx.stroke();
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(craneBaseX + 17, craneBaseY - 11, 3, 2);   // hook block
+                // Counter-weight slab on counter-jib
+                ctx.fillRect(craneBaseX - 8, craneBaseY - 29, 4, 3);
             }
         }
         ctx.restore();
@@ -1396,6 +1711,63 @@
             ctx.beginPath();
             ctx.ellipse(px, y - 2, 24 * rt.scale, 4 * rt.scale, 0, Math.PI, 0);
             ctx.fill();
+        }
+    }
+
+    /** Atmospheric haze band · the real Bangalore-dawn signature.
+     *  Sits AFTER distant skyline but BEFORE foreground bands — overlays
+     *  the bottom 1/3 of buildings with a semi-transparent gradient that
+     *  matches the sky color at the horizon. The effect: distant buildings
+     *  visibly fade into the smog/fog at their base. */
+    function drawAtmosphericHaze(W, horizonY) {
+        // Sample the current sky color near the horizon to harmonize
+        const skyCol = skyAtChapter(state.playerX);
+        // haze sits above and just below horizon line
+        const hazeTop    = horizonY - 60;
+        const hazeBot    = horizonY + 6;
+        const grad = ctx.createLinearGradient(0, hazeTop, 0, hazeBot);
+        grad.addColorStop(0,    `rgba(220, 180, 140, 0)`);
+        grad.addColorStop(0.4,  `rgba(220, 180, 140, 0.22)`);
+        grad.addColorStop(0.7,  `rgba(220, 180, 140, 0.34)`);
+        grad.addColorStop(1,    `rgba(220, 180, 140, 0.45)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, hazeTop, W, hazeBot - hazeTop);
+        // Suppress unused-var lint
+        void skyCol;
+    }
+
+    /** Distant tree canopy · 0.32× parallax · dense green band between
+     *  skyline and the player band. Matches the thick tree cover that
+     *  fronts the city in the real Bangalore photo. */
+    function drawDistantCanopy(W, horizonY, groundY, cameraX) {
+        const offset = -(cameraX * 0.32);
+        const y = horizonY + 14;
+        ctx.fillStyle = '#2a3a1a';   // deep canopy green · sepia-leaning
+        ctx.beginPath();
+        ctx.moveTo(0, y + 18);
+        // Lumpy canopy line using cached cosine seeds
+        for (let i = 0; i < 200; i++) {
+            const wx = i * 38;
+            const px = wx + offset;
+            if (px > -50 && px < W + 50) {
+                const bump = Math.sin(i * 0.62) * 5 + Math.cos(i * 0.31 + 1.7) * 3;
+                ctx.lineTo(px, y + bump);
+            }
+        }
+        ctx.lineTo(W + 100, y + 18);
+        ctx.lineTo(W + 100, groundY);
+        ctx.lineTo(-100, groundY);
+        ctx.closePath();
+        ctx.fill();
+        // Subtle highlight rim on top edge of canopy
+        ctx.fillStyle = 'rgba(90, 110, 60, 0.4)';
+        for (let i = 0; i < 200; i++) {
+            const wx = i * 38;
+            const px = wx + offset;
+            if (px > -10 && px < W + 10) {
+                const bump = Math.sin(i * 0.62) * 5 + Math.cos(i * 0.31 + 1.7) * 3;
+                ctx.fillRect(px - 6, y + bump - 1, 12, 1);
+            }
         }
     }
 
@@ -1485,6 +1857,65 @@
                 // Cap finial at pylon top
                 ctx.fillStyle = '#c89a5a';
                 ctx.fillRect(sx - 1, pylonTop - 2, 2, 2);
+            } else if (br.kind === 'h_bridge') {
+                // Iblur-style H-pylon cable-stayed bridge · ORR signature
+                // Twin H-shaped pylons with cables spanning between them
+                const deckY = horizonY - 12;
+                const pylonTop = deckY - 70;
+                const pylonGap = 70;
+                const px1 = sx - pylonGap / 2;
+                const px2 = sx + pylonGap / 2;
+                // Deck · longer span (180px)
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 90, deckY, 180, 5);
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sx - 90, deckY + 4, 180, 1);
+                // TWIN H-PYLONS
+                ctx.fillStyle = '#5a3a22';
+                for (const px of [px1, px2]) {
+                    // H-shape: 2 vertical legs + horizontal crossbar
+                    ctx.fillRect(px - 6, deckY, 3, deckY - pylonTop);   // left leg
+                    ctx.fillRect(px + 3, deckY, 3, deckY - pylonTop);   // right leg
+                    ctx.fillRect(px - 6, deckY - 35, 12, 3);             // horizontal cross-beam (the H bar)
+                    // Cap finial
+                    ctx.fillStyle = '#c89a5a';
+                    ctx.fillRect(px - 7, pylonTop - 2, 4, 2);
+                    ctx.fillRect(px + 3, pylonTop - 2, 4, 2);
+                    ctx.fillStyle = '#5a3a22';
+                }
+                // Diagonal cables · fanning from each pylon-top to deck
+                ctx.strokeStyle = 'rgba(90, 58, 34, 0.75)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                // Cables from px1 fanning outward (toward left end of deck)
+                for (let i = 1; i <= 7; i++) {
+                    const dx = i * 11;
+                    ctx.moveTo(px1, pylonTop);
+                    ctx.lineTo(px1 - dx, deckY);
+                }
+                // Cables from px1 fanning inward (between pylons)
+                for (let i = 1; i <= 4; i++) {
+                    const dx = i * 6;
+                    ctx.moveTo(px1, pylonTop);
+                    ctx.lineTo(px1 + dx, deckY);
+                }
+                // Cables from px2 fanning inward
+                for (let i = 1; i <= 4; i++) {
+                    const dx = i * 6;
+                    ctx.moveTo(px2, pylonTop);
+                    ctx.lineTo(px2 - dx, deckY);
+                }
+                // Cables from px2 fanning outward (right)
+                for (let i = 1; i <= 7; i++) {
+                    const dx = i * 11;
+                    ctx.moveTo(px2, pylonTop);
+                    ctx.lineTo(px2 + dx, deckY);
+                }
+                ctx.stroke();
+                // Anchor piers · supports below deck at both ends
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(sx - 88, deckY + 4, 4, horizonY - deckY - 4);
+                ctx.fillRect(sx + 84, deckY + 4, 4, horizonY - deckY - 4);
             } else if (br.kind === 'arch_bridge') {
                 // Small 2-arch stone bridge over a stream
                 const deckY = horizonY - 4;
@@ -5998,6 +6429,8 @@
         drawBridges(W, horizonY, cameraX);
         drawMetroViaduct(W, horizonY, cameraX);
         drawMetroTrain(W, horizonY, cameraX);
+        drawAtmosphericHaze(W, horizonY);
+        drawDistantCanopy(W, horizonY, groundY, cameraX);
         drawRaintrees(W, horizonY, groundY, cameraX);
         drawGround(W, H, horizonY, groundY, cameraX);
         drawHolidayProps(W, horizonY, groundY, cameraX);
