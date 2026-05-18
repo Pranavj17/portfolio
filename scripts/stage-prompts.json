@@ -1,8 +1,9 @@
 {
   "_meta": {
     "description": "Per-chapter prompts for AI-generated stage-completion videos.",
-    "style_suffix": "warm sepia tones, soft film grain, cinematic 16:9, no text overlays, no watermarks, painterly illustration",
-    "negative": "text, watermark, logo, signature, blurry, deformed faces, ugly, low quality",
+    "style_suffix": "2D cartoon illustration, hand-drawn animation style, flat colors with soft cel-shading, bold confident outlines, warm sepia and earth-tone palette, expressive simple character faces, Studio Ghibli meets Cartoon Saloon vibe, 16:9 cinematic framing, no text, no watermarks",
+    "negative": "photorealistic, photograph, 3D render, realistic skin, text, watermark, logo, signature, blurry, deformed faces, ugly, low quality, anime sexualization",
+    "_character_note": "PROTAGONIST: young South Indian man with short-cropped dark hair styled forward, light beard stubble, strong dark eyebrows, warm tan brown skin tone, athletic build, expressive brown eyes. Embedded into each chapter's mood with age-appropriate description.",
     "image_size": "1024x576",
     "model_preferred": "black-forest-labs/flux.1-schnell",
     "model_fallback": "stabilityai/sdxl",
@@ -11,90 +12,90 @@
   },
   "itics": {
     "label": "ITICS",
-    "mood": "nostalgic Bangalore school years 2004 to 2013, primary school boys, copper-pod and gulmohar trees",
+    "mood": "nostalgic Bangalore school years 2004 to 2013, copper-pod and gulmohar trees. Main character is a 9-year-old Indian schoolboy with short-cropped dark hair, warm tan brown skin, big expressive brown eyes, friendly smile, white shirt with navy shorts uniform",
     "scenes": [
-      "Indian school children in white-and-navy uniforms playing football on a dusty Bangalore school ground at golden hour",
-      "School morning assembly with kids standing in rows, hands joined for prayer, raintree shadows on the courtyard",
-      "Boys playing cricket on a dirt pitch with a tennis ball, palm trees in the background",
-      "Yellow school bus parked at a tree-lined gate, kids carrying backpacks running toward it",
-      "Indian school students lined up on stone steps at a Karnataka heritage palace during a school field trip, holding notebooks"
+      "9-year-old Indian schoolboy with short dark hair playing striker in a football match, kicking a ball on a dusty Bangalore school ground at golden hour",
+      "School morning assembly: same boy standing in row with hands joined for prayer, raintree shadows on courtyard",
+      "Same Indian schoolboy batting cricket on a dirt pitch with a tennis ball, palm trees background",
+      "Same boy running toward a yellow school bus parked at a tree-lined gate, backpack bouncing on his back",
+      "Same boy with classmates lined up on stone steps at a Karnataka heritage palace during a school field trip, holding notebook"
     ]
   },
   "cmr": {
     "label": "CMR NATIONAL",
-    "mood": "JEE pre-university pressure 2013 to 2015, late-night study room, anxious teenager",
+    "mood": "JEE pre-university pressure 2013 to 2015. Main character is now a 16-year-old Indian teenager with short-cropped dark hair, warm tan brown skin, faint hint of stubble starting, focused intense eyes, wearing a button-down shirt and dark trousers (PU college uniform)",
     "scenes": [
-      "Indian teenager in a crowded coaching-class classroom solving physics problems on a chalkboard at dusk",
-      "Single study lamp casting warm light over an open IIT-JEE physics textbook and a half-filled answer sheet at midnight",
-      "Group of teens with notebooks scattered on a tea-stained table, intense study session at a Bangalore PU college canteen",
-      "Two teenagers walking out of a single-screen cinema with Bahubali film posters, weekend movie-night vibe",
-      "Boys playing pickup cricket in the ITI Pavilion ground near the school, evening light over palms"
+      "Same 16-year-old Indian teen, short dark hair, in a crowded coaching-class classroom solving physics problems on a chalkboard at dusk",
+      "Same teen alone under a single study lamp at midnight, hunched over an open IIT-JEE physics textbook with a half-filled answer sheet, tired focused look",
+      "Same teen with three friends, notebooks scattered on a tea-stained table, intense group study session at a Bangalore PU college canteen",
+      "Same teen and a friend walking out of a single-screen cinema with Bahubali film posters, hands holding popcorn, weekend movie-night vibe",
+      "Same teen playing pickup cricket in the ITI Pavilion ground near the school, evening light over palm trees"
     ]
   },
   "college": {
     "label": "D.S.C.E.",
-    "mood": "Bangalore engineering college 2015 to 2019, mechanical engineering, hostel and bike rides",
+    "mood": "Bangalore engineering college 2015 to 2019. Main character is a 19-year-old Indian engineering student with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, athletic build, wearing casual t-shirts and jeans",
     "scenes": [
-      "Three young men riding triples on a black motorbike through Bangalore traffic, helmets, golden afternoon light",
-      "Mechanical engineering lab with steel lathe machines, blueprints pinned on wall, fluorescent lights",
-      "Engineering college fest stage with students dancing, hand-painted banners, multicolored spotlights",
-      "Hostel room with cluttered desk, posters, two friends laughing over a half-eaten Maggi packet",
-      "Convocation ceremony with graduating students in black robes, parents proudly clapping, evening hall"
+      "Same 19-year-old Indian student riding pillion as triples on a black motorbike with two friends through Bangalore traffic, helmets, golden afternoon light",
+      "Same student in a mechanical engineering lab examining a steel lathe machine, blueprints pinned on wall behind, fluorescent lights",
+      "Same student dancing on an engineering college fest stage with friends, hand-painted banners, multicolored spotlights, joyful expression",
+      "Same student in his hostel room laughing with two friends over a half-eaten Maggi packet, cluttered desk, posters on walls",
+      "Same student in black graduation robe at convocation ceremony, smiling proudly with parents in the foreground, evening hall"
     ]
   },
   "fever104": {
     "label": "FEVER 104 FM",
-    "mood": "Bangalore radio station internship March to May 2019, broadcasting booth, music notes",
+    "mood": "Bangalore radio station internship March to May 2019. Main character is a 19-year-old Indian intern with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, casual shirt",
     "scenes": [
-      "Young Indian intern wearing studio headphones, sitting in a soundproofed FM radio booth in Bangalore",
-      "Hands holding a printed radio script binder next to a vintage analog mixing console",
-      "Sound engineer at FEVER 104 FM mixing console with rows of glowing fader lights and meter peaks",
-      "Tabletop microphone with foam windscreen and red ON AIR sign glowing in the background",
-      "Trainee certificate in a wooden frame on a desk beside a glass of chai, gentle radio-studio light"
+      "Same 19-year-old Indian intern wearing studio over-ear headphones, leaning into a tabletop microphone in a soundproofed FM radio booth, focused expression",
+      "Same intern holding a printed radio script binder, sitting beside a vintage analog mixing console with glowing meters",
+      "Same intern operating the FEVER 104 FM mixing console with rows of glowing fader lights and meter peaks, hands on faders",
+      "Close-up of a tabletop microphone with foam windscreen and red ON AIR sign glowing in the background, same intern's silhouette in chair",
+      "Same intern holding a trainee certificate in a wooden frame, smiling, glass of chai beside him, gentle radio-studio light"
     ]
   },
   "sakha": {
     "label": "SAKHA GLOBAL",
-    "mood": "first frontend developer job 2019 to 2022, Maruti Alto, COVID work-from-home",
+    "mood": "first frontend developer job 2019 to 2022, COVID work-from-home. Main character is a 22-year-old Indian young man with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, expressive brown eyes, smart-casual button-down shirt",
     "scenes": [
-      "Nervous young Indian man in his first job interview, formal shirt, glass-walled Bangalore tech office conference room",
-      "Hands gifting a wrapped wristwatch box to a smiling father, with a silk saree folded next to it for mother",
-      "Empty Bangalore street during COVID lockdown 2020 with a single white Maruti Alto parked, soft pandemic stillness",
-      "Open laptop at a cluttered home WFH desk with React code on screen, coffee cup, cat on the keyboard",
-      "Late-night coding session, single monitor casting blue glow on developer face in a small Bangalore apartment"
+      "Same 22-year-old Indian young man in his first job interview, formal shirt, nervous but composed, glass-walled Bangalore tech office conference room",
+      "Same young man smiling, gifting a wrapped wristwatch box to a happy father in a living room, a folded silk saree for his mother on the table beside",
+      "Empty Bangalore street during COVID lockdown 2020 with a single white compact hatchback car parked, the same young man standing next to it, mask in hand",
+      "Same young man at a cluttered home WFH desk, open laptop showing React code, coffee cup beside, a cat resting on the keyboard, soft afternoon light",
+      "Same young man in a small Bangalore apartment late at night, single monitor casting blue glow on his focused face during a coding session"
     ]
   },
   "scripbox": {
     "label": "SCRIPBOX",
-    "mood": "fullstack and AI engineer 2022 to present, Anthropic catalog moment, Claude Code, MCP tooling",
+    "mood": "fullstack and AI engineer 2022 to present. Main character is a 25-year-old Indian software engineer with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, athletic build, smart-casual t-shirt or hoodie",
     "scenes": [
-      "Bright modern Bangalore tech office onboarding with developer at a new desk receiving a welcome kit and laptop",
-      "Pull request code review on a wide monitor, terminal open, two developers pointing at the screen",
-      "Excited developer reading the Anthropic MCP catalog page on a laptop, late-evening Bangalore window behind",
-      "Whiteboard knowledge-sharing session with developer drawing system architecture diagrams to a small audience",
-      "Hands typing on a mechanical keyboard, glowing terminal output, Bangalore night traffic blurred through the window"
+      "Same 25-year-old Indian engineer at a new desk in a bright modern Bangalore tech office, receiving a welcome kit and laptop, friendly smile",
+      "Same engineer doing pull request code review on a wide monitor, terminal open beside, another developer pointing at the screen",
+      "Same engineer at his laptop late evening, excitedly reading the Anthropic MCP catalog page on screen, Bangalore window behind",
+      "Same engineer at a whiteboard, drawing system architecture diagrams to three colleagues seated in a meeting room",
+      "Close-up of same engineer's hands typing on a mechanical keyboard, glowing terminal output on monitor, Bangalore night traffic blurred through the window"
     ]
   },
   "vwgt": {
     "label": "THE GT",
-    "mood": "new sports sedan car delivery in Bangalore November 2025, celebration day",
+    "mood": "new sports sedan car delivery in Bangalore November 2025, celebration day. Main character is a 26-year-old Indian man with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, athletic build, smart casual sweater or button-down",
     "scenes": [
-      "Red modern sports sedan being test-driven on a Bangalore ring-road at sunset, dashboard glowing",
-      "Car showroom desk with delivery paperwork stacked, pen poised over signing line, RC and insurance papers",
-      "Salesperson handing over a metallic car key on a wooden tray with rose petals around it at a dealership",
-      "First drive of a new red sports sedan pulling out of a showroom under a celebratory garland, family watching",
-      "Red sports sedan parked at home with proud owner standing next to it at golden hour, residential Bangalore"
+      "Same 26-year-old Indian man test-driving a red modern sports sedan on a Bangalore ring-road at sunset, hands on steering wheel, dashboard glowing, excited smile",
+      "Same young man at car showroom desk, pen in hand signing delivery paperwork, stacked RC and insurance papers in front of him",
+      "Salesperson handing over a metallic car key on a wooden tray with rose petals to the same young man at a dealership, both smiling",
+      "Same young man behind the wheel of a new red sports sedan pulling out of a showroom under a celebratory garland, family watching from outside",
+      "Same young man standing proudly next to a red sports sedan parked at home at golden hour, residential Bangalore street, hand resting on the hood"
     ]
   },
   "now": {
     "label": "NOW",
-    "mood": "2026 present contemplation, morning routine, code flow, Anthropic goal, looking forward",
+    "mood": "2026 present contemplation, looking forward to Anthropic. Main character is a 27-year-old Indian man with short-cropped dark hair styled forward, light beard stubble, warm tan brown skin, strong dark eyebrows, athletic build, smart casual",
     "scenes": [
-      "Quiet morning coffee on a Bangalore apartment balcony, sunrise over the city skyline, open laptop on the table",
-      "Developer in deep flow state, terminal full of AI code, mechanical keyboard, golden morning light",
-      "Anthropic logo glowing softly on a laptop screen, with handwritten goal note on a notebook nearby",
-      "Person standing on a rooftop at dusk looking out over Bangalore skyline with metro train passing far below",
-      "Open journal with pen, half-finished entry about future plans, a steaming cup of South Indian filter coffee"
+      "Same 27-year-old Indian man enjoying quiet morning coffee on a Bangalore apartment balcony, sunrise over the city skyline, open laptop on the table beside him",
+      "Same man in deep flow state at his desk, terminal full of AI code, hands on mechanical keyboard, golden morning light through the window",
+      "Close-up of an open laptop with Anthropic logo glowing softly on screen, handwritten goal note on a notebook nearby, same man's hand resting on the trackpad",
+      "Same man standing on a rooftop at dusk, looking out over Bangalore skyline with metro train passing far below, contemplative pose from behind",
+      "Open journal with pen and a half-finished entry about future plans, steaming cup of South Indian filter coffee, same man's hands in frame"
     ]
   }
 }
