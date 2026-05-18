@@ -5172,5 +5172,5 @@
     requestAnimationFrame(frame);
 
     // debug
-    window.__journey = { state, CHAPTERS };
+    window.__journey = { state, CHAPTERS, BEATS, openLoreCard, dismissLoreCard };
 })();
