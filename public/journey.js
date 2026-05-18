@@ -409,6 +409,9 @@
         // ROAD TRAFFIC · Bangalore street vehicles (BMTC bus, Maruti, motorbike, lorry)
         traffic:         [],       // [{kind, x, dir, speed}] · screen-space
         trafficNextAt:   3000,
+        // PEEK CAMERA · brief lean-forward when user taps empty space
+        peekT:           0,        // ms remaining of peek animation
+        peekDir:         1,        // +1 = lean forward, -1 = lean back
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
@@ -609,6 +612,73 @@
     window.addEventListener('touchstart', chapterAudioBoot, { passive: true, once: false });
     window.addEventListener('pointerdown', chapterAudioBoot, { passive: true, once: false });
 
+    // ── CHAPTER MUSIC · per-chapter .mp3 theme files (overrides procedural) ──
+    // Drop files into /public/music/{id}.mp3 and they'll auto-load + crossfade
+    // based on player position. If a file 404s, the procedural ambient covers
+    // that chapter naturally. Per-chapter master volume cap = 0.45 to leave
+    // headroom for chatter + lore card SFX.
+    const CHAPTER_MUSIC_FILES = [
+        { id: 'itics',    x:  500, src: '/music/itics.mp3' },
+        { id: 'cmr',      x: 1200, src: '/music/cmr.mp3' },
+        { id: 'college',  x: 2000, src: '/music/dsce.mp3' },
+        { id: 'fever104', x: 2800, src: '/music/fever104.mp3' },
+        { id: 'sakha',    x: 3600, src: '/music/sakha.mp3' },
+        { id: 'scripbox', x: 4400, src: '/music/scripbox.mp3' },
+        { id: 'vwgt',     x: 5300, src: '/music/vwgt.mp3' },
+        { id: 'now',      x: 6200, src: '/music/now.mp3' },
+    ];
+    let chapterMusic = null;
+    function chapterMusicBoot() {
+        if (chapterMusic) return;
+        // Attempt to load each chapter theme · failures fall back gracefully
+        const tracks = CHAPTER_MUSIC_FILES.map(cfg => {
+            const audio = new Audio(cfg.src);
+            audio.loop = true;
+            audio.volume = 0;
+            audio.preload = 'auto';
+            audio.crossOrigin = 'anonymous';
+            const track = { ...cfg, audio, loaded: false, playing: false };
+            audio.addEventListener('canplaythrough', () => {
+                track.loaded = true;
+                console.log(`♪ chapter music loaded: ${cfg.id}`);
+            }, { once: true });
+            audio.addEventListener('error', () => {
+                // File missing · silent fallback to procedural ambient
+                track.loaded = false;
+            });
+            return track;
+        });
+        chapterMusic = { tracks, masterMul: 0.45 };
+    }
+    function chapterMusicTick() {
+        if (!chapterMusic) return;
+        for (const track of chapterMusic.tracks) {
+            if (!track.loaded) continue;
+            const d = Math.abs(state.playerX - track.x);
+            const prox = d >= 500 ? 0 : 1 - d / 500;
+            const targetVol = prox * chapterMusic.masterMul;
+            // Smooth approach (no instant jumps)
+            const cur = track.audio.volume;
+            const next = cur + (targetVol - cur) * 0.05;
+            track.audio.volume = Math.max(0, Math.min(1, next));
+            // Auto-play when within range, pause when far away
+            if (next > 0.01 && !track.playing) {
+                track.audio.play().catch(() => {});
+                track.playing = true;
+                // When real music plays, DUCK the procedural ambient for this chapter
+                if (chapterAudio) {
+                    const lane = chapterAudio.lanes.find(l => l.id === track.id);
+                    if (lane) lane.cap = 0;   // mute procedural when MP3 active
+                }
+            } else if (next < 0.005 && track.playing) {
+                track.audio.pause();
+                track.playing = false;
+            }
+        }
+    }
+    window.addEventListener('touchstart', chapterMusicBoot, { passive: true, once: false });
+    window.addEventListener('pointerdown', chapterMusicBoot, { passive: true, once: false });
+
     // ── PARTICLES · color-matched bursts on chapter collection ───────
     function burstParticles(x, y, color, n) {
         for (let i = 0; i < n; i++) {
@@ -807,6 +877,9 @@
         const nextIdx = pickNextObjective();
         const ch = CHAPTERS[nextIdx];
         if (ch) showAchievement(ch, { kind: 'peek' });
+        // Camera lean-forward · the actual "peek" gesture · 700ms animation
+        state.peekT = 700;
+        state.peekDir = 1;
         if (!tapHintSeen && $tapHint) {
             tapHintSeen = true;
             $tapHint.classList.add('faded');
@@ -858,25 +931,47 @@
             return clientX >= sx - hw / 2 && clientX <= sx + hw / 2 &&
                    clientY >= sy - hh / 2 && clientY <= sy + hh / 2;
         }
-        // 1. SKYLINE landmarks (parallax 0.30, hit-zone at horizon top band)
+        // Helper: find the closest landmark to a click (best match)
+        let best = null, bestDist = Infinity;
+        function check(wx, parallax, hw, hh, sy, kind, lookupKey) {
+            const sx = (wx - cameraX) * parallax + W * 0.32 * (1 - parallax);
+            if (clientX >= sx - hw / 2 && clientX <= sx + hw / 2 &&
+                clientY >= sy - hh / 2 && clientY <= sy + hh / 2) {
+                const d = Math.hypot(clientX - sx, clientY - sy);
+                if (d < bestDist) {
+                    const lore = LANDMARK_LORE[lookupKey];
+                    if (lore) {
+                        bestDist = d;
+                        best = { ch: 'landmark', id: kind, title: lore.title, lore: lore.body };
+                    }
+                }
+            }
+        }
+
+        // 1. SKYLINE landmarks (parallax 0.30) · tight hit-zone matched to building height
         for (const lm of SKYLINE) {
             if (playerChapter < lm.minChapterIdx) continue;
-            const sy = horizonY - 30;
-            if (inside(lm.x, 0.30, 100, 80, sy)) {
-                const lore = LANDMARK_LORE[lm.kind];
-                if (lore) return { ch: 'landmark', id: lm.kind, title: lore.title, lore: lore.body };
-            }
+            // Hit-zone tracks the actual silhouette: tall buildings get tall zones
+            const hw = lm.kind === 'vidhana_soudha' ? 120
+                     : lm.kind === 'kr_market' || lm.kind === 'manyata' ? 90
+                     : lm.kind === 'stadium' || lm.kind === 'chinnaswamy' ? 80
+                     : 55;
+            const hh = lm.kind === 'ub_wtc' ? 80 : 50;
+            const sy = horizonY - 25;
+            check(lm.x, 0.30, hw, hh, sy, lm.kind, lm.kind);
         }
-        // 2. BRIDGES (parallax 0.40, hit-zone at horizon level)
+        // 2. BRIDGES (parallax 0.40)
         for (const br of BRIDGES) {
             if (playerChapter < br.minChapterIdx) continue;
-            const sy = horizonY - 8;
-            if (inside(br.x, 0.40, 180, 60, sy)) {
-                const lore = LANDMARK_LORE[br.kind];
-                if (lore) return { ch: 'landmark', id: br.kind, title: lore.title, lore: lore.body };
-            }
+            const hw = br.kind === 'h_bridge' ? 180
+                     : br.kind === 'cable_stay' ? 160
+                     : br.kind === 'hebbal_flyover' ? 200
+                     : 80;
+            const hh = br.kind === 'cable_stay' || br.kind === 'h_bridge' ? 70 : 40;
+            const sy = horizonY - 10;
+            check(br.x, 0.40, hw, hh, sy, br.kind, br.kind);
         }
-        // 3. METRO STATIONS (parallax 0.45, hit-zone above viaduct beam)
+        // 3. METRO STATIONS (parallax 0.45)
         if (playerChapter >= 1) {
             const stations = [
                 { x: 1700, name: 'VIDHANA SOUDHA' },
@@ -886,15 +981,12 @@
                 { x: 4350, name: 'INDIRANAGAR' },
                 { x: 5100, name: 'BYAPPANAHALLI' },
             ];
-            const sy = horizonY - 38;
+            const sy = horizonY - 30;
             for (const stn of stations) {
-                if (inside(stn.x, 0.45, 130, 30, sy)) {
-                    const lore = LANDMARK_LORE[stn.name];
-                    if (lore) return { ch: 'landmark', id: stn.name, title: lore.title, lore: lore.body };
-                }
+                check(stn.x, 0.45, 120, 35, sy, 'metro:' + stn.name, stn.name);
             }
         }
-        return null;
+        return best;
     }
 
     // ── LORE CARD · canvas-drawn slide-up modal showing beat story ──
@@ -1139,29 +1231,20 @@
             dismissLoreCard();
             return;
         }
-        // Otherwise, check if click landed on a story beat. If yes, open lore.
+        // BEATS are intentional UI icons · open on pointerdown (immediate feedback)
         const hit = hitTestBeat(e.clientX, e.clientY);
         if (hit) {
             e.preventDefault();
             openLoreCard(hit);
             return;
         }
-        // Or check if click landed on a Bangalore landmark/bridge/metro station
-        const lm = hitTestLandmark(e.clientX, e.clientY);
-        if (lm) {
-            e.preventDefault();
-            openLoreCard(lm);
-            return;
-        }
-        // Empty-space tap → existing hold-to-walk behavior
+        // Otherwise prep for hold-to-walk OR quick-tap (peek/landmark)
         state.touchHold = true;
         touchStartT = performance.now();
         touchMoved = false;
         touchStartX = e.clientX;
         touchStartY = e.clientY;
     });
-    // pointermove · sets touchMoved=true once finger drags beyond TAP_TRAVEL_PX
-    // (was missing entirely · the !touchMoved check in pointerup was dead code).
     canvas.addEventListener('pointermove', (e) => {
         if (!state.touchHold || touchMoved) return;
         const dx = e.clientX - touchStartX;
@@ -1171,8 +1254,19 @@
     canvas.addEventListener('pointerup', (e) => {
         const heldMs = performance.now() - touchStartT;
         state.touchHold = false;
-        // quick tap with no movement-hold = peek the next chapter card
-        if (heldMs < 180 && !touchMoved) triggerPeek();
+        // Quick tap with no movement:
+        //   1. Check if it landed on a Bangalore landmark/bridge/metro · open lore
+        //   2. Otherwise · peek the next chapter card
+        // This ordering preserves peek for empty-space taps · landmarks only
+        // trigger on deliberate clicks on the building silhouette itself.
+        if (heldMs < 220 && !touchMoved) {
+            const lm = hitTestLandmark(e.clientX, e.clientY);
+            if (lm) {
+                openLoreCard(lm);
+            } else {
+                triggerPeek();
+            }
+        }
     });
     canvas.addEventListener('pointercancel', () => { state.touchHold = false; });
 
@@ -6910,10 +7004,19 @@
             }
         }
 
+        // Peek animation · brief camera lean-forward during 0-700ms window.
+        // Eases out-then-in (ease-in-out sine peak at 350ms) for natural feel.
+        let peekOffset = 0;
+        if (state.peekT > 0) {
+            state.peekT = Math.max(0, state.peekT - dt);
+            const t = 1 - state.peekT / 700;          // 0 → 1
+            const easeOut = Math.sin(t * Math.PI);    // 0 at start/end, 1 at peak
+            peekOffset = easeOut * 110;               // up to 110px forward
+        }
         // camera · player anchored at 32% from left, OR locked during cinematic
         const cameraX = state.lockedCameraX !== null
             ? state.lockedCameraX
-            : (state.playerX - W * 0.32);
+            : (state.playerX - W * 0.32 + peekOffset);
 
         // life-progress 0..1 · drives the time-of-day sky gradient.
         // World ends at the last chapter + 150. Clamp so we don't NaN.
