@@ -79,6 +79,8 @@
         { ch:'itics', id:'football-match',  dx:-380, dy:-80, w:64, h:48, title:'Football match',   lore:'Intra and inter-school competitions. Played striker.', chatter:['PASS!','on me!','GOAL!','foul!','shoot!'] },
         { ch:'itics', id:'sports-day',      dx:-340, dy:-80, w:64, h:48, title:'Sports day',       lore:'Great fun. Won.' },
         { ch:'itics', id:'cricket-match',   dx:-300, dy:-80, w:64, h:48, title:'Cricket match',    lore:'Played district level for Karnataka. CSK fan since I could pronounce Dhoni.', chatter:['WHISTLE PODU!','THALA!','DHONI! DHONI!','CSK! CSK!','Yellove!','SIX!','HOWZAT!','Anbuden!'] },
+        { ch:'itics', id:'monsoon-puddles', dx:-220, dy:-12, w:32, h:24, title:'Monsoon puddles', lore:'Bangalore monsoon hits and every pothole is a swimming pool. Splashed in every one on the way home. Came back to a mother with the face.', chatter:['SPLASH!','wet socks','more puddles','run!'] },
+        { ch:'itics', id:'first-cycle',     dx:-180, dy:-15, w:36, h:30, title:'First cycle',     lore:'Red BSA. Training wheels off the first weekend. Three skinned knees and the geography of the block, finally learned.', chatter:['no hands!','crash','again','can ride!'] },
         { ch:'itics', id:'cultural-dance',  dx:-260, dy:-80, w:64, h:48, title:'Cultural dance',   lore:'Did it as part of school activity.', chatter:['together!','and... go','one more','smile!'] },
 
         // ── CMR NATIONAL (PU, 2013–2015) ──
@@ -89,13 +91,16 @@
         { ch:'cmr', id:'group-study',       dx:-540, dy:-12, w:54, h:44, title:'Group study',      lore:'Did do it during exam times.', chatter:['ch 12 done?','ya','this one?','ugh','5 more chapters'] },
         { ch:'cmr', id:'movie-night',       dx:-490, dy:-30, w:54, h:60, title:'Movie night',      lore:'Watched Bahubali with girlfriend.', chatter:['bahubali wild','best fight','one more sat?','popcorn?'] },
         { ch:'cmr', id:'cricket-weekend',   dx:-440, dy:-10, w:54, h:40, title:'Cricket weekend',  lore:'Yes — every weekend at the ITI pavilion.' },
-        { ch:'cmr', id:'first-crush',       dx:-390, dy:-20, w:48, h:40, title:'First crush',      lore:'Yes — at tuition.' },
+        { ch:'cmr', id:'first-crush',       dx:-390, dy:-20, w:48, h:40, title:'First crush',      lore:'Yes — at tuition. Sat two rows behind. Borrowed her highlighter once. Returned it. That was the entire courtship.', chatter:['look up','don\'t look up','one chapter','one more glance'] },
+        { ch:'cmr', id:'saturday-extra',    dx:-200, dy:-12, w:36, h:36, title:'Saturday extra',   lore:'The "doubt-clearing" class that became 4 hours of derivations. Half the batch skipped. The other half learned what discipline actually costs.', chatter:['weekend gone','one more sum','tea break?','5 min'] },
 
         // ── D.S.C.E. (mech eng, 2015–2019) ──
         { ch:'college', id:'hostel-room',   dx:-380, dy:-30, w:48, h:64, title:'Hostel room',      lore:'Didn\'t go to hostel. Travelled every day — walking to 3 bus changes to college walk.', chatter:['zzz...','light off','4am bro','let me sleep'] },
         { ch:'college', id:'fest-stage',    dx:-340, dy:-25, w:54, h:54, title:'Fest stage',       lore:'Great fun. Did a dance in the fest.', chatter:['LETS GOOO','encore!','one more!','hands up!'] },
         { ch:'college', id:'group-ride',    dx:-300, dy:-12, w:54, h:36, title:'Group ride',       lore:'Yes — every day, triples.', chatter:['race u to mess!','too late','wait up','catch me'] },
         { ch:'college', id:'convocation',   dx:-260, dy:-30, w:54, h:64, title:'Convocation',      lore:'Black robes, mortarboard, four years compressed into one walk across the stage. Parents in the front row · the only audience that mattered.', chatter:['congrats!','engineer now','your turn next','smile big!'] },
+        { ch:'college', id:'bosch-intern',  dx:-200, dy:-18, w:48, h:42, title:'BOSCH intern',     lore:'Two months at BOSCH. ID badge, cafeteria coupons, a project mentor who let me touch real CAD files. First taste of "work" with a paycheck.', chatter:['day 1!','badge ✓','meeting','first project'] },
+        { ch:'college', id:'abb-intern',    dx:-160, dy:-22, w:48, h:42, title:'ABB intern',       lore:'Switched gears to ABB the next summer. Industrial automation, programmable logic controllers, the smell of solder. Learned that mechanical and software are the same hand on different keyboards.', chatter:['PLC time','ladder logic','HMI','reload'] },
 
         // ── FEVER 104 FM (Mar–May 2019) ──
         { ch:'fever104', id:'headphones',   dx:-380, dy:-15, w:36, h:36, title:'Headphones',       lore:'Heavy Shure SM7B-style cans. First time wearing them felt like the city had been turned down. The booth went quiet; the script got louder.', chatter:['rolling','live in 5','levels good','quiet on set'] },
@@ -107,16 +112,16 @@
         { ch:'sakha', id:'interview-day',   dx:-380, dy:-25, w:48, h:48, title:'Interview day',    lore:'Crazy feeling — first interview cracked, after 5 failed attempts.' },
         { ch:'sakha', id:'first-day-badge', dx:-340, dy:-22, w:32, h:40, title:'First day badge',  lore:'Plastic ID, lanyard, name spelled right. Spent the first hour just looking at it. Saved a photo · sent to mom.', chatter:['employee!','official','first job','📸'] },
         { ch:'sakha', id:'team-lunch',      dx:-300, dy:-20, w:48, h:40, title:'Team lunch',       lore:'Indiranagar lunches, two-floor cafés, monthly biryani Fridays. The team was the job · code came second.', chatter:['biryani?','5 minutes','same place?','let\'s go'] },
-        { ch:'sakha', id:'first-paycheck',  dx:-260, dy:-8,  w:48, h:32, title:'First paycheck',   lore:'Bought a watch and a saree — for dad and mum.' },
-        { ch:'sakha', id:'wfh-covid',       dx:-540, dy:-30, w:60, h:56, title:'WFH · COVID',      lore:'Changed my life. Got bored eventually.' },
+        { ch:'sakha', id:'first-paycheck',  dx:-260, dy:-8,  w:48, h:32, title:'First paycheck',   lore:'Bought a watch and a saree — for dad and mum. The leftover went toward groceries. Felt like the whole month\'s effort sat in two gift boxes.', chatter:['for dad','for mum','wrapped','watch ✓ saree ✓'] },
+        { ch:'sakha', id:'wfh-covid',       dx:-540, dy:-30, w:60, h:56, title:'WFH · COVID',      lore:'March 2020. Office shut overnight. Working from a corner of the bedroom, slack down for the first 2 weeks of every month. Shipped 11 PRs in March alone.', chatter:['standup in 5','laptop dead','wifi flaky','one more push'] },
         { ch:'sakha', id:'office-standup',  dx:-490, dy:-25, w:48, h:48, title:'Office standup',   lore:'New experience.', chatter:['blockers?','shipping today','merge ready','done by EOD'] },
         { ch:'sakha', id:'late-night-coding',dx:-440,dy:-20, w:54, h:48, title:'Late-night coding',lore:'Yes — was passionate.', chatter:['one more bug','just one more','sleep at 3','it works!'] },
         { ch:'sakha', id:'team-outing',     dx:-390, dy:-22, w:54, h:44, title:'Team outing',      lore:'Yes — did.', chatter:['to the team!','CHEERS','one more round?','great work'] },
 
         // ── SCRIPBOX (AI/MCP era, Sep 2022 – present) ──
-        { ch:'scripbox', id:'onboarding',     dx:-380, dy:-15, w:48, h:36, title:'Onboarding',       lore:'Great fun. Met a lot of friends.' },
+        { ch:'scripbox', id:'onboarding',     dx:-380, dy:-15, w:48, h:36, title:'Onboarding',       lore:'New laptop, welcome kit, meeting 30 people in two days. The friends you make in week one usually stay · learned that here.', chatter:['welcome!','day 1','hi team','let\'s go!'] },
         { ch:'scripbox', id:'pr-review',      dx:-340, dy:-15, w:36, h:36, title:'PR review',        lore:'Reading other people\'s code became the fastest way to read other people\'s minds. Approve, comment, request changes · all forms of "I see you."', chatter:['lgtm','hmm wait','edge case?','good catch'] },
-        { ch:'scripbox', id:'anthropic-catalog',dx:-300,dy:-30,w:48, h:48, title:'Anthropic catalog',lore:'Was excited. Did show off after.' },
+        { ch:'scripbox', id:'anthropic-catalog',dx:-300,dy:-30,w:48, h:48, title:'Anthropic catalog',lore:'PR #2913 · mcp-server-graylog landed in the Anthropic MCP catalog. Refreshed the page seventeen times to make sure it was real. Sent the link to four people who never asked.', chatter:['merged!','it\'s up','can\'t believe','#2913'] },
         { ch:'scripbox', id:'whiteboard',     dx:-260, dy:-30, w:54, h:48, title:'Whiteboard',       lore:'Gave knowledge transfer on things I learn — with my peers.', chatter:['MCP → SRV','see?','questions?','any blockers?'] },
         { ch:'scripbox', id:'claude-code',    dx:-540, dy:-25, w:54, h:48, title:'Claude Code',      lore:'Best AI skill I\'ve learnt as of now — for me.', chatter:['> claude','thinking...','done','one more pass'] },
         { ch:'scripbox', id:'anthropic-talk', dx:-490, dy:-25, w:54, h:48, title:'Anthropic talk',   lore:'Success.' },
@@ -132,10 +137,10 @@
         { ch:'vwgt', id:'first-drive-out',  dx:-260, dy:-15, w:48, h:36, title:'First drive out',  lore:'Out of the showroom, garland still on. Three lefts and onto the open road. The car was lighter than the moment.', chatter:['VROOM','finally','home wait','GT!'] },
 
         // ── NOW (2026 – present) ──
-        { ch:'now', id:'morning-routine',   dx:-380, dy:-25, w:48, h:56, title:'Morning routine',  lore:'Coffee, phone, sunrise. The new day.' },
-        { ch:'now', id:'code-flow',         dx:-340, dy:-20, w:48, h:48, title:'Code flow',        lore:'Multi-monitor flow state.' },
-        { ch:'now', id:'anthropic-goal',    dx:-300, dy:-20, w:48, h:52, title:'Anthropic goal',   lore:'AI Engineer. The north star.' },
-        { ch:'now', id:'forward-horizon',   dx:-260, dy:-10, w:48, h:32, title:'Forward horizon',  lore:'Walking confidently toward what\'s next.' },
+        { ch:'now', id:'morning-routine',   dx:-380, dy:-25, w:48, h:56, title:'Morning routine',  lore:'Filter coffee · phone face-down · 30 minutes of reading before the first slack ping. The day belongs to whoever claims the first hour.', chatter:['☕','quiet','no phone','sunrise'] },
+        { ch:'now', id:'code-flow',         dx:-340, dy:-20, w:48, h:48, title:'Code flow',        lore:'Multi-monitor, terminal warmth, mechanical click. Two hours that feel like ten minutes. The kind of focus you save up for.', chatter:['>','typing...','build ✓','tests ✓'] },
+        { ch:'now', id:'anthropic-goal',    dx:-300, dy:-20, w:48, h:52, title:'Anthropic goal',   lore:'AI Engineer at Anthropic. The north star since Dario\'s Senate testimony at midnight Bangalore time. Working backwards from there every day.', chatter:['claude.ai','one day','keep building','focus'] },
+        { ch:'now', id:'forward-horizon',   dx:-260, dy:-10, w:48, h:32, title:'Forward horizon',  lore:'Walking confidently toward what\'s next. The destination is foggy · the direction is clear · the legs already know what to do.', chatter:['onward','keep going','no turning back','horizon'] },
     ];
 
     // ── CONTACT URLs · used in end-card CTA ──
@@ -259,7 +264,7 @@
     //   plus 'metro_viaduct' / 'metro_train' for generic infra.
     const LANDMARK_LORE = {
         bull_temple: { title: "Bull Temple (1537)", body: "Kempe Gowda built it around a single granite outcrop that kept growing under the chisel — local lore says a copper plate on the bull's forehead was placed to stop it expanding further." },
-        cinema: { title: "Single-Screen Cinema", body: "RAJINIKANTH NOW SHOWING. The old single-screens — Plaza, Pallavi, Santosh — would queue around the block for a Thalaiva first-day-first-show. Five-rupee tickets, hand-painted hoardings, audience whistling at every punch dialogue." },
+        cinema: { title: "Single-Screen Cinema (Rajini Era)", body: "RAJINIKANTH NOW SHOWING. The old single-screens — Plaza, Pallavi, Santosh — queued around the block for a Thalaiva first-day-first-show. Five-rupee balcony, ten-rupee gold, hand-painted hoardings with paint still drying. Audience whistled at every punch dialogue and threw flowers when the title card hit." },
         vidhana_soudha: { title: "Vidhana Soudha (1956)", body: "Built in Neo-Dravidian granite by Kengal Hanumanthaiah as a riposte to colonial architecture. The carved sign above the entrance reads 'Government Work is God's Work' — a motto more hopeful than descriptive." },
         bangalore_palace: { title: "Bangalore Palace (1878)", body: "Modelled on Windsor Castle by the Wadiyars of Mysore on land bought from a British headmaster. A decades-long ownership dispute with the Karnataka government still drags through the courts." },
         planetarium: { title: "Nehru Planetarium (1989)", body: "Run by BASE on Sankey Road, its GOTO Chronos projector threw stars onto the dome for a generation of schoolkids. The lawn outside hosts Bangalore's amateur astronomy club on clear weekends." },
@@ -848,6 +853,8 @@
     // per-beat cooldown (default 18s) so the same beat doesn't re-fire spam.
     const BEAT_SFX_MAP = {
         // ITICS · school years
+        'monsoon-puddles': 'lunch_chatter',   // splash + giggles
+        'first-cycle':     'bike_engine',
         'football-match':  'football_cheer',
         'cricket-match':   'cricket_chant',   // CSK "Whistle Podu" crowd vibe
         'sports-day':      'graduation_applause',
@@ -857,6 +864,7 @@
         'chit-chat':       'lunch_chatter',
         'trips':           'bike_engine',
         // CMR · PU pressure
+        'saturday-extra':  'classroom_chatter',
         'tuition-rush':    'classroom_chatter',
         'study-lamp':      'classroom_quiet',
         'mock-test':       'classroom_quiet',
@@ -866,6 +874,8 @@
         'cricket-weekend': 'cricket_play',
         'first-crush':     'heartbeat_chime',
         // DSCE · engineering
+        'bosch-intern':    'office_meeting',
+        'abb-intern':      'office_meeting',
         'hostel-room':     'lunch_chatter',
         'fest-stage':      'graduation_applause',
         'group-ride':      'bike_engine',
