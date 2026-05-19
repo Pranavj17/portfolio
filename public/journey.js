@@ -574,6 +574,21 @@
             lanes.push(lane);
         };
         const every = (ms, fn) => setInterval(fn, ms);
+        // ── HUMANIZATION HELPERS (musical realism) ──
+        // 1. Humanize timing · ±jitter ms around the scheduled tick (no robot grid)
+        const everyH = (ms, jitterMs, fn) => {
+            const tick = () => { fn(); setTimeout(tick, ms + (Math.random() * 2 - 1) * jitterMs); };
+            setTimeout(tick, ms);
+        };
+        // 2. Velocity-varied ping · vol ±30% so notes breathe loud/soft
+        const pingV = (lane, type, freq, dur, vol) =>
+            ping(lane, type, freq, dur, vol * (0.7 + Math.random() * 0.6));
+        // 3. Chord rotator · cycles roots[] every periodMs, calls fn(rootHz)
+        const rotate = (roots, periodMs, fn) => {
+            let i = 0;
+            fn(roots[0]);
+            setInterval(() => { i = (i + 1) % roots.length; fn(roots[i]); }, periodMs);
+        };
         // ITICS · Bhupali pentatonic music-box, school nostalgia (C major pentatonic)
         mk('itics', 0.08, (lane) => {
             const d1 = osc('sine', 65.41), d2 = osc('sine', 98.00), dg = g(0.06);
@@ -581,38 +596,60 @@
             const bhupali = [523.25, 587.33, 659.25, 783.99, 880.00];
             const phrases = [[0,2,4,2,1], [4,3,2,0,2], [0,1,2,4,2], [2,4,3,2,0]];
             let phraseIdx = 0, noteIdx = 0;
-            every(700, () => {
+            everyH(700, 20, () => {
                 const phrase = phrases[phraseIdx];
                 const f = bhupali[phrase[noteIdx]];
-                ping(lane, 'triangle', f, 1.4, 0.08);
-                if (noteIdx === 0) ping(lane, 'sine', f / 2, 1.8, 0.05);
+                pingV(lane, 'triangle', f, 1.4, 0.08);
+                if (noteIdx === 0) pingV(lane, 'sine', f / 2, 1.8, 0.05);
                 noteIdx++;
                 if (noteIdx >= phrase.length) {
                     noteIdx = 0;
                     phraseIdx = (phraseIdx + 1) % phrases.length;
                 }
             });
-            every(14000, () => ping(lane, 'sine', 261.63, 3.0, 0.08));
+            every(14000, () => pingV(lane, 'sine', 261.63, 3.0, 0.08));
+            // CHORD ROTATION · pentatonic suddenly modulates every 14s
+            // C → A minor → F → G (vi → IV → V) · "yearning" then "triumphant"
+            rotate([65.41, 55.00, 43.65, 49.00], 14000, hz => {
+                d1.frequency.setTargetAtTime(hz, ac.currentTime, 1.5);
+                d2.frequency.setTargetAtTime(hz * 1.5, ac.currentTime, 1.5);
+            });
         });
         // CMR · anxious pre-university pressure (A minor with chromatic neighbor)
         mk('cmr', 0.08, (lane) => {
             const d = osc('sawtooth', 55), df = lp(180), dg = g(0.04);
+            df.Q.value = 8;   // resonant filter · pressure-building Q
             d.connect(df).connect(dg).connect(lane.gain);
             const aminor = [440, 523.25, 493.88, 440, 415.30];   // A C B A G#
             let i = 0;
-            every(600, () => ping(lane, 'triangle', aminor[i++ % aminor.length], 0.5, 0.07));
+            everyH(600, 18, () => pingV(lane, 'triangle', aminor[i++ % aminor.length], 0.5, 0.07));
             every(1000, () => ping(lane, 'sine', 1760, 0.04, 0.08));   // clock tick
-            every(4000, () => noisePulse(lane, 0.18, 0.06, 3200, 4));   // pencil scratch
+            everyH(4000, 200, () => noisePulse(lane, 0.18, 0.06, 3200, 4));   // pencil
+            // FILTER SWEEP · "anxiety rises and releases" every 8s
+            every(8000, () => {
+                df.frequency.cancelScheduledValues(ac.currentTime);
+                df.frequency.setValueAtTime(180, ac.currentTime);
+                df.frequency.exponentialRampToValueAtTime(800, ac.currentTime + 4);
+                df.frequency.exponentialRampToValueAtTime(180, ac.currentTime + 8);
+            });
         });
         // DSCE · engineering · youthful expansive D major
         mk('college', 0.08, (lane) => {
             const a = osc('triangle', 146.83), b = osc('triangle', 220), c = osc('triangle', 277.18);
+            // Fourth voice octave up with 6Hz tremolo · "stadium pad" trick
+            const d4 = osc('triangle', 587.33);
+            const padHigh = g(0.0);
+            const trem = osc('sine', 6), tremG = g(0.02);
+            trem.connect(tremG).connect(padHigh.gain);
             const pad = g(0.05);
-            a.connect(pad); b.connect(pad); c.connect(pad); pad.connect(lane.gain);
+            a.connect(pad); b.connect(pad); c.connect(pad);
+            d4.connect(padHigh).connect(lane.gain);
+            pad.connect(lane.gain);
             const dmaj = [293.66, 369.99, 440, 587.33, 554.37];
             let i = 0;
-            every(900, () => ping(lane, 'sine', dmaj[i++ % dmaj.length], 1.0, 0.07));
-            every(1800, () => ping(lane, 'sine', 73.42, 0.12, 0.10));    // bass kick
+            everyH(900, 25, () => pingV(lane, 'sine', dmaj[i++ % dmaj.length], 1.0, 0.07));
+            everyH(970, 15, () => pingV(lane, 'sine', 73.42, 0.12, 0.10));   // kick on 1
+            everyH(970, 15, () => setTimeout(() => noisePulse(lane, 0.04, 0.06, 4000, 3), 485));  // snare on 3
             const n = noise(), f = bp(700, 1.2), atten = g(0.04);
             const lfo = osc('sine', 0.3), lfoG = g(220);
             lfo.connect(lfoG).connect(f.frequency);
@@ -627,32 +664,64 @@
             const fpenta = [349.23, 440, 523.25, 587.33, 698.46];
             const phrases = [[0,2,4,3,2], [4,2,0,2,4], [2,4,3,4,2]];
             let pi = 0, ni = 0;
-            every(450, () => {
+            everyH(450, 18, () => {
                 const ph = phrases[pi];
-                ping(lane, 'triangle', fpenta[ph[ni]], 0.6, 0.09);
+                pingV(lane, 'square', fpenta[ph[ni]], 0.6, 0.09);   // square = AM-radio voice
                 ni++;
                 if (ni >= ph.length) { ni = 0; pi = (pi + 1) % phrases.length; }
             });
+            // STATION IDENT SWOOSH · full-bandwidth noise every 6s
+            every(6000, () => noisePulse(lane, 0.08, 0.10, 4000, 0.5));
         });
         // SAKHA · lo-fi melancholy first-job (E minor)
         mk('sakha', 0.08, (lane) => {
-            const a = osc('sine', 82.41), b = osc('sine', 123.47);
+            // Detuned pad · 7 cents off = tape-warble lo-fi signature
+            const a = osc('sine', 82.41), b = osc('sine', 123.47 * 1.004);
             const pad = g(0.06);
             a.connect(pad); b.connect(pad); pad.connect(lane.gain);
             const eminor = [329.63, 392, 493.88, 440, 392];
             let i = 0;
-            every(1500, () => ping(lane, 'triangle', eminor[i++ % eminor.length], 1.4, 0.08));
+            // SWING · every odd 8th-note delayed by 35ms (lo-fi groove)
+            let beat = 0;
+            everyH(750, 8, () => {
+                const swingDelay = (beat++ % 2 === 1) ? 35 : 0;
+                setTimeout(() => pingV(lane, 'triangle', eminor[i++ % eminor.length], 1.4, 0.08), swingDelay);
+            });
+            // Body wash · lowpass noise with slow LFO on cutoff (breathing)
             const n = noise(), f = lp(350), atten = g(0.04);
             n.connect(f).connect(atten).connect(lane.gain);
+            const filterLfo = osc('sine', 0.2), filterLfoG = g(150);
+            filterLfo.connect(filterLfoG).connect(f.frequency);
+            // VINYL CRACKLE · bandpassed noise loop · the lo-fi signature
+            const vinyl = noise(), vf = bp(2500, 0.8), vg = g(0.015);
+            vinyl.connect(vf).connect(vg).connect(lane.gain);
         });
         // SCRIPBOX · purposeful modern building (A minor → C major arpeggio)
         mk('scripbox', 0.08, (lane) => {
             const subOsc = osc('sine', 55), sg = g(0.05);
             subOsc.connect(sg).connect(lane.gain);
-            // 16th-note arpeggio · A C E G E C E G
+            // Saw layer 2 octaves down (1/4 gain) · adds body
+            const subSaw = osc('sawtooth', 110), sawF = lp(400), sawG = g(0.015);
+            subSaw.connect(sawF).connect(sawG).connect(lane.gain);
+            // ARP 1 · A minor pentatonic · A-C-E-G-E-C-E-G
             const arp = [440, 523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99];
             let i = 0;
-            every(220, () => ping(lane, 'triangle', arp[i++ % arp.length], 0.25, 0.06));
+            every(220, () => {
+                const f = arp[i++ % arp.length];
+                ping(lane, 'triangle', f, 0.25, 0.06);
+                // SHIMMER REVERB FAKE · on the high G, spawn octave-up delayed
+                if (f === 783.99) {
+                    setTimeout(() => ping(lane, 'sine', 1567.98, 0.4, 0.025), 90);
+                }
+            });
+            // ARP 2 · interlocking second voice · offset 110ms · starts on E
+            const arp2 = [329.63, 392.00, 493.88, 587.33, 493.88, 392.00, 493.88, 587.33];
+            let j = 0;
+            setTimeout(() => {
+                every(220, () => ping(lane, 'triangle', arp2[j++ % arp2.length], 0.25, 0.04));
+            }, 110);
+            // Soft kick on beats 1 and 3 (every 545ms = 110 BPM)
+            everyH(545, 12, () => ping(lane, 'sine', 60, 0.10, 0.07));
             // Keystroke ticks
             const tick = () => { noisePulse(lane, 0.022, 0.08, 4500, 6); setTimeout(tick, rand(80, 220)); };
             tick();
@@ -664,24 +733,48 @@
         });
         // VWGT · triumphant G major fanfare + engine idle
         mk('vwgt', 0.08, (lane) => {
-            const o = osc('sawtooth', 80), f = lp(220), atten = g(0.08);
-            o.connect(f).connect(atten).connect(lane.gain);
-            const fanfare = [392, 493.88, 587.33, 783.99, 493.88];
+            // Twin-pipe exhaust · two saws slightly detuned
+            const o = osc('sawtooth', 80), o2 = osc('sawtooth', 80 * 1.01);
+            const f = lp(220), atten = g(0.08);
+            o.connect(f); o2.connect(f);
+            f.connect(atten).connect(lane.gain);
+            // Suspended-4 resolve in the fanfare · adds anthemic lift
+            const fanfare = [392, 493.88, 587.33, 783.99, 523.25, 493.88];   // G B D G C B
             let i = 0;
-            every(800, () => ping(lane, 'sawtooth', fanfare[i++ % fanfare.length], 0.5, 0.06));
-            every(400, () => noisePulse(lane, 0.02, 0.04, 6000, 4));   // light hi-hat
+            // 96 BPM, dotted-quarter hits (~937ms apart)
+            everyH(937, 15, () => {
+                const note = fanfare[i++ % fanfare.length];
+                pingV(lane, 'sawtooth', note, 0.5, 0.06);
+                // ENGINE REVS WITH FANFARE · on high G (783.99), ramp saws 80→160→80
+                if (note === 783.99) {
+                    o.frequency.cancelScheduledValues(ac.currentTime);
+                    o.frequency.setValueAtTime(80, ac.currentTime);
+                    o.frequency.exponentialRampToValueAtTime(160, ac.currentTime + 0.2);
+                    o.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.6);
+                    o2.frequency.setValueAtTime(80.8, ac.currentTime);
+                    o2.frequency.exponentialRampToValueAtTime(161.6, ac.currentTime + 0.2);
+                    o2.frequency.exponentialRampToValueAtTime(80.8, ac.currentTime + 0.6);
+                }
+            });
+            every(468, () => noisePulse(lane, 0.02, 0.04, 6000, 4));   // hi-hat offbeat
         });
         // NOW · contemplative A minor add9 pad
         mk('now', 0.08, (lane) => {
-            const a1 = osc('sine', 220), b1 = osc('sine', 277.18), c1 = osc('sine', 329.63);
+            // PROPER A minor add9 · A (220) + C natural (261.63) + E (329.63) + B (493.88/2 = 246.94)
+            // (was C# at 277.18 which made it MAJOR · this is the most important fix)
+            const a1 = osc('sine', 220), b1 = osc('sine', 261.63), c1 = osc('sine', 329.63);
+            const d1 = osc('sine', 246.94);    // B = the add9 tone
             const pad = g(0.10);
-            a1.connect(pad); b1.connect(pad); c1.connect(pad);
-            const lfo2 = osc('sine', 0.08), lfoG2 = g(0.06);
+            a1.connect(pad); b1.connect(pad); c1.connect(pad); d1.connect(pad);
+            // Slower breathing LFO · 0.05 Hz · ±15% of master
+            const lfo2 = osc('sine', 0.05), lfoG2 = g(0.012);
             lfo2.connect(lfoG2).connect(pad.gain);
             pad.connect(lane.gain);
-            const motif = [440, 523.25, 659.25, 493.88];
+            // Motif over slow chord change · Am(add9) → Fmaj7 → Cmaj7 → G
+            const motif = [440, 523.25, 659.25, 493.88, 392, 587.33];
             let i = 0;
-            every(2400, () => ping(lane, 'triangle', motif[i++ % motif.length], 2.5, 0.08));
+            // 60 BPM, every 2 bars · contemplative spacing
+            everyH(4000, 80, () => pingV(lane, 'triangle', motif[i++ % motif.length], 2.5, 0.08));
         });
         chapterAudio = { ac, master, lanes };
     }
