@@ -3149,33 +3149,86 @@
             // parapet top band
             ctx.fillStyle = '#8a6a48';
             ctx.fillRect(sxStart, yTop, sxEnd - sxStart, 1);
-            // ── RAILS · two parallel 1-px steel lines atop the beam ──
-            const railY = yTop - 3;   // sits just above parapet
-            ctx.fillStyle = '#8a7a5a';   // muted steel · sepia-cool
-            ctx.fillRect(sxStart, railY,     sxEnd - sxStart, 1);
-            ctx.fillRect(sxStart, railY - 4, sxEnd - sxStart, 1);
-            // ── SLEEPERS (ties) · perpendicular ticks every 6 world-px ──
+            // ── BALLAST/SLEEPER BED · wooden ties on top of beam ──
+            const bedTop = yTop - 5;
             ctx.fillStyle = '#3a2418';
-            const tieSpacing = 6;
+            ctx.fillRect(sxStart, bedTop, sxEnd - sxStart, 5);
+            // Wood-tie texture (perpendicular slats every 4-px world)
+            ctx.fillStyle = '#1f1208';
+            const tieSpacing = 4;
             const firstTie = Math.ceil((sxStart - offset) / tieSpacing) * tieSpacing;
             for (let wx = firstTie; wx + offset < sxEnd; wx += tieSpacing) {
                 const px = wx + offset;
-                ctx.fillRect(px, railY - 4, 1, 5);
+                ctx.fillRect(px, bedTop, 1, 4);
             }
-            // ── OVERHEAD CATENARY WIRE · single line above rails ──
-            ctx.strokeStyle = 'rgba(58, 36, 24, 0.55)';
+            // Crushed-stone ballast highlight (1-px lighter dots)
+            ctx.fillStyle = '#5a4a32';
+            for (let i = 0; i < 30; i++) {
+                const dx = ((i * 47 + Math.floor(cameraX * parallax * 0.3)) % (sxEnd - sxStart + 40)) - 20;
+                ctx.fillRect(sxStart + dx, bedTop + ((i * 13) % 5), 1, 1);
+            }
+            // ── RAILS · TWO PARALLEL STEEL TRACKS · 2-px thick + highlight ──
+            const railY = bedTop - 1;
+            // Far rail
+            ctx.fillStyle = '#9a8a6a';
+            ctx.fillRect(sxStart, railY - 1, sxEnd - sxStart, 2);
+            ctx.fillStyle = '#c8b890';   // top highlight
+            ctx.fillRect(sxStart, railY - 1, sxEnd - sxStart, 0.5);
+            // Near rail
+            ctx.fillStyle = '#9a8a6a';
+            ctx.fillRect(sxStart, railY + 1.5, sxEnd - sxStart, 2);
+            ctx.fillStyle = '#c8b890';
+            ctx.fillRect(sxStart, railY + 1.5, sxEnd - sxStart, 0.5);
+            // Rail dark shadow between for depth
+            ctx.fillStyle = '#1a1208';
+            ctx.fillRect(sxStart, railY + 1, sxEnd - sxStart, 0.5);
+            // ── OVERHEAD CATENARY · MESSENGER + CONTACT WIRES + DROPPERS ──
+            ctx.strokeStyle = 'rgba(40, 28, 20, 0.75)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(sxStart, railY - 22);
-            ctx.lineTo(sxEnd,   railY - 22);
+            // Top messenger wire
+            ctx.moveTo(sxStart, railY - 24);
+            ctx.lineTo(sxEnd,   railY - 24);
+            // Bottom contact wire
+            ctx.moveTo(sxStart, railY - 18);
+            ctx.lineTo(sxEnd,   railY - 18);
             ctx.stroke();
-            // ── Catenary masts · OHE supports every 60 world-px (above each pier) ──
-            ctx.fillStyle = '#5a3a22';
+            // Hanger droppers · vertical 1-px ticks from messenger to contact
+            ctx.strokeStyle = 'rgba(40, 28, 20, 0.5)';
+            ctx.lineWidth = 0.7;
+            ctx.beginPath();
+            const dropSpacing = 12;
+            const firstDrop = Math.ceil((sxStart - offset) / dropSpacing) * dropSpacing;
+            for (let wx = firstDrop; wx + offset < sxEnd; wx += dropSpacing) {
+                const px = wx + offset;
+                ctx.moveTo(px, railY - 24);
+                ctx.lineTo(px, railY - 18);
+            }
+            ctx.stroke();
+            // ── Catenary masts · OHE portal frames every 60 world-px ──
             const firstMast = Math.ceil((sxStart - offset) / 60) * 60;
             for (let wx = firstMast; wx + offset < sxEnd; wx += 60) {
                 const px = wx + offset;
-                ctx.fillRect(px - 1, railY - 22, 2, 22);   // vertical mast
-                ctx.fillRect(px - 6, railY - 22, 12, 1);   // horizontal arm
+                // Trapezoidal mast (wider at base)
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(px - 1.5, railY - 24, 3, 24);
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(px + 0.5, railY - 24, 1, 24);   // shadow side
+                // Horizontal cantilever arm
+                ctx.fillStyle = '#5a3a22';
+                ctx.fillRect(px - 8, railY - 24, 16, 1.5);
+                // Brace strut (diagonal)
+                ctx.strokeStyle = '#5a3a22';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px - 1.5, railY - 14);
+                ctx.lineTo(px - 7, railY - 22);
+                ctx.moveTo(px + 1.5, railY - 14);
+                ctx.lineTo(px + 7, railY - 22);
+                ctx.stroke();
+                // Insulator · cream cap at arm/wire junction
+                ctx.fillStyle = '#d4b48a';
+                ctx.fillRect(px - 1, railY - 25, 2, 1);
             }
         }
         // Piers · every 60 world-px
@@ -3347,52 +3400,127 @@
             // Draw 6 coaches behind the head
             for (let c = 0; c < 6; c++) {
                 const cx = headSx - dir * c * 30;
-                // Coach body · cream
-                ctx.fillStyle = '#d4b48a';
+                const isLead = (c === 0);
+                // ── COACH BODY · brushed-aluminium cream with gradient ──
+                const bodyGrad = ctx.createLinearGradient(0, trainY, 0, trainY + 16);
+                bodyGrad.addColorStop(0, '#a4845a');     // darker upper
+                bodyGrad.addColorStop(0.3, '#d4b48a');   // cream
+                bodyGrad.addColorStop(0.8, '#d4b48a');
+                bodyGrad.addColorStop(1, '#8a6840');     // shadow lower
+                ctx.fillStyle = bodyGrad;
                 ctx.fillRect(cx - 14, trainY, 28, 16);
-                // Roof shadow band · top edge
-                ctx.fillStyle = '#a4845a';
-                ctx.fillRect(cx - 14, trainY, 28, 1);
-                // Purple Line livery stripe
-                ctx.fillStyle = '#6e4a5c';
-                ctx.fillRect(cx - 14, trainY + 8, 28, 3);
-                // Lit interior windows · 4 per coach, with passenger silhouettes
-                for (let w = 0; w < 4; w++) {
-                    const wx = cx - 12 + w * 7;
-                    // Window frame
+                // 1-pixel dark outline around coach (sharp silhouette)
+                ctx.fillStyle = '#1a0e08';
+                ctx.fillRect(cx - 14, trainY, 28, 0.6);          // top edge
+                ctx.fillRect(cx - 14, trainY + 15, 28, 1);        // bottom edge
+                ctx.fillRect(cx - 14, trainY, 0.6, 16);           // left edge
+                ctx.fillRect(cx + 13.5, trainY, 0.6, 16);         // right edge
+                // ── PURPLE LINE LIVERY STRIPE · thicker, more visible ──
+                ctx.fillStyle = '#7a4a6a';
+                ctx.fillRect(cx - 14, trainY + 8, 28, 3.5);
+                ctx.fillStyle = '#5a3a4c';                        // shadow line
+                ctx.fillRect(cx - 14, trainY + 11.2, 28, 0.6);
+                // ── BMRCL LOGO DECAL · circular emblem on lead coach side ──
+                if (isLead) {
+                    ctx.fillStyle = '#e6c285';
+                    ctx.beginPath();
+                    ctx.arc(cx - dir * 10, trainY + 9.5, 1.6, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.fillStyle = '#3a2418';
-                    ctx.fillRect(wx, trainY + 2, 5, 5);
-                    // Lit interior · warm glow
-                    ctx.fillStyle = `rgba(230, 194, 133, ${interiorAlpha})`;
-                    ctx.fillRect(wx + 1, trainY + 3, 3, 3);
-                    // Passenger silhouette · 1-2 dark heads per window
+                    ctx.fillRect(cx - dir * 10 - 0.5, trainY + 9, 1, 1);
+                }
+                // ── WINDOWS · 4 per coach with frames + interior glow ──
+                // Skip middle window position for door
+                const windowPositions = [-11, -5, 5, 11];
+                for (let w = 0; w < windowPositions.length; w++) {
+                    const wx = cx + windowPositions[w];
+                    // Dark window frame (1-px outline)
+                    ctx.fillStyle = '#1a0e08';
+                    ctx.fillRect(wx - 2.5, trainY + 2, 5, 5);
+                    // Glass · darker at edges, glowy in center
+                    ctx.fillStyle = `rgba(230, 194, 133, ${interiorAlpha * 0.95})`;
+                    ctx.fillRect(wx - 2, trainY + 2.5, 4, 4);
+                    // Window divider mullion
+                    ctx.fillStyle = '#3a2418';
+                    ctx.fillRect(wx - 0.3, trainY + 2.5, 0.6, 4);
+                    // Passenger silhouettes (varies per window)
                     ctx.fillStyle = '#3a2418';
                     if ((c + w) % 3 !== 0) {
-                        ctx.fillRect(wx + 1, trainY + 3, 1, 2);
+                        ctx.fillRect(wx - 1.5, trainY + 3.5, 1, 1.5);
                     }
-                    if ((c * 4 + w) % 4 === 0) {
-                        ctx.fillRect(wx + 3, trainY + 4, 1, 2);
+                    if ((c * 4 + w + 1) % 4 === 0) {
+                        ctx.fillRect(wx + 0.7, trainY + 4, 1, 1.5);
                     }
                 }
-                // Door gap · 2 doors visible between window groups
-                ctx.fillStyle = '#3a2418';
-                ctx.fillRect(cx - 1, trainY + 2, 2, 14);
-                // Pantograph · Z-shape on coach roof (coaches 1, 3, 5)
+                // ── PASSENGER DOORS · 2 visible per coach ──
+                for (const doorOffX of [-2, 2]) {
+                    const dx2 = cx + doorOffX * 4;
+                    // Door panel · slightly darker than body
+                    ctx.fillStyle = '#b8986e';
+                    ctx.fillRect(dx2 - 1.5, trainY + 1, 3, 14);
+                    // Door outline
+                    ctx.fillStyle = '#1a0e08';
+                    ctx.fillRect(dx2 - 1.5, trainY + 1, 3, 0.6);    // top
+                    ctx.fillRect(dx2 - 1.5, trainY + 14.5, 3, 0.6); // bottom
+                    ctx.fillRect(dx2 - 1.5, trainY + 1, 0.6, 14);   // left
+                    ctx.fillRect(dx2 + 1, trainY + 1, 0.6, 14);     // right
+                    // Door window (upper third)
+                    ctx.fillStyle = `rgba(230, 194, 133, ${interiorAlpha * 0.85})`;
+                    ctx.fillRect(dx2 - 1, trainY + 2, 2, 3);
+                    // Door handle dot
+                    ctx.fillStyle = '#c89a5a';
+                    ctx.fillRect(dx2 - 0.5, trainY + 9, 1, 0.6);
+                }
+                // ── DRIVER CABIN WINDOW (lead coach only) · large front pane ──
+                if (isLead) {
+                    const cabX = cx + dir * 11;
+                    ctx.fillStyle = '#1a0e08';
+                    ctx.fillRect(cabX - 1.5, trainY + 1.5, 3, 5);   // frame
+                    ctx.fillStyle = `rgba(220, 200, 170, ${interiorAlpha * 0.9})`;
+                    ctx.fillRect(cabX - 1, trainY + 2, 2, 4);        // glass
+                    ctx.fillStyle = '#1a0e08';
+                    ctx.fillRect(cabX - 0.5, trainY + 3, 1, 1);      // driver head
+                }
+                // ── PANTOGRAPH on coaches 1, 3, 5 · refined Z-shape ──
                 if (c === 0 || c === 2 || c === 4) {
+                    ctx.strokeStyle = '#1a0e08';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    // Contact plate (touches catenary)
+                    ctx.moveTo(cx - 3.5, trainY - 7);
+                    ctx.lineTo(cx + 3.5, trainY - 7);
+                    // Upper articulated arm
+                    ctx.moveTo(cx, trainY - 7);
+                    ctx.lineTo(cx - 3, trainY - 4);
+                    ctx.lineTo(cx, trainY - 1);
+                    // Lower base
+                    ctx.moveTo(cx, trainY - 7);
+                    ctx.lineTo(cx + 3, trainY - 4);
+                    ctx.lineTo(cx, trainY - 1);
+                    ctx.stroke();
                     ctx.fillStyle = '#3a2418';
-                    ctx.fillRect(cx - 2, trainY - 6, 4, 1);   // contact plate
-                    ctx.fillRect(cx - 4, trainY - 4, 1, 4);   // angled arm 1
-                    ctx.fillRect(cx + 3, trainY - 4, 1, 4);   // angled arm 2
-                    ctx.fillRect(cx - 1, trainY - 1, 2, 1);   // base mount
+                    ctx.fillRect(cx - 2, trainY - 1.5, 4, 1.5);     // base mount
                 }
-                // Bogie (wheel housing) · underbody
-                ctx.fillStyle = '#3a2418';
-                ctx.fillRect(cx - 10, trainY + 16, 4, 1);
-                ctx.fillRect(cx + 6, trainY + 16, 4, 1);
-                // Coupling link to next coach
+                // ── BOGIE / UNDERCARRIAGE · 2 trucks with visible wheels ──
+                ctx.fillStyle = '#1a1208';
+                ctx.fillRect(cx - 11, trainY + 16, 22, 2);          // floor pan
+                // Truck units · 2 per coach
+                ctx.fillRect(cx - 11, trainY + 17, 6, 1.5);
+                ctx.fillRect(cx + 5,  trainY + 17, 6, 1.5);
+                // Visible wheels (4 per coach)
+                ctx.fillStyle = '#0a0604';
+                ctx.beginPath();
+                ctx.arc(cx - 9, trainY + 18.5, 1.2, 0, Math.PI * 2);
+                ctx.arc(cx - 7, trainY + 18.5, 1.2, 0, Math.PI * 2);
+                ctx.arc(cx + 7, trainY + 18.5, 1.2, 0, Math.PI * 2);
+                ctx.arc(cx + 9, trainY + 18.5, 1.2, 0, Math.PI * 2);
+                ctx.fill();
+                // ── COUPLING LINK between coaches ──
                 if (c < 5) {
-                    ctx.fillStyle = '#3a2418';
-                    ctx.fillRect(cx + (dir > 0 ? -16 : 14), trainY + 9, 2, 2);
+                    ctx.fillStyle = '#1a0e08';
+                    const linkX = cx + (dir > 0 ? -15 : 13);
+                    ctx.fillRect(linkX, trainY + 8.5, 2, 3);
+                    ctx.fillRect(linkX - 1, trainY + 9.5, 4, 1);     // gangway
                 }
             }
             // Headlight halo on lead coach · radial warm glow
@@ -4003,51 +4131,91 @@
         const offset = -(cameraX * parallax);
         const roadTop = groundY - 36;
         const roadBot = groundY - 20;
-        // Asphalt surface · sepia-tinted dark
-        ctx.fillStyle = '#2a2218';
-        ctx.fillRect(0, roadTop, W, roadBot - roadTop);
-        // Subtle asphalt texture · faint horizontal scratch lines
-        ctx.fillStyle = 'rgba(58, 50, 40, 0.4)';
-        ctx.fillRect(0, roadTop + 5, W, 1);
-        ctx.fillRect(0, roadTop + 11, W, 1);
-        // White edge stripe (top · far side)
-        ctx.fillStyle = '#d4b48a';
+        const roadH = roadBot - roadTop;
+        // ── ASPHALT base · gradient from darker top to slightly warmer bottom ──
+        const grad = ctx.createLinearGradient(0, roadTop, 0, roadBot);
+        grad.addColorStop(0, '#1f1812');
+        grad.addColorStop(0.5, '#2a2218');
+        grad.addColorStop(1, '#322a1e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, roadTop, W, roadH);
+        // ── ASPHALT TEXTURE · pseudo-random aggregate flecks (deterministic) ──
+        // Use cameraX-locked seed so flecks scroll naturally with parallax
+        ctx.fillStyle = 'rgba(80, 70, 55, 0.35)';
+        for (let i = 0; i < 90; i++) {
+            const sx = ((i * 137 + Math.floor(cameraX * parallax * 0.7)) % (W + 40)) - 20;
+            const sy = roadTop + 2 + ((i * 53) % (roadH - 4));
+            ctx.fillRect(sx, sy, 1, 1);
+        }
+        ctx.fillStyle = 'rgba(40, 32, 24, 0.5)';
+        for (let i = 0; i < 60; i++) {
+            const sx = ((i * 191 + Math.floor(cameraX * parallax * 0.7)) % (W + 40)) - 20;
+            const sy = roadTop + 1 + ((i * 71) % (roadH - 2));
+            ctx.fillRect(sx, sy, 1, 1);
+        }
+        // ── MANHOLE COVERS · every 240 world-px, on lane center ──
+        const firstMan = Math.ceil((-offset) / 240) * 240;
+        for (let mwx = firstMan; mwx < (-offset) + W * 2; mwx += 240) {
+            const mx = mwx + offset;
+            if (mx < -15 || mx > W + 15) continue;
+            ctx.fillStyle = '#1a1410';
+            ctx.beginPath();
+            ctx.ellipse(mx, roadTop + roadH / 2 + 1, 6, 1.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3a2e22';
+            ctx.fillRect(mx - 5, roadTop + roadH / 2, 10, 0.6);   // top highlight
+        }
+        // ── FAR EDGE STRIPE (yellow, slightly weathered) ──
+        ctx.fillStyle = '#c89a5a';
         ctx.fillRect(0, roadTop, W, 1);
-        // Yellow dashed center line · scrolls with parallax
-        const dashLen = 14, gapLen = 12;
+        ctx.fillStyle = 'rgba(232, 184, 100, 0.4)';
+        ctx.fillRect(0, roadTop + 1, W, 0.5);   // faint paint smudge
+        // ── CENTER LINE · TWO yellow dashed lanes (real divided road look) ──
+        const dashLen = 14, gapLen = 10;
         const cycle = dashLen + gapLen;
         const phase = ((-(cameraX * parallax)) % cycle + cycle) % cycle - cycle;
-        ctx.fillStyle = '#e6c285';
+        ctx.fillStyle = '#d4a653';
         for (let x = phase; x < W; x += cycle) {
-            ctx.fillRect(x, roadTop + 8, dashLen, 1);
+            ctx.fillRect(x, roadTop + 7, dashLen, 1);
+            ctx.fillRect(x, roadTop + 9, dashLen, 1);   // 2nd center line
         }
-        // White edge stripe (near side)
-        ctx.fillStyle = '#d4b48a';
+        // ── NEAR EDGE STRIPE (white, more faded) ──
+        ctx.fillStyle = '#a4946a';
         ctx.fillRect(0, roadBot - 1, W, 1);
-        // Curb · raised concrete between road and player band
+        // ── CURB · raised brick-paver pattern ──
         ctx.fillStyle = '#5a4a36';
-        ctx.fillRect(0, roadBot, W, 2);
-        ctx.fillStyle = '#8a7a5a';
-        ctx.fillRect(0, roadBot + 2, W, 1);
-        // Speed bumps · yellow-and-black painted humps (Indian-specific)
+        ctx.fillRect(0, roadBot, W, 3);
+        ctx.fillStyle = '#8a7a5a';   // highlight band
+        ctx.fillRect(0, roadBot, W, 1);
+        // Brick paver lines · 16-px-wide tiles
+        ctx.fillStyle = '#3a2e1c';
+        const brickW = 16;
+        const brickPhase = ((-(cameraX * parallax * 0.55)) % brickW + brickW) % brickW - brickW;
+        for (let x = brickPhase; x < W; x += brickW) {
+            ctx.fillRect(x, roadBot + 1, 0.5, 2);
+        }
+        // ── SPEED BUMPS · yellow-and-black painted humps ──
         for (const bumpWX of speedBumps) {
             const px = bumpWX + offset;
-            if (px < -10 || px > W + 10) continue;
-            ctx.fillStyle = '#3a2418';
-            ctx.fillRect(px - 5, roadTop + 1, 10, 2);
+            if (px < -12 || px > W + 12) continue;
+            ctx.fillStyle = '#1a1410';
+            ctx.fillRect(px - 6, roadTop + 1, 12, 3);   // 2-px shadow
             ctx.fillStyle = '#e6c285';
-            ctx.fillRect(px - 4, roadTop + 1, 2, 2);
-            ctx.fillRect(px,     roadTop + 1, 2, 2);
-            ctx.fillRect(px + 4, roadTop + 1, 2, 2);
+            ctx.fillRect(px - 5, roadTop + 1, 2.5, 2);
+            ctx.fillRect(px - 0.5, roadTop + 1, 2.5, 2);
+            ctx.fillRect(px + 4, roadTop + 1, 2.5, 2);
         }
-        // Zebra crossings at chapter boundaries
+        // ── ZEBRA CROSSINGS at chapter boundaries · faded paint look ──
         for (const ch of CHAPTERS) {
             const px = (ch.x - 80) + offset;
             if (px < -50 || px > W + 50) continue;
-            ctx.fillStyle = '#d4b48a';
+            ctx.fillStyle = 'rgba(212, 180, 138, 0.85)';   // faded white
             for (let i = 0; i < 7; i++) {
-                ctx.fillRect(px + i * 5, roadTop + 1, 3, roadBot - roadTop - 3);
+                ctx.fillRect(px + i * 5, roadTop + 2, 3, roadH - 4);
             }
+            // Stop line before zebra
+            ctx.fillStyle = '#d4b48a';
+            ctx.fillRect(px - 4, roadTop + 1, 2, roadH - 2);
         }
     }
 
