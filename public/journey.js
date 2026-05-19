@@ -7357,12 +7357,17 @@
         if (len < 0.1) return;
         const ang = Math.atan2(dy, dx);
         ctx.save();
-        ctx.translate(x1, y1);
+        // Pixel-snap origin for crisp limb edges
+        ctx.translate(Math.round(x1), Math.round(y1));
         ctx.rotate(ang);
         ctx.fillStyle = fill;
         ctx.fillRect(0, -w / 2, len, w);
+        // 1-px shadow line (back side)
         ctx.fillStyle = shade;
         ctx.fillRect(0, w / 2 - 1, len, 1);
+        // 1-px outline (front side · darker)
+        ctx.fillStyle = '#1a0e08';
+        ctx.fillRect(0, -w / 2, len, 0.6);
         ctx.restore();
     }
     function drawLeg(hipX, hipY, thighDeg, kneeDeg, pant, pantShade, shoe, shoeDark) {
@@ -7410,6 +7415,12 @@
 
     function drawWalker(cx, footY, phase, amp, lean, bob) {
         ctx.save();
+        // ── PIXEL-CRISP RENDERING ──
+        // Disable image smoothing for sharper edges · snap to pixel grid
+        ctx.imageSmoothingEnabled = false;
+        // Round canvas-coord origin to nearest pixel (eliminates sub-pixel blur)
+        cx = Math.round(cx);
+        footY = Math.round(footY);
         // Apply growth scale around the foot anchor (so feet stay grounded
         // and character grows upward over the timeline)
         const growth = characterScale(state.playerX);
@@ -7418,17 +7429,19 @@
             ctx.scale(growth, growth);
             ctx.translate(-cx, -footY);
         }
-        // Sepia-harmonized "Bangalore techie" palette (agent-recommended)
-        const SK   = '#a47a52';      // skin · sepia warm-brown
-        const SK_SHADE = '#7d5a3a';
-        const HAIR = '#1f1208';      // short black with warm tint
-        const TEE  = '#7a8a6a';      // muted olive t-shirt
+        // ── FRESHENED PALETTE · crisper warm-toned brown ──
+        const SK   = '#b58660';      // skin · brighter warm tan (was #a47a52)
+        const SK_SHADE = '#8a5e3a';
+        const SK_HIGHLIGHT = '#d8a878';   // cheek highlight pixel
+        const HAIR = '#1a0e08';      // deeper near-black (was #1f1208)
+        const TEE  = '#7a8a6a';
         const TEE_SHADE = '#556248';
-        const JEAN = '#3a4258';      // faded indigo (reads denim in sepia)
+        const JEAN = '#3a4258';
         const JEAN_SHADE = '#252a3a';
-        const SHOE = '#d4b48a';      // cream sneakers
+        const SHOE = '#d4b48a';
         const SHOE_DARK = '#5a3a22';
-        const BAG  = '#3a2418';      // laptop sling · the techie signal
+        const BAG  = '#3a2418';
+        const OUTLINE = '#1a0e08';   // crisp 1-pixel character outline
 
         // Normalize phase to [0, 1)
         const p01 = ((phase / (Math.PI * 2)) % 1 + 1) % 1;
@@ -7459,15 +7472,27 @@
         // ── BACK arm ──
         drawArm(shoulderL.x, shoulderL.y, pose.armBack, TEE, SK);
 
-        // ── TORSO · filled rect, slight V-taper, hem shadow ──
+        // ── TORSO · pixel-snapped + 1-px outline for crisp silhouette ──
+        const HX = Math.round(hipX);
+        const HY = Math.round(hipY);
         ctx.fillStyle = TEE;
-        ctx.fillRect(hipX - 5, hipY - TORSO_H, 11, TORSO_H);     // body
+        ctx.fillRect(HX - 5, HY - TORSO_H, 11, TORSO_H);
+        // 1-pixel outline · top/sides only (bottom hides under jeans)
+        ctx.fillStyle = OUTLINE;
+        ctx.fillRect(HX - 5, HY - TORSO_H, 11, 1);          // top edge
+        ctx.fillRect(HX - 5, HY - TORSO_H, 1, TORSO_H);     // left edge
+        ctx.fillRect(HX + 5, HY - TORSO_H, 1, TORSO_H);     // right edge
+        // Shadow column (right side, just inside outline)
         ctx.fillStyle = TEE_SHADE;
-        ctx.fillRect(hipX + 4, hipY - TORSO_H, 1, TORSO_H);      // right shadow column
-        ctx.fillRect(hipX - 5, hipY - 3, 11, 2);                  // hem shadow
-        // Sleeve caps
-        ctx.fillRect(hipX - 7, hipY - TORSO_H + 1, 2, 5);
-        ctx.fillRect(hipX + 5, hipY - TORSO_H + 1, 2, 5);
+        ctx.fillRect(HX + 4, HY - TORSO_H + 1, 1, TORSO_H - 1);
+        ctx.fillRect(HX - 5, HY - 4, 11, 2);                 // hem shadow
+        // Sleeve caps (filled with tee color + outlined)
+        ctx.fillStyle = TEE;
+        ctx.fillRect(HX - 7, HY - TORSO_H + 1, 2, 5);
+        ctx.fillRect(HX + 5, HY - TORSO_H + 1, 2, 5);
+        ctx.fillStyle = OUTLINE;
+        ctx.fillRect(HX - 7, HY - TORSO_H + 1, 1, 5);        // left sleeve outline
+        ctx.fillRect(HX + 6, HY - TORSO_H + 1, 1, 5);        // right sleeve outline
 
         // ── PELVIS / waistband ──
         ctx.fillStyle = JEAN_SHADE;
@@ -7482,19 +7507,41 @@
         ctx.fillStyle = SK_SHADE;
         ctx.fillRect(headCx - 1.5, neckY - 1, 3, 2);
 
-        // ── HEAD · oblong ellipse ──
+        // ── HEAD · pixel-snapped rect for crisp edges ──
+        const HEAD_X = Math.round(headCx);
+        const HEAD_Y = Math.round(headCy);
+        // 8×9 head as filled rect (crisper than ellipse at this scale)
         ctx.fillStyle = SK;
-        ctx.beginPath();
-        ctx.ellipse(headCx, headCy, HEAD_R - 0.5, HEAD_R, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Jaw shadow
+        ctx.fillRect(HEAD_X - 4, HEAD_Y - 4, 8, 9);
+        // Soften corners with pixel notches
+        ctx.fillStyle = OUTLINE;
+        ctx.fillRect(HEAD_X - 4, HEAD_Y - 4, 1, 1);     // top-left corner
+        ctx.fillRect(HEAD_X + 3, HEAD_Y - 4, 1, 1);     // top-right corner
+        ctx.fillRect(HEAD_X - 4, HEAD_Y + 4, 1, 1);     // bot-left
+        ctx.fillRect(HEAD_X + 3, HEAD_Y + 4, 1, 1);     // bot-right
+        // Skin shading · right cheek darker
         ctx.fillStyle = SK_SHADE;
-        ctx.fillRect(headCx - 2, headCy + 3, 4, 1);
-
-        // ── FACE HINT (no eyes/mouth, just nose-side shade + brow line) ──
+        ctx.fillRect(HEAD_X + 2, HEAD_Y - 3, 1, 8);
+        // Highlight · left cheek bone
+        ctx.fillStyle = SK_HIGHLIGHT;
+        ctx.fillRect(HEAD_X - 3, HEAD_Y - 2, 1, 2);
+        // Jaw shadow line (under chin)
         ctx.fillStyle = SK_SHADE;
-        ctx.fillRect(headCx + 1, headCy + 0.5, 1, 1);    // cheek/nose
-        ctx.fillRect(headCx - 2, headCy - 0.5, 2, 0.6);  // brow line
+        ctx.fillRect(HEAD_X - 3, HEAD_Y + 5, 6, 1);
+        // ── FACE FEATURES · crisp 1-pixel dots ──
+        // Eyes · two dark pixels with white sclera highlights
+        ctx.fillStyle = OUTLINE;
+        ctx.fillRect(HEAD_X - 2, HEAD_Y, 1, 1);     // left eye
+        ctx.fillRect(HEAD_X + 1, HEAD_Y, 1, 1);     // right eye
+        // Eyebrows · 2-pixel strokes above each eye
+        ctx.fillRect(HEAD_X - 3, HEAD_Y - 1, 2, 1); // left brow
+        ctx.fillRect(HEAD_X + 1, HEAD_Y - 1, 2, 1); // right brow
+        // Nose · 1-pixel shadow tip
+        ctx.fillStyle = SK_SHADE;
+        ctx.fillRect(HEAD_X, HEAD_Y + 1, 1, 2);
+        // Mouth · 2-pixel subtle line
+        ctx.fillStyle = SK_SHADE;
+        ctx.fillRect(HEAD_X - 1, HEAD_Y + 3, 2, 1);
 
         // ── LAPTOP SLING (the techie signal) · diagonal strap + hip bag ──
         ctx.strokeStyle = BAG;
@@ -7511,14 +7558,19 @@
         ctx.fillStyle = '#c89a5a';
         ctx.fillRect(hipX + 6, hipY - 8, 1, 1);
 
-        // ── HAIR · always-on · short black, sits on top + sides of head ──
+        // ── HAIR · pixel-snapped short crop ──
         ctx.fillStyle = HAIR;
-        ctx.beginPath();
-        ctx.ellipse(headCx, headCy - 1.5, HEAD_R + 0.2, 3, 0, Math.PI, 2 * Math.PI);
-        ctx.fill();
-        ctx.fillRect(headCx - HEAD_R, headCy - 2, HEAD_R * 2, 2);   // hairline rect
-        ctx.fillRect(headCx + HEAD_R - 1, headCy - 1, 1.5, 2);       // side temple
-        ctx.fillRect(headCx - HEAD_R, headCy - 1, 1.5, 2);
+        // Top hair block (3-pixel-tall slab on top of head)
+        ctx.fillRect(HEAD_X - 4, HEAD_Y - 5, 8, 3);
+        // Forward fringe · slight wave on top
+        ctx.fillRect(HEAD_X - 2, HEAD_Y - 6, 4, 1);
+        ctx.fillRect(HEAD_X - 1, HEAD_Y - 7, 3, 1);
+        // Side temples (above ears)
+        ctx.fillRect(HEAD_X - 4, HEAD_Y - 2, 1, 2);
+        ctx.fillRect(HEAD_X + 3, HEAD_Y - 2, 1, 2);
+        // Hair highlight · 1-px lighter strand
+        ctx.fillStyle = '#3a2818';
+        ctx.fillRect(HEAD_X - 2, HEAD_Y - 5, 3, 1);
 
         // STAGE-SPECIFIC OVERLAYS · evolve with life phase
         // School (< 1100m): RED backpack overrides laptop sling
