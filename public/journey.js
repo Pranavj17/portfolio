@@ -7419,13 +7419,19 @@
     function drawWalker(cx, footY, phase, amp, lean, bob) {
         ctx.save();
         // ── PIXEL-CRISP RENDERING ──
-        // Disable image smoothing for sharper edges · snap to pixel grid
         ctx.imageSmoothingEnabled = false;
-        // Round canvas-coord origin to nearest pixel (eliminates sub-pixel blur)
         cx = Math.round(cx);
         footY = Math.round(footY);
-        // Apply growth scale around the foot anchor (so feet stay grounded
-        // and character grows upward over the timeline)
+        // ── BASE SIZE SCALE-UP ──
+        // 1.75× larger than original · gives face features + accessory detail
+        // enough screen real estate to actually read at normal viewing scale.
+        // All other character geometry (head, torso, limbs, accessories)
+        // inherits this uniform scale around the foot anchor.
+        const BASE_SCALE = 1.75;
+        ctx.translate(cx, footY);
+        ctx.scale(BASE_SCALE, BASE_SCALE);
+        ctx.translate(-cx, -footY);
+        // Per-chapter growth (school → adult) layers on TOP of base scale
         const growth = characterScale(state.playerX);
         if (growth !== 1.0) {
             ctx.translate(cx, footY);
