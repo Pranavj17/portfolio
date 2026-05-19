@@ -7529,29 +7529,186 @@
                     : 'adult';
 
         if (stage === 'school') {
-            // SCHOOL · big RED backpack on back, slightly messy hair tuft
-            ctx.fillStyle = '#1f1208';       // hair-tuft sticking up
-            ctx.fillRect(headCx - 1, headCy - HEAD_R - 2, 2, 2);
-            // BACKPACK · rect on back with strap visible
-            const bagX = hipX - 8;
-            const bagY = hipY - TORSO_H + 2;
-            ctx.fillStyle = '#a4332e';       // red school bag
-            ctx.fillRect(bagX, bagY, 9, 14);
-            ctx.fillStyle = '#7a221c';
-            ctx.fillRect(bagX, bagY, 9, 2);  // top flap
-            ctx.strokeStyle = '#7a221c'; ctx.lineWidth = 1.2;
+            // ── ITICS SCHOOLBOY ──
+            // Full uniform makeover · white shirt + navy shorts + striped tie
+            // + tucked-in detail + red school bag + lunch tiffin + name badge.
+            const UNIFORM_WHITE = '#e9d8b0';   // cream-white shirt
+            const UNIFORM_NAVY  = '#2a3a5a';   // navy shorts/tie
+            const TIE_STRIPE    = '#a4332e';   // school stripe accent
+
+            // 1. SHIRT recolor · overpaint TEE rect with school-uniform white
+            ctx.fillStyle = UNIFORM_WHITE;
+            ctx.fillRect(hipX - 5, hipY - TORSO_H, 11, TORSO_H);
+            ctx.fillStyle = '#c0b090';                // soft shadow column
+            ctx.fillRect(hipX + 4, hipY - TORSO_H, 1, TORSO_H);
+            // Shirt collar V-notch
+            ctx.fillStyle = '#c0b090';
             ctx.beginPath();
-            ctx.moveTo(shoulderL.x - 2, shoulderL.y); ctx.lineTo(bagX + 2, bagY + 2);
-            ctx.moveTo(shoulderR.x - 2, shoulderR.y); ctx.lineTo(bagX + 7, bagY + 2);
+            ctx.moveTo(hipX - 2, hipY - TORSO_H);
+            ctx.lineTo(hipX,     hipY - TORSO_H + 3);
+            ctx.lineTo(hipX + 2, hipY - TORSO_H);
+            ctx.closePath(); ctx.fill();
+            // Sleeve caps
+            ctx.fillStyle = UNIFORM_WHITE;
+            ctx.fillRect(hipX - 7, hipY - TORSO_H + 1, 2, 5);
+            ctx.fillRect(hipX + 5, hipY - TORSO_H + 1, 2, 5);
+
+            // 2. SCHOOL TIE · navy with red diagonal stripes hanging down chest
+            ctx.fillStyle = UNIFORM_NAVY;
+            ctx.fillRect(hipX - 1, hipY - TORSO_H + 2, 2, TORSO_H - 4);
+            ctx.fillStyle = TIE_STRIPE;
+            for (let i = 0; i < 3; i++) {
+                ctx.fillRect(hipX - 1, hipY - TORSO_H + 4 + i * 5, 2, 1);
+            }
+            // Tie knot
+            ctx.fillStyle = UNIFORM_NAVY;
+            ctx.fillRect(hipX - 1.5, hipY - TORSO_H + 1, 3, 2);
+
+            // 3. NAME BADGE · tiny cream rectangle on left chest
+            ctx.fillStyle = UNIFORM_WHITE;
+            ctx.fillRect(hipX - 4, hipY - TORSO_H + 6, 3, 2);
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(hipX - 3, hipY - TORSO_H + 7, 1, 0.5);
+
+            // 4. NAVY SHORTS · recolor pelvis + add waistband
+            ctx.fillStyle = UNIFORM_NAVY;
+            ctx.fillRect(hipX - 5, hipY - 2, 11, 4);
+            ctx.fillStyle = '#1a2230';                // belt shadow
+            ctx.fillRect(hipX - 5, hipY - 2, 11, 1);
+
+            // 5. MESSY HAIR TUFT · 2 spikes
+            ctx.fillStyle = '#1f1208';
+            ctx.fillRect(headCx - 1.5, headCy - HEAD_R - 2.5, 1.5, 2);
+            ctx.fillRect(headCx + 0.5, headCy - HEAD_R - 2.2, 1.5, 1.8);
+
+            // 6. RED SCHOOL BAG · bigger + visible buckle + zip + side pocket
+            const bagX = hipX - 9;
+            const bagY = hipY - TORSO_H + 1;
+            ctx.fillStyle = '#a4332e';
+            ctx.fillRect(bagX, bagY, 11, 16);
+            ctx.fillStyle = '#7a221c';                // top flap
+            ctx.fillRect(bagX, bagY, 11, 3);
+            ctx.fillRect(bagX, bagY + 12, 11, 1);     // bottom seam
+            // Buckle
+            ctx.fillStyle = '#c89a5a';
+            ctx.fillRect(bagX + 4, bagY + 2, 3, 1.5);
+            // Vertical zip
+            ctx.strokeStyle = '#5a1a15'; ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(bagX + 5.5, bagY + 4);
+            ctx.lineTo(bagX + 5.5, bagY + 12);
             ctx.stroke();
-        } else if (stage === 'college') {
-            // COLLEGE · baseball cap (DSCE orange-ish) over hair
-            ctx.fillStyle = '#c47540';       // cap crown · DSCE accent color
+            // Side pocket
+            ctx.fillStyle = '#7a221c';
+            ctx.fillRect(bagX, bagY + 7, 2, 4);
+            // Strap loops over both shoulders
+            ctx.strokeStyle = '#7a221c'; ctx.lineWidth = 1.4;
             ctx.beginPath();
-            ctx.ellipse(headCx, headCy - HEAD_R + 1, HEAD_R + 1, 2, 0, Math.PI, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = '#8a4a26';
-            ctx.fillRect(headCx + 1, headCy - HEAD_R + 1, HEAD_R + 1, 1.5);   // brim
+            ctx.moveTo(shoulderL.x - 2, shoulderL.y); ctx.lineTo(bagX + 2, bagY + 3);
+            ctx.moveTo(shoulderR.x - 2, shoulderR.y); ctx.lineTo(bagX + 9, bagY + 3);
+            ctx.stroke();
+
+            // 7. LUNCH TIFFIN · stainless-steel box in right hand
+            const tiffinX = hipX + 9;
+            const tiffinY = hipY - 5;
+            ctx.fillStyle = '#c0c0c0';                // brushed steel
+            ctx.fillRect(tiffinX, tiffinY, 6, 5);
+            ctx.fillStyle = '#8a8a8a';
+            ctx.fillRect(tiffinX, tiffinY + 4, 6, 1);  // bottom shadow
+            ctx.fillStyle = '#a0a0a0';
+            ctx.fillRect(tiffinX, tiffinY, 6, 1);      // lid
+            // Carry handle
+            ctx.strokeStyle = '#3a2418'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(tiffinX + 3, tiffinY - 1, 2, Math.PI, 2 * Math.PI);
+            ctx.stroke();
+
+            // 8. WHITE CANVAS SHOES · overpaint sneakers
+            ctx.fillStyle = '#e9d8b0';
+            ctx.fillRect(hipX - 4, footY - 2, 5, 2);   // approximate left foot
+            ctx.fillRect(hipX,     footY - 2, 5, 2);   // approximate right foot
+            ctx.fillStyle = '#5a3a22';
+            ctx.fillRect(hipX - 4, footY, 5, 1);
+            ctx.fillRect(hipX,     footY, 5, 1);
+        } else if (stage === 'college') {
+            // ── DSCE ENGINEERING STUDENT ──
+            // Faded denim + tee with DSCE accent + over-ear headphones around
+            // neck + lanyard ID badge + rolled-up notebook under arm + watch.
+            const TEE_COLOR     = '#3a5a4a';   // muted forest-green DSCE tee
+            const TEE_SHADE     = '#2a4035';
+            const JEAN_COLOR    = '#3a4258';   // faded indigo
+            const HEADPHONE_BAND= '#c47540';   // DSCE orange accent
+            const LANYARD       = '#c47540';
+            const NOTEBOOK_RED  = '#a4332e';
+
+            // 1. TEE recolor with DSCE accent stripe at hem
+            ctx.fillStyle = TEE_COLOR;
+            ctx.fillRect(hipX - 5, hipY - TORSO_H, 11, TORSO_H);
+            ctx.fillStyle = TEE_SHADE;
+            ctx.fillRect(hipX + 4, hipY - TORSO_H, 1, TORSO_H);
+            // Accent stripe near hem (DSCE orange)
+            ctx.fillStyle = HEADPHONE_BAND;
+            ctx.fillRect(hipX - 5, hipY - 5, 11, 1);
+            // Sleeve caps
+            ctx.fillStyle = TEE_COLOR;
+            ctx.fillRect(hipX - 7, hipY - TORSO_H + 1, 2, 5);
+            ctx.fillRect(hipX + 5, hipY - TORSO_H + 1, 2, 5);
+
+            // 2. FADED JEANS · overpaint legs with proper denim variation
+            // (the drawLeg base already uses JEAN palette; this adds knee wear)
+            ctx.fillStyle = '#4a5570';                // faded knee patch hint
+            ctx.fillRect(hipX - 4, hipY + 6, 2, 3);
+            ctx.fillRect(hipX + 2, hipY + 6, 2, 3);
+
+            // 3. HEADPHONES around neck · over-ear band + 2 cups
+            ctx.fillStyle = '#1a1208';                // band
+            ctx.fillRect(headCx - HEAD_R, neckY + 1, HEAD_R * 2, 1.2);
+            ctx.fillStyle = HEADPHONE_BAND;           // orange accent stripe
+            ctx.fillRect(headCx - HEAD_R, neckY + 1, HEAD_R * 2, 0.5);
+            // Earcups · one on each side of neck
+            ctx.fillStyle = '#1a1208';
+            ctx.fillRect(headCx - HEAD_R - 1.5, neckY + 1, 1.8, 3);
+            ctx.fillRect(headCx + HEAD_R - 0.3, neckY + 1, 1.8, 3);
+            // Cup centers
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(headCx - HEAD_R - 1, neckY + 2, 1, 1.5);
+            ctx.fillRect(headCx + HEAD_R + 0.2, neckY + 2, 1, 1.5);
+
+            // 4. LANYARD with ID badge hanging at chest
+            ctx.strokeStyle = LANYARD; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(shoulderL.x - 1, shoulderL.y + 1);
+            ctx.lineTo(hipX - 1, hipY - 8);
+            ctx.moveTo(shoulderR.x - 1, shoulderR.y + 1);
+            ctx.lineTo(hipX + 1, hipY - 8);
+            ctx.stroke();
+            ctx.fillStyle = '#e9d8b0';                // ID card
+            ctx.fillRect(hipX - 2, hipY - 8, 4, 3.5);
+            ctx.fillStyle = '#3a2418';                // photo block on card
+            ctx.fillRect(hipX - 1.5, hipY - 7.5, 1.5, 1.5);
+            ctx.fillStyle = '#c47540';                // DSCE color strip on card
+            ctx.fillRect(hipX - 2, hipY - 5.5, 4, 0.6);
+
+            // 5. ROLLED NOTEBOOK under right arm · cylinder of paper
+            const nbX = hipX + 7;
+            const nbY = hipY - 10;
+            ctx.fillStyle = NOTEBOOK_RED;
+            ctx.fillRect(nbX, nbY, 2, 9);             // notebook cover
+            ctx.fillStyle = '#e9d8b0';                // paper edge
+            ctx.fillRect(nbX + 1, nbY + 1, 1, 7);
+            ctx.fillStyle = '#7a221c';
+            ctx.fillRect(nbX, nbY, 2, 0.8);           // top binding
+            ctx.fillRect(nbX, nbY + 8.2, 2, 0.8);     // bottom binding
+
+            // 6. SLIGHT FACIAL HAIR · faint stubble (5 dots on jawline)
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(headCx - 2, headCy + 2.8, 1, 0.6);
+            ctx.fillRect(headCx,     headCy + 3.2, 1, 0.6);
+            ctx.fillRect(headCx + 1, headCy + 2.8, 1, 0.6);
+
+            // 7. WATCH on left wrist · small square + strap
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(hipX - 9, hipY - 7, 1.5, 1.5);
         }
         // Adult: no extra headgear · clean professional look
         ctx.restore();
