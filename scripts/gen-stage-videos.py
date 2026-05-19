@@ -137,13 +137,15 @@ def render_chapter_video(chapter: str, frame_paths: list, out_mp4: pathlib.Path,
         chain = nxt
         offset += seconds_per_frame
     fc = ";".join(filter_parts)
+    # Post-process: unsharp mask + saturation/contrast boost for cartoon pop
+    fc_final = fc + ";[outv]unsharp=5:5:0.8:3:3:0.4,eq=contrast=1.10:saturation=1.15[finalv]"
     cmd = [
         "ffmpeg", "-y",
         *inputs,
-        "-filter_complex", fc,
-        "-map", "[outv]",
+        "-filter_complex", fc_final,
+        "-map", "[finalv]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-        "-preset", "fast", "-crf", "23",
+        "-preset", "slow", "-crf", "20",
         "-t", str(total_duration),
         "-movflags", "+faststart",
         str(out_mp4),
