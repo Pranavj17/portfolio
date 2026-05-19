@@ -434,11 +434,21 @@
         // PEEK CAMERA · brief lean-forward when user taps empty space
         peekT:           0,        // ms remaining of peek animation
         peekDir:         1,        // +1 = lean forward, -1 = lean back
+        // AUTOPILOT · auto-walks to ITICS during splash so first-time
+        // viewers see motion before figuring out the controls. Cancelled
+        // on any direct input (key/touch) — user takes back control.
+        autopilot:       false,
     };
 
     // auto-start after splash (3.4s matches CSS splashFadeOut)
     setTimeout(() => {
         state.running = true;
+        // AUTOPILOT · if this is a fresh session (no saved state), demonstrate
+        // the verb visually by auto-walking to ITICS. Any direct input cancels
+        // the autopilot so the user takes back control.
+        if (state.playerX === 0 && state.collected.size === 0) {
+            state.autopilot = true;
+        }
         // After splash, attempt to restore prior session. If found, show
         // a "Welcome back" peek card with stats. The restoreState() call
         // happens BELOW (synchronously at boot) — this just announces it.
@@ -2125,6 +2135,8 @@
     }
     window.addEventListener('keydown', (e) => {
         chapterAudioBoot();   // lazy-init ambient audio on first gesture
+        // Any keypress (arrow keys, etc.) cancels autopilot
+        if (state.autopilot) state.autopilot = false;
         const k = e.key;
         if (k === 'ArrowRight' || k === 'd' || k === 'D') {
             e.preventDefault(); state.keys.right = true;
@@ -2168,6 +2180,8 @@
             return;
         }
         // Otherwise prep for hold-to-walk OR quick-tap (peek/landmark)
+        // Any touch-and-hold cancels autopilot (user took control)
+        if (state.autopilot) state.autopilot = false;
         state.touchHold = true;
         touchStartT = performance.now();
         touchMoved = false;
@@ -8792,6 +8806,13 @@
             let dir = 0;
             if (movingForward) dir = +1;
             else if (movingBack) dir = -0.6;        // back is slower (half-step)
+            // AUTOPILOT · walks forward at 70% speed until ITICS is collected
+            // OR until user takes any direct input. The peek tap (quick taps
+            // on empty space) is NOT counted as direct input since taps
+            // are now landmark/beat hit-tests, not movement.
+            else if (state.autopilot && !state.collected.has('itics')) {
+                dir = +0.7;
+            }
 
             const v = VEHICLES[state.vehicle];
             // CHAPTER-PROXIMITY DECELERATION · when within ±400px of any
