@@ -735,9 +735,22 @@
     window.addEventListener('pointerdown', audioGesture, { passive: true, once: false });
     window.addEventListener('keydown', audioGesture, { passive: true, once: false });
 
-    // ── CHAPTER-ENTRY SOUND STINGS · one-shot SFX fired when crossing into
-    // a chapter. Each is procedural WebAudio (~1-2s), evocative of the era.
-    // Reuses the chapterAudio.ac context so it inherits autoplay-policy unlock.
+    /**
+     * Play a one-shot procedural sound sting when entering a chapter.
+     * Each chapter has a distinct evocative sound (~1-2s):
+     *   itics    · school bell (additive harmonics)
+     *   cmr      · page turn + pencil + clock tick
+     *   college  · cycle bell + tool clink
+     *   fever104 · radio tune-in static → pentatonic settle
+     *   sakha    · keyboard cluster + task chime
+     *   scripbox · ascending arpeggio + AI shimmer
+     *   vwgt     · door slam + engine rev
+     *   now      · contemplative chime cluster
+     * Reuses chapterAudio.ac context (inherits autoplay-policy unlock).
+     * Silent no-op if chapterAudio isn't yet booted.
+     *
+     * @param {string} id  Chapter id from CHAPTERS array
+     */
     function playChapterSting(id) {
         if (!chapterAudio) return;
         const ac = chapterAudio.ac;
@@ -953,6 +966,22 @@
             }
         }
     }
+    /**
+     * Play a proximity-zone ambient SFX (landmark-specific atmosphere).
+     * Fires when the player walks within range of a NEAR_SFX_ZONES entry.
+     * Each zone has its own cooldown to prevent spam.
+     *
+     * Valid kinds:
+     *   cinema_audience · audience murmur + claps + ref whistle (Cinema)
+     *   market_chatter  · sustained crowd wash (KR Market)
+     *   food_vendor     · sizzle + vendor call (street food carts)
+     *   stadium_roar    · crowd roar + whistle (Kanteerava)
+     *   cricket_crack   · bat crack + crowd swell (Chinnaswamy)
+     *   office_chatter  · keyboards + low murmur (Manyata)
+     *   prayer_bell     · brass-bell harmonics + chant (Bull Temple, ISKCON)
+     *
+     * @param {string} kind  One of the valid kind strings above
+     */
     function playProximitySFX(kind) {
         if (!chapterAudio) return;
         const ac = chapterAudio.ac;
@@ -1043,8 +1072,21 @@
         }
     }
 
-    // ── BEAT-LEVEL SFX · 13 procedural sound types · ~2s each ──
-    // Fires when player walks within 60 world-px of a story beat
+    /**
+     * Play a beat-level SFX when player walks near a story-beat icon.
+     * Mapped from BEATS[i].id via BEAT_SFX_MAP. Beat cooldown defaults
+     * to BEAT_COOLDOWN (8s) per-beat to prevent loop spam.
+     *
+     * Valid kinds (17 total):
+     *   football_cheer, cricket_play, cricket_chant, classroom_chatter,
+     *   classroom_quiet, lunch_chatter, school_bell_distant,
+     *   cinema_audience, graduation_applause, bike_engine,
+     *   heartbeat_chime, radio_static, paycheck_chime,
+     *   typing_keyboard, office_meeting, ai_shimmer, car_engine,
+     *   morning_ambient, food_vendor, prayer_bell, monsoon_thunder
+     *
+     * @param {string} kind  One of the valid SFX kinds above
+     */
     function playBeatSFX(kind) {
         if (!chapterAudio) return;
         const ac = chapterAudio.ac;
@@ -1365,7 +1407,6 @@
             const track = { ...cfg, audio, loaded: false, playing: false };
             audio.addEventListener('canplaythrough', () => {
                 track.loaded = true;
-                console.log(`♪ chapter music loaded: ${cfg.id}`);
             }, { once: true });
             audio.addEventListener('error', () => {
                 // File missing · silent fallback to procedural ambient
@@ -1778,10 +1819,8 @@
             if (chapterAudio && chapterAudio.master) {
                 chapterAudio.master.gain.setTargetAtTime(0, chapterAudio.ac.currentTime, 0.15);
             }
-            $vid.play().catch(err => {
-                console.log('stage video play err', err);
-                dismiss();
-            });
+            // Autoplay-policy rejection → silent dismiss · video is non-critical
+            $vid.play().catch(() => dismiss());
             $vid.onended = dismiss;
             $skip.onclick = (e) => { e.stopPropagation(); dismiss(); };
             $overlay.onclick = (e) => {
@@ -4123,14 +4162,33 @@
         }
     }
 
+    // ── ROAD CONSTANTS · pull magic numbers into named values ──
+    const ROAD = Object.freeze({
+        PARALLAX:    0.55,    // road scrolls at 55% of camera speed
+        TOP_OFFSET:  36,      // distance from groundY to road top edge
+        BOT_OFFSET:  20,      // distance from groundY to road bottom edge
+        DASH_LEN:    14,      // yellow center-line dash length
+        DASH_GAP:    10,      // gap between yellow center dashes
+        BRICK_W:     16,      // curb paver tile width
+        MANHOLE_GAP: 240,     // world-px between manhole covers
+        AGGREGATE_LIGHT: 90,  // light aggregate flecks per viewport
+        AGGREGATE_DARK:  60,  // dark aggregate flecks per viewport
+    });
+
     /** Bangalore street road · asphalt surface with lane markings, speed bumps,
      *  and zebra crossings at chapter boundaries. Parallax 0.55 — sits between
-     *  the mid-band trees and the player's foreground. */
+     *  the mid-band trees and the player's foreground.
+     *
+     *  @param {number} W         Viewport width in pixels
+     *  @param {number} horizonY  Y position of the sky/ground horizon line
+     *  @param {number} groundY   Y position where player feet land
+     *  @param {number} cameraX   Camera world-x offset (player.x - W*0.32)
+     */
     function drawRoad(W, horizonY, groundY, cameraX) {
-        const parallax = 0.55;
+        const parallax = ROAD.PARALLAX;
         const offset = -(cameraX * parallax);
-        const roadTop = groundY - 36;
-        const roadBot = groundY - 20;
+        const roadTop = groundY - ROAD.TOP_OFFSET;
+        const roadBot = groundY - ROAD.BOT_OFFSET;
         const roadH = roadBot - roadTop;
         // ── ASPHALT base · gradient from darker top to slightly warmer bottom ──
         const grad = ctx.createLinearGradient(0, roadTop, 0, roadBot);
@@ -4142,20 +4200,20 @@
         // ── ASPHALT TEXTURE · pseudo-random aggregate flecks (deterministic) ──
         // Use cameraX-locked seed so flecks scroll naturally with parallax
         ctx.fillStyle = 'rgba(80, 70, 55, 0.35)';
-        for (let i = 0; i < 90; i++) {
+        for (let i = 0; i < ROAD.AGGREGATE_LIGHT; i++) {
             const sx = ((i * 137 + Math.floor(cameraX * parallax * 0.7)) % (W + 40)) - 20;
             const sy = roadTop + 2 + ((i * 53) % (roadH - 4));
             ctx.fillRect(sx, sy, 1, 1);
         }
         ctx.fillStyle = 'rgba(40, 32, 24, 0.5)';
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < ROAD.AGGREGATE_DARK; i++) {
             const sx = ((i * 191 + Math.floor(cameraX * parallax * 0.7)) % (W + 40)) - 20;
             const sy = roadTop + 1 + ((i * 71) % (roadH - 2));
             ctx.fillRect(sx, sy, 1, 1);
         }
-        // ── MANHOLE COVERS · every 240 world-px, on lane center ──
-        const firstMan = Math.ceil((-offset) / 240) * 240;
-        for (let mwx = firstMan; mwx < (-offset) + W * 2; mwx += 240) {
+        // ── MANHOLE COVERS · every ROAD.MANHOLE_GAP world-px, on lane center ──
+        const firstMan = Math.ceil((-offset) / ROAD.MANHOLE_GAP) * ROAD.MANHOLE_GAP;
+        for (let mwx = firstMan; mwx < (-offset) + W * 2; mwx += ROAD.MANHOLE_GAP) {
             const mx = mwx + offset;
             if (mx < -15 || mx > W + 15) continue;
             ctx.fillStyle = '#1a1410';
@@ -4171,7 +4229,7 @@
         ctx.fillStyle = 'rgba(232, 184, 100, 0.4)';
         ctx.fillRect(0, roadTop + 1, W, 0.5);   // faint paint smudge
         // ── CENTER LINE · TWO yellow dashed lanes (real divided road look) ──
-        const dashLen = 14, gapLen = 10;
+        const dashLen = ROAD.DASH_LEN, gapLen = ROAD.DASH_GAP;
         const cycle = dashLen + gapLen;
         const phase = ((-(cameraX * parallax)) % cycle + cycle) % cycle - cycle;
         ctx.fillStyle = '#d4a653';
@@ -4189,7 +4247,7 @@
         ctx.fillRect(0, roadBot, W, 1);
         // Brick paver lines · 16-px-wide tiles
         ctx.fillStyle = '#3a2e1c';
-        const brickW = 16;
+        const brickW = ROAD.BRICK_W;
         const brickPhase = ((-(cameraX * parallax * 0.55)) % brickW + brickW) % brickW - brickW;
         for (let x = brickPhase; x < W; x += brickW) {
             ctx.fillRect(x, roadBot + 1, 0.5, 2);
@@ -7584,6 +7642,23 @@
         return a + (b - a) * e;
     }
 
+    /**
+     * Render the walking character at the given canvas position.
+     * Composes: hair, head + face features, torso (school/college/adult
+     * variant), arms, legs (via 4-pose walk-cycle), accessories
+     * (school bag + tiffin / lanyard + headphones / laptop sling).
+     *
+     * Internal coordinates are pixel-art at base size; the function
+     * applies a 1.75× base scale + per-chapter growth (0.62-1.0) around
+     * the foot anchor so feet always touch ground.
+     *
+     * @param {number} cx     Canvas X of the character's center
+     * @param {number} footY  Canvas Y where the feet land (ground line)
+     * @param {number} phase  Walk-cycle phase in radians [0, 2π)
+     * @param {number} amp    Walk amplitude [0, 1] · 0 = idle, 1 = run
+     * @param {number} lean   Forward lean in radians (small values ~0.06)
+     * @param {number} bob    Additional vertical bob offset in pixels
+     */
     function drawWalker(cx, footY, phase, amp, lean, bob) {
         ctx.save();
         // ── PIXEL-CRISP RENDERING ──
