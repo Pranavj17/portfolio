@@ -11,10 +11,21 @@
     <meta name="theme-color" content="#1f1610">
 
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://pranavjagadish.com/journey">
+    <meta property="og:url" content="https://pranavjagadish.com/journey.html">
     <meta property="og:title" content="the journey — pranavjagadish.com">
-    <meta property="og:description" content="An interactive 2D side-scroller · 8 chapters · 13 years · hold → to walk through a career.">
-    <meta property="og:image" content="https://pranavjagadish.com/favicon-512x512.png">
+    <meta property="og:description" content="An interactive 2D side-scroller through 13 years · 8 chapters from school in Bangalore to AI engineer · hold → to walk.">
+    <meta property="og:image" content="https://pranavjagadish.com/social-share.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="The journey · Bangalore cityscape side-scroller with metro train and character running">
+    <meta property="og:site_name" content="pranavjagadish.com">
+
+    <!-- Twitter Card · large image preview when shared on X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://pranavjagadish.com/journey.html">
+    <meta name="twitter:title" content="the journey — pranavjagadish.com">
+    <meta name="twitter:description" content="An interactive 2D side-scroller through 13 years · 8 chapters · hold → to walk.">
+    <meta name="twitter:image" content="https://pranavjagadish.com/social-share.jpg">
 
     <link rel="canonical" href="https://pranavjagadish.com/journey">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -444,6 +455,58 @@
         .end .cta-primary:hover {
             background: linear-gradient(180deg, #f0c060 0%, var(--accent) 100%);
         }
+        /* SHARE ROW · sits between primary CTAs and footer */
+        .end .share-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 4px 0 14px;
+            opacity: 0.92;
+        }
+        .end .share-label {
+            font-family: 'Cinzel', serif;
+            font-size: 10px;
+            letter-spacing: 0.30em;
+            text-transform: uppercase;
+            color: var(--paper-dim);
+            margin-right: 4px;
+        }
+        .end .share-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--paper);
+            background: rgba(58, 36, 24, 0.45);
+            border: 1.5px solid var(--mahogany);
+            border-radius: 50%;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 150ms ease, background 150ms ease, color 150ms ease;
+        }
+        .end .share-btn:hover {
+            transform: translateY(-1px) scale(1.05);
+            background: rgba(212, 166, 83, 0.85);
+            color: var(--ink);
+        }
+        .end .share-copy {
+            border-radius: 16px;
+            padding: 0 14px;
+            font-size: 11px;
+            letter-spacing: 0.14em;
+        }
+        .end .share-copy.copied {
+            background: linear-gradient(180deg, var(--accent) 0%, #b8901a 100%);
+            color: var(--ink);
+        }
+
         .end .end-footer {
             margin: 10px 0 0;
             font-size: 11px;
@@ -855,6 +918,14 @@
                 <a class="cta-btn" href="https://medium.com/@jpranav97" target="_blank" rel="noopener">Medium</a>
                 <a class="cta-btn cta-primary" href="mailto:jpranav97@gmail.com">Email</a>
             </div>
+            <!-- SHARE ROW · let the visitor send this to someone who hires -->
+            <div class="share-row">
+                <span class="share-label">share this journey</span>
+                <a class="share-btn" id="share-linkedin" href="#" target="_blank" rel="noopener" aria-label="Share on LinkedIn">in</a>
+                <a class="share-btn" id="share-twitter"  href="#" target="_blank" rel="noopener" aria-label="Share on X">𝕏</a>
+                <a class="share-btn" id="share-whatsapp" href="#" target="_blank" rel="noopener" aria-label="Share on WhatsApp">✉</a>
+                <button class="share-btn share-copy" id="share-copy" type="button" aria-label="Copy link">⎘ copy link</button>
+            </div>
             <p class="end-footer">
                 <a href="https://pranavjagadish.com">pranavjagadish.com</a>
                 <button id="end-restart" class="cta-link" type="button">· start fresh</button>
@@ -862,6 +933,6 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260519-70" defer></script>
+    <script src="/journey.js?v=20260519-71" defer></script>
 </body>
 </html>

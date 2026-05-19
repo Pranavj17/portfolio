@@ -2208,6 +2208,48 @@
         });
     }
 
+    // ── SHARE BUTTONS · post-end-card "send this to someone" pipeline ──
+    // Builds platform-specific share URLs from the current page URL +
+    // a fixed taglined message. Copy-link button uses Clipboard API with
+    // fallback for older browsers.
+    (function wireShareButtons() {
+        const shareURL  = 'https://pranavjagadish.com/journey.html';
+        const shareText = 'walked through 13 years of one career as a 2D side-scroller. worth a look:';
+        const encURL    = encodeURIComponent(shareURL);
+        const encText   = encodeURIComponent(shareText);
+        const $li = document.getElementById('share-linkedin');
+        const $tw = document.getElementById('share-twitter');
+        const $wa = document.getElementById('share-whatsapp');
+        const $copy = document.getElementById('share-copy');
+        if ($li) $li.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encURL}`;
+        if ($tw) $tw.href = `https://twitter.com/intent/tweet?url=${encURL}&text=${encText}`;
+        if ($wa) $wa.href = `https://wa.me/?text=${encText}%20${encURL}`;
+        if ($copy) {
+            $copy.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    await navigator.clipboard.writeText(shareURL);
+                    $copy.textContent = '✓ copied';
+                    $copy.classList.add('copied');
+                    setTimeout(() => {
+                        $copy.textContent = '⎘ copy link';
+                        $copy.classList.remove('copied');
+                    }, 1800);
+                } catch (_) {
+                    // Fallback for older browsers · select + execCommand
+                    const ta = document.createElement('textarea');
+                    ta.value = shareURL;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); $copy.textContent = '✓ copied'; }
+                    catch (__) { $copy.textContent = 'select-all-failed'; }
+                    document.body.removeChild(ta);
+                    setTimeout(() => { $copy.textContent = '⎘ copy link'; }, 1800);
+                }
+            });
+        }
+    })();
+
     // ── AUDIO TEST BUTTON · diagnoses iOS mute-switch / autoplay issues
     // Plays a loud chime via WebAudio. If user hears it → audio works,
     // hide button. If silent → likely iPhone hardware mute switch.
