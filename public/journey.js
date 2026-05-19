@@ -3658,6 +3658,67 @@
         }
     }
 
+    // ── BIRDS · flying V-formation across the sky, occasional flocks ──
+    // Cheap procedural birds: just M-shapes drawn in screen-space, moving
+    // slowly. Spawn every 25-50s, max 2 flocks at once.
+    const birdFlocks = [];
+    function spawnBirdFlock() {
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const baseY = 60 + Math.random() * 80;
+        const count = 4 + (Math.random() * 5 | 0);
+        const flock = { birds: [], dir };
+        for (let i = 0; i < count; i++) {
+            // V-formation: leader in front, others trailing at offset
+            const row = Math.floor(i / 2);
+            const side = (i % 2 === 0) ? -1 : 1;
+            flock.birds.push({
+                offX: -row * 18 * dir,
+                offY: row * 5 * side,
+                flapPhase: Math.random() * Math.PI * 2,
+            });
+        }
+        flock.x = dir > 0 ? -100 : (window.innerWidth + 100);
+        flock.y = baseY;
+        flock.speed = 30 + Math.random() * 20;
+        birdFlocks.push(flock);
+    }
+    function updateBirds(dt) {
+        if (!_audioBooted) return;
+        if (!updateBirds.nextSpawn) updateBirds.nextSpawn = state.elapsedMs + 5000;
+        if (state.elapsedMs > updateBirds.nextSpawn && birdFlocks.length < 2) {
+            spawnBirdFlock();
+            updateBirds.nextSpawn = state.elapsedMs + 25000 + Math.random() * 25000;
+        }
+        const W = window.innerWidth;
+        for (let i = birdFlocks.length - 1; i >= 0; i--) {
+            const f = birdFlocks[i];
+            f.x += f.dir * f.speed * dt / 1000;
+            for (const b of f.birds) b.flapPhase += dt / 100;
+            if (f.x < -200 || f.x > W + 200) birdFlocks.splice(i, 1);
+        }
+    }
+    function drawBirds(W, horizonY) {
+        ctx.fillStyle = '#3a2418';
+        for (const f of birdFlocks) {
+            for (const b of f.birds) {
+                const bx = f.x + b.offX;
+                const by = horizonY * (f.y / 240) + b.offY;
+                if (bx < -20 || bx > W + 20) continue;
+                // M-shape wings · flap amplitude varies with phase
+                const flap = Math.sin(b.flapPhase) * 1.5 + 1;
+                ctx.beginPath();
+                ctx.moveTo(bx - 3, by);
+                ctx.lineTo(bx - 1, by - flap);
+                ctx.lineTo(bx,     by);
+                ctx.lineTo(bx + 1, by - flap);
+                ctx.lineTo(bx + 3, by);
+                ctx.strokeStyle = '#3a2418';
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
+            }
+        }
+    }
+
     const fireworks = [];
     function spawnFirework() {
         const wx = 600 + (Math.random() - 0.5) * 200;   // near Vidhana Soudha
@@ -4066,6 +4127,76 @@
      *  the mid-band in screen-space (no parallax) every ~25–40 seconds,
      *  alternating direction. Keeps proportions small so it reads as scenery
      *  not focal subject. */
+    /** Street food carts · stationary roadside vendors with smoke + canopy
+     *  Drawn in screen-space converted from world-x · placed near KR Market
+     *  (world-x 1550) and near Indiranagar (world-x 4180) by default. */
+    const STREET_FOOD_CARTS = [
+        { wx: 1530, kind: 'dosa', canopy: '#a4332e' },
+        { wx: 1570, kind: 'chai', canopy: '#c47540' },
+        { wx: 4170, kind: 'dosa', canopy: '#7a8a6a' },
+    ];
+    function drawStreetFoodCarts(W, groundY, cameraX) {
+        const t = state.elapsedMs;
+        for (const cart of STREET_FOOD_CARTS) {
+            const sx = cart.wx - cameraX;
+            if (sx < -60 || sx > W + 60) continue;
+            const y = groundY - 18;
+            // Body · wooden cart with wheels
+            ctx.fillStyle = '#5a3a22';
+            ctx.fillRect(sx - 14, y, 28, 12);
+            // Front panel with hand-painted color
+            ctx.fillStyle = cart.canopy;
+            ctx.fillRect(sx - 14, y, 28, 2);
+            // Cooking surface · darker griddle / kadai
+            ctx.fillStyle = '#1a0e08';
+            ctx.fillRect(sx - 11, y + 3, 22, 4);
+            // Cooking glow · warm orange flicker
+            const flicker = 0.5 + Math.sin(t / 60) * 0.2 + Math.sin(t / 35) * 0.1;
+            ctx.fillStyle = `rgba(230, 140, 60, ${flicker * 0.7})`;
+            ctx.fillRect(sx - 9, y + 4, 18, 2);
+            // Canopy roof · slanted cloth
+            ctx.fillStyle = cart.canopy;
+            ctx.beginPath();
+            ctx.moveTo(sx - 16, y - 1);
+            ctx.lineTo(sx + 16, y - 1);
+            ctx.lineTo(sx + 12, y - 10);
+            ctx.lineTo(sx - 12, y - 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(sx - 16, y - 1, 32, 1);   // shadow under canopy
+            // Canopy support poles
+            ctx.fillStyle = '#3a2418';
+            ctx.fillRect(sx - 14, y - 10, 1, 9);
+            ctx.fillRect(sx + 13, y - 10, 1, 9);
+            // Wheels
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath(); ctx.arc(sx - 9, y + 13, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(sx + 9, y + 13, 3, 0, Math.PI * 2); ctx.fill();
+            // Vendor figure behind cart · just head + shoulders
+            ctx.fillStyle = '#a86434';
+            ctx.beginPath(); ctx.arc(sx, y - 13, 1.8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = cart.kind === 'chai' ? '#3a4258' : '#5a3a22';
+            ctx.fillRect(sx - 2.5, y - 11, 5, 5);
+            // SMOKE · 3 rising puffs from the cooking surface
+            for (let i = 0; i < 3; i++) {
+                const phase = (t / 800 + i * 0.4) % 1;
+                const sxOff = sx + (i - 1) * 4 + Math.sin(phase * Math.PI * 2) * 2;
+                const syOff = y + 2 - phase * 18;
+                const alpha = (1 - phase) * 0.35;
+                const radius = 1 + phase * 3;
+                ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`;
+                ctx.beginPath(); ctx.arc(sxOff, syOff, radius, 0, Math.PI * 2); ctx.fill();
+            }
+            // Customer silhouette · 1-2 stick figures in front of cart
+            if ((t / 4000 + cart.wx / 100) % 2 < 1.2) {
+                ctx.fillStyle = '#3a2418';
+                ctx.fillRect(sx - 24, y + 3, 2, 8);
+                ctx.beginPath(); ctx.arc(sx - 23, y, 1.6, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+    }
+
     function drawAutoRickshaw(W, groundY) {
         const x = state.autoX;
         if (x < -100 || x > W + 100) return;
@@ -8301,6 +8432,7 @@
         updateParticles(dt);
         updateFireworks(dt);
         updateFlights(dt);
+        updateBirds(dt);
 
         // screen-shake decay
         if (state.shake.t > 0) {
@@ -8423,6 +8555,8 @@
         drawFireworks(W, horizonY, cameraX);
         // 0.05 — flights crossing the upper sky band (always)
         drawFlights(W, horizonY);
+        // 0.30 — bird flocks in V-formation (always)
+        drawBirds(W, horizonY);
         // 0.35 — raintree fillers between skyline and infrastructure
         drawRaintrees(W, horizonY, groundY, cameraX);
         // 0.40 — bridges (road infrastructure)
@@ -8442,6 +8576,8 @@
         drawMidProps(W, horizonY, groundY, cameraX);
         // 0.55 — Bangalore road surface (asphalt + markings + speed bumps + zebras)
         drawRoad(W, horizonY, groundY, cameraX);
+        // Street food carts · stationary roadside vendors (KR Market + Indiranagar)
+        drawStreetFoodCarts(W, groundY, cameraX);
         // 1.00 (screen-space) — traffic vehicles on the road
         drawRoadTraffic(W, groundY);
         // 1.00 (screen-space) — auto rickshaw crossing (drawn over traffic)
