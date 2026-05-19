@@ -1626,15 +1626,18 @@
         const W = window.innerWidth;
         const cameraX = state.playerX - W * 0.32;
         const worldX = clientX + cameraX;
+        // Touch-friendly padding · 12-pixel halo around each beat for finger
+        // taps on phone screens. Desktop pointer events use the same halo
+        // (forgiving but not excessive).
+        const PAD = 12;
         let best = null, bestDist = Infinity;
         for (const b of BEATS) {
             const ch = CHAPTERS.find(c => c.id === b.ch);
             if (!ch) continue;
             const bx = ch.x + b.dx;
             const by = groundY + b.dy;
-            if (worldX >= bx - b.w / 2 && worldX <= bx + b.w / 2 &&
-                clientY >= by - b.h / 2 && clientY <= by + b.h / 2) {
-                // Prefer the beat whose CENTER is closest to the click
+            if (worldX >= bx - b.w / 2 - PAD && worldX <= bx + b.w / 2 + PAD &&
+                clientY >= by - b.h / 2 - PAD && clientY <= by + b.h / 2 + PAD) {
                 const d = Math.hypot(worldX - bx, clientY - by);
                 if (d < bestDist) { bestDist = d; best = b; }
             }
