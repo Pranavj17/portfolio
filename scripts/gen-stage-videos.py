@@ -74,16 +74,25 @@ def gen_image(api_key: str, prompt: str, neg: str, size: str, model: str,
         payload["cfg_scale"] = 7.0
     print(f"  [{chapter}/{idx + 1}] → {model}")
     body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        msg = e.read().decode("utf-8", errors="replace")[:250]
-        print(f"    HTTP {e.code}: {msg}", file=sys.stderr)
-        return False
-    except urllib.error.URLError as e:
-        print(f"    network error: {e}", file=sys.stderr)
+    # Retry up to 3 times for transient network/cold-start issues
+    last_err = None
+    for attempt in range(3):
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=240) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            last_err = None
+            break
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", errors="replace")[:250]
+            print(f"    HTTP {e.code}: {msg}", file=sys.stderr)
+            return False
+        except (urllib.error.URLError, TimeoutError) as e:
+            last_err = e
+            print(f"    attempt {attempt + 1} timeout/network · retrying...", file=sys.stderr)
+            time.sleep(2)
+    if last_err is not None:
+        print(f"    all retries failed: {last_err}", file=sys.stderr)
         return False
     # NVIDIA NIM image responses include either `artifacts[0].base64` or `image`
     b64 = None
