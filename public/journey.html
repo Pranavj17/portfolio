@@ -933,6 +933,14 @@
         </div>
     </main>
 
-    <script src="/journey.js?v=20260519-72" defer></script>
+    <script>
+      // Feature flag: ?v=2 loads the 3-act milestone harness; default stays v1.
+      (function () {
+        var v = new URLSearchParams(location.search).get('v');
+        var s = document.createElement('script');
+        s.src = (v === '2') ? '/journey-v2.js' : '/journey.js?v=20260519-72';
+        document.body.appendChild(s);
+      })();
+    </script>
 </body>
 </html>
