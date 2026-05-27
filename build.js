@@ -37,8 +37,13 @@ for (const rel of MANIFEST) {
     parts.push(`// === ${rel} === (missing — skipped)`);
     continue;
   }
-  parts.push(`// === ${rel} ===`);
-  parts.push(fs.readFileSync(abs, 'utf8'));
+  const banner = `// === ${rel} ===`;
+  parts.push(banner);
+  let src = fs.readFileSync(abs, 'utf8');
+  // Strip a leading duplicate banner if the source file starts with one
+  // — the bundler emits the canonical banner above.
+  if (src.startsWith(banner + '\n')) src = src.slice(banner.length + 1);
+  parts.push(src);
 }
 parts.push('})();');
 

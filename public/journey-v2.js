@@ -4,14 +4,12 @@
 
 // === src/journey/core.js ===
 
-// === src/journey/core.js ===
 // Entry hooks for the v2 harness. Populated in later tasks.
 const JOURNEY_V2_VERSION = 2;
 
 
 // === src/journey/state/persistence.js ===
 
-// === src/journey/state/persistence.js ===
 /**
  * localStorage.journey schema migration + IO.
  * Pure functions — accept a storage-like object so tests don't need jsdom.
@@ -50,7 +48,6 @@ function saveJourneyState(storage, state) {
 
 // === src/journey/state/phase.js ===
 
-// === src/journey/state/phase.js ===
 /**
  * Per-chapter phase machine.
  *   unseen → cutscene → exploring → closing → culminating → complete
