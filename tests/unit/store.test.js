@@ -51,3 +51,12 @@ test('store.setNpcChoice(id, idx) writes through', () => {
   store.setNpcChoice('cmr', 1);
   assert.strictEqual(store.getChapter('cmr').npcChoice, 1);
 });
+
+test('setScore preserves phase and npcChoice across calls', () => {
+  const store = globalThis.Store.createChapterStore(mockStorage());
+  store.send('cmr', 'ENTER');               // phase → cutscene
+  store.setNpcChoice('cmr', 2);
+  store.setScore('cmr', 78);
+  assert.deepStrictEqual(store.getChapter('cmr'),
+    { phase: 'cutscene', score: 78, npcChoice: 2 });
+});

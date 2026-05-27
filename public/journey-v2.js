@@ -85,7 +85,10 @@ function createChapterStore(storage) {
   function persist() { saveJourneyState(storage, state); }
 
   function getChapter(id) {
-    return state.chapters[id] ?? { phase: 'unseen', score: null, npcChoice: null };
+    const existing = state.chapters[id];
+    return existing
+      ? { ...existing }
+      : { phase: 'unseen', score: null, npcChoice: null };
   }
 
   function send(id, event) {
