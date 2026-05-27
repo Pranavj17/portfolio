@@ -882,6 +882,13 @@
         .v2-quest-list { list-style: none; padding: 0; margin: 0; }
         .v2-quest-list li { padding: 1px 0; }
         .v2-quest-list li.done { opacity: 0.55; text-decoration: line-through; }
+
+        /* v2 · Act III mini-game overlay */
+        .v2-minigame-card { background: var(--bg-deep); border: 1px solid var(--mahogany); padding: 18px; max-width: 420px; }
+        .v2-minigame-header { display: flex; justify-content: space-between; margin-bottom: 10px;
+                              font-family: 'Cinzel', serif; letter-spacing: 0.15em; color: var(--accent); font-size: 0.85rem; }
+        #v2-minigame-canvas { display: block; width: 100%; height: auto; background: #2a1c10; border: 1px solid var(--mahogany); }
+        .v2-minigame-prompt { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; opacity: 0.75; text-align: center; }
     </style>
 
 </head>
@@ -1011,6 +1018,18 @@
       <div class="v2-quest-title" id="v2-quest-title">QUEST</div>
       <div class="v2-quest-progress" id="v2-quest-progress">0 / 3</div>
       <ul class="v2-quest-list" id="v2-quest-list"></ul>
+    </div>
+
+    <!-- v2 · Act III mini-game overlay -->
+    <div id="v2-minigame" class="v2-overlay" aria-hidden="true">
+      <div class="v2-minigame-card">
+        <div class="v2-minigame-header">
+          <span class="v2-minigame-name" id="v2-minigame-name"></span>
+          <span class="v2-minigame-timer" id="v2-minigame-timer">10.0s</span>
+        </div>
+        <canvas id="v2-minigame-canvas" width="360" height="240"></canvas>
+        <div class="v2-minigame-prompt" id="v2-minigame-prompt"></div>
+      </div>
     </div>
 
     <script>
