@@ -213,7 +213,33 @@ function attachInputRouter(target, onGesture) {
 }
 
 
-// === src/journey/ui/hud.js === (missing — skipped)
+// === src/journey/ui/hud.js ===
+
+/**
+ * Quest checklist renderer. Reads from QUESTS[chapterId] and a collectedMap,
+ * paints the panel, fades in/out via aria-hidden.
+ */
+function showQuestHud(chapterId, collectedMap) {
+  const q = QUESTS[chapterId];
+  if (!q) return hideQuestHud();
+  const $hud = document.getElementById('v2-quest-hud');
+  const $title = document.getElementById('v2-quest-title');
+  const $progress = document.getElementById('v2-quest-progress');
+  const $list = document.getElementById('v2-quest-list');
+  const p = questProgress(q.beats, q.needed, collectedMap);
+  $title.textContent = `${chapterId.toUpperCase()} · QUEST`;
+  $progress.textContent = `${p.done} / ${q.needed}`;
+  $list.innerHTML = q.beats
+    .map(b => `<li class="${collectedMap[b] ? 'done' : ''}">${collectedMap[b] ? '✓' : '○'} ${b}</li>`)
+    .join('');
+  $hud.setAttribute('aria-hidden', 'false');
+}
+
+function hideQuestHud() {
+  const $hud = document.getElementById('v2-quest-hud');
+  if ($hud) $hud.setAttribute('aria-hidden', 'true');
+}
+
 
 // === src/journey/acts/cutscene.js ===
 
@@ -320,7 +346,30 @@ function presentNpc(chapterId, onDone) {
 }
 
 
-// === src/journey/acts/quest.js === (missing — skipped)
+// === src/journey/acts/quest.js ===
+
+/**
+ * Quest = a subset of chapter beats the player must collect to gate Act III.
+ * Pure logic — DOM rendering lives in ui/hud.js.
+ *
+ * Beat collection comes from the v1 state.discoveredBeats Set; we hand it
+ * in as a plain object map for testability.
+ */
+
+const QUESTS = {
+  __placeholder: { beats: ['p1', 'p2', 'p3'], needed: 2 },
+};
+
+function questProgress(beatIds, needed, collectedMap) {
+  const collected = beatIds.filter(b => collectedMap[b]);
+  const remaining = beatIds.filter(b => !collectedMap[b]);
+  return { done: collected.length, needed, collected, remaining };
+}
+
+function isQuestComplete(beatIds, needed, collectedMap) {
+  return questProgress(beatIds, needed, collectedMap).done >= needed;
+}
+
 
 // === src/journey/acts/minigame.js === (missing — skipped)
 
