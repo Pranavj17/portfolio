@@ -5,8 +5,8 @@
  */
 window.__journeyV2 = {
   playCutscene,
+  presentNpc,
   // populated in later tasks:
-  presentNpc: null,
   initMinigame: null,
   showCulmination: null,
   store: null,
