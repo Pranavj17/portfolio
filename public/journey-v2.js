@@ -113,7 +113,21 @@ function createChapterStore(storage) {
 }
 
 
-// === src/journey/data/cutscenes.js === (missing — skipped)
+// === src/journey/data/cutscenes.js ===
+
+/**
+ * Per-chapter Act I cutscene lines. Each entry:
+ *   { lines: [...string], durationMs: number }
+ * Phase 2 populates `cmr`. Other chapters stay empty until Phase 3 — the
+ * cutscene player gracefully no-ops on a missing entry.
+ */
+const CUTSCENES = {
+  __placeholder: {
+    lines: ['act i', 'a placeholder line', 'tap to continue'],
+    durationMs: 4000,
+  },
+};
+
 
 // === src/journey/data/culminations.js === (missing — skipped)
 
@@ -182,7 +196,45 @@ function attachInputRouter(target, onGesture) {
 
 // === src/journey/ui/hud.js === (missing — skipped)
 
-// === src/journey/acts/cutscene.js === (missing — skipped)
+// === src/journey/acts/cutscene.js ===
+
+/**
+ * Act I cutscene player. Fades lines in one-by-one, dismisses on tap or
+ * after durationMs. Calls onDismiss() exactly once.
+ *
+ * Browser-only: touches DOM. Reduced-motion mode displays all lines at
+ * once with no animation and shortens display time.
+ */
+function playCutscene(chapterId, intertitle, onDismiss) {
+  const data = CUTSCENES[chapterId] ?? CUTSCENES.__placeholder;
+  const overlay = document.getElementById('v2-cutscene');
+  const actEl   = document.getElementById('v2-cutscene-act');
+  const linesEl = document.getElementById('v2-cutscene-lines');
+  if (!overlay || !actEl || !linesEl) {
+    onDismiss();
+    return;
+  }
+  actEl.textContent = intertitle?.act ? `${intertitle.act} · ${intertitle.title ?? ''}` : '';
+  linesEl.innerHTML = data.lines
+    .map((t, i) => `<div class="v2-line" style="animation-delay:${i * 0.7}s">${t}</div>`)
+    .join('');
+  overlay.setAttribute('aria-hidden', 'false');
+
+  let dismissed = false;
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    document.removeEventListener('keydown', onKey, true);
+    overlay.removeEventListener('click', dismiss);
+    onDismiss();
+  }
+  function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); } }
+  overlay.addEventListener('click', dismiss);
+  document.addEventListener('keydown', onKey, true);
+  setTimeout(dismiss, data.durationMs);
+}
+
 
 // === src/journey/acts/npc.js === (missing — skipped)
 
@@ -194,6 +246,20 @@ function attachInputRouter(target, onGesture) {
 
 // === src/journey/acts/culmination.js === (missing — skipped)
 
-// === src/journey/bootstrap.js === (missing — skipped)
+// === src/journey/bootstrap.js ===
+
+/**
+ * Exposes v2 internals on window.__journeyV2 for integration tests and
+ * for the v1 game loop to call into during Phase 2 wiring.
+ */
+window.__journeyV2 = {
+  playCutscene,
+  // populated in later tasks:
+  presentNpc: null,
+  initMinigame: null,
+  showCulmination: null,
+  store: null,
+};
+
 
 })();

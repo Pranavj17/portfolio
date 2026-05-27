@@ -828,6 +828,28 @@
                 padding: 5px 8px;
             }
         }
+
+        /* v2 · Act I cutscene overlay */
+        .v2-overlay {
+          position: fixed; inset: 0; z-index: 60;
+          background: rgba(31, 22, 16, 0.94);
+          display: none; align-items: center; justify-content: center;
+          font-family: 'IM Fell English', serif;
+          color: var(--paper);
+        }
+        .v2-overlay[aria-hidden="false"] { display: flex; }
+        .v2-cutscene-card { max-width: 540px; text-align: center; padding: 24px; }
+        .v2-cutscene-act {
+          font-family: 'Cinzel', serif; letter-spacing: 0.18em;
+          font-size: 0.9rem; opacity: 0.65; margin-bottom: 8px;
+        }
+        .v2-cutscene-lines { font-size: 1.2rem; line-height: 1.6; }
+        .v2-cutscene-lines .v2-line { opacity: 0; animation: v2-fade 0.6s forwards; }
+        .v2-cutscene-cta {
+          margin-top: 24px; font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.8rem; opacity: 0.55;
+        }
+        @keyframes v2-fade { to { opacity: 1; } }
     </style>
 
 </head>
@@ -932,6 +954,15 @@
             </p>
         </div>
     </main>
+
+    <!-- v2 · Act I cutscene overlay -->
+    <div id="v2-cutscene" class="v2-overlay" aria-hidden="true">
+      <div class="v2-cutscene-card">
+        <div class="v2-cutscene-act" id="v2-cutscene-act"></div>
+        <div class="v2-cutscene-lines" id="v2-cutscene-lines"></div>
+        <div class="v2-cutscene-cta">▸ tap to continue ▸</div>
+      </div>
+    </div>
 
     <script>
       // Feature flag: ?v=2 loads the 3-act milestone harness; default stays v1.

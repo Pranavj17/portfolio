@@ -1,0 +1,13 @@
+// === src/journey/data/cutscenes.js ===
+/**
+ * Per-chapter Act I cutscene lines. Each entry:
+ *   { lines: [...string], durationMs: number }
+ * Phase 2 populates `cmr`. Other chapters stay empty until Phase 3 — the
+ * cutscene player gracefully no-ops on a missing entry.
+ */
+const CUTSCENES = {
+  __placeholder: {
+    lines: ['act i', 'a placeholder line', 'tap to continue'],
+    durationMs: 4000,
+  },
+};
