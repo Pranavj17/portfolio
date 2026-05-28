@@ -889,6 +889,10 @@
                               font-family: 'Cinzel', serif; letter-spacing: 0.15em; color: var(--accent); font-size: 0.85rem; }
         #v2-minigame-canvas { display: block; width: 100%; height: auto; background: #2a1c10; border: 1px solid var(--mahogany); }
         .v2-minigame-prompt { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; opacity: 0.75; text-align: center; }
+
+        /* v2 · Act III culmination card */
+        .v2-culmination-card { max-width: 540px; padding: 32px; text-align: center; }
+        .v2-culmination-text { font-family: 'IM Fell English', serif; font-style: italic; font-size: 1.25rem; line-height: 1.7; color: var(--paper); }
     </style>
 
 </head>
@@ -1029,6 +1033,14 @@
         </div>
         <canvas id="v2-minigame-canvas" width="360" height="240"></canvas>
         <div class="v2-minigame-prompt" id="v2-minigame-prompt"></div>
+      </div>
+    </div>
+
+    <!-- v2 · Act III culmination card -->
+    <div id="v2-culmination" class="v2-overlay" aria-hidden="true">
+      <div class="v2-culmination-card">
+        <div class="v2-culmination-text" id="v2-culmination-text"></div>
+        <div class="v2-cutscene-cta">▸ tap to continue ▸</div>
       </div>
     </div>
 

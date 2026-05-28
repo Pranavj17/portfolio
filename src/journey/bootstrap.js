@@ -7,7 +7,6 @@ window.__journeyV2 = {
   playCutscene,
   presentNpc,
   initMinigame,
-  // populated in later tasks:
-  showCulmination: null,
-  store: null,
+  showCulmination,
+  store: createChapterStore(window.localStorage),
 };
