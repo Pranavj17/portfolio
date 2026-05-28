@@ -19,7 +19,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null
@@ -261,6 +261,10 @@ const CUTSCENES = {
     lines: ['the first hour.', 'belongs to whoever claims it.', 'claim it.'],
     durationMs: 6000,
   },
+  sakha: {
+    lines: ['interview · five.', 'the call.', 'you cracked it.'],
+    durationMs: 7000,
+  },
 };
 
 
@@ -272,6 +276,7 @@ const CULMINATIONS = {
   itics: 'the years that taught you how to lose without breaking. cricket whites, scuffed knees, the morning bell that never asked twice.',
   scripbox: "the catalog page that wouldn't stop reloading. you sent the link to four people who never asked. for the first time the work didn't just pay — it was seen by a name you'd only ever read in papers.",
   now: 'morning coffee · terminal warmth · two hours that feel like ten minutes. the day belongs to whoever claims the first hour. you\'re claiming yours.',
+  sakha: "three years and one pandemic. you bought a watch for dad and a saree for mum from your first paycheck. by the time covid ended you had shipped enough PRs that the team's git log read like your handwriting.",
 };
 
 
@@ -328,6 +333,15 @@ const NPCS = {
       { label: 'for now', reply: 'for now is enough. it always was.' },
     ],
     close: "the day belongs to whoever claims the first hour. you're claiming yours.",
+  },
+  sakha: {
+    name: 'THE TECH LEAD', sprite: '🧑‍🔧',
+    open: 'five interviews. tell me about the last one.',
+    choices: [
+      { label: 'ran out of time',              reply: 'time runs out on everyone. you came back. that\'s the part.' },
+      { label: 'over-prepared the wrong part', reply: 'every junior does. mine was hash maps. yours?' },
+    ],
+    close: 'monday at nine. wear something with a collar.',
   },
 };
 
@@ -553,6 +567,10 @@ const QUESTS = {
   now: {
     beats: ['morning-routine', 'code-flow', 'anthropic-goal', 'forward-horizon'],
     needed: 4,
+  },
+  sakha: {
+    beats: ['interview-day', 'first-paycheck', 'wfh-covid', 'late-night-coding'],
+    needed: 3,
   },
 };
 
@@ -916,6 +934,81 @@ MINIGAMES.now = {
 
   score(state) {
     const raw = 50 + Math.floor((state.progress / state.word.length) * 50);
+    return Math.max(50, Math.min(100, raw));
+  },
+
+  scoreLabel(score) { return `${score}/100`; },
+};
+
+
+// === src/journey/acts/minigames/standup-bingo.js ===
+
+/**
+ * `standup-bingo` · SAKHA mini-game.
+ * 3×3 grid of standup phrases. Every ~900ms a random cell flashes
+ * ("active"). Tap it within ~900ms to catch it. Score scales with caught
+ * count over 10s. No-fail floor 50.
+ */
+MINIGAMES.sakha = {
+  id: 'standup-bingo',
+  label: 'SAKHA · STANDUP',
+  durationMs: 10000,
+  prompt: 'tap the flashing cards · they only stay for a beat',
+
+  init(ctx, helpers) {
+    return {
+      cells: [
+        'blockers?', 'shipping today', 'merge ready',
+        'EOD?', 'standup soon', 'PR review',
+        'one bug', '+1', 'LGTM',
+      ],
+      activeIdx: null,
+      tSinceLast: 0,
+      caught: 0,
+      canvas: helpers.canvas,
+    };
+  },
+
+  update(state, dt) {
+    state.tSinceLast += dt;
+    if (state.tSinceLast >= 900) {
+      state.tSinceLast = 0;
+      state.activeIdx = Math.floor(Math.random() * 9);
+    }
+  },
+
+  render(state, ctx) {
+    const W = state.canvas.width, H = state.canvas.height;
+    ctx.fillStyle = '#1f1610'; ctx.fillRect(0, 0, W, H);
+    const cw = W / 3, ch = H / 3;
+    ctx.font = '12px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < 9; i++) {
+      const cx = (i % 3) * cw, cy = Math.floor(i / 3) * ch;
+      const active = i === state.activeIdx;
+      ctx.fillStyle = active ? '#d4a653' : '#2a1c10';
+      ctx.fillRect(cx + 4, cy + 4, cw - 8, ch - 8);
+      ctx.fillStyle = active ? '#1f1610' : '#e9d8b0';
+      ctx.fillText(state.cells[i], cx + cw / 2, cy + ch / 2 + 4);
+    }
+    ctx.textAlign = 'left';
+  },
+
+  onGesture(state, gesture, ev) {
+    if (gesture.kind !== 'TAP') return;
+    const W = state.canvas.width, H = state.canvas.height;
+    const x = ev.offsetX ?? 0, y = ev.offsetY ?? 0;
+    const cw = W / 3, ch = H / 3;
+    const idx = Math.floor(y / ch) * 3 + Math.floor(x / cw);
+    if (idx === state.activeIdx) {
+      state.caught++;
+      state.activeIdx = null;
+      state.tSinceLast = 0;
+    }
+  },
+
+  score(state) {
+    const raw = 50 + state.caught * 6;
     return Math.max(50, Math.min(100, raw));
   },
 

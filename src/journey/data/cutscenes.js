@@ -26,4 +26,8 @@ const CUTSCENES = {
     lines: ['the first hour.', 'belongs to whoever claims it.', 'claim it.'],
     durationMs: 6000,
   },
+  sakha: {
+    lines: ['interview · five.', 'the call.', 'you cracked it.'],
+    durationMs: 7000,
+  },
 };

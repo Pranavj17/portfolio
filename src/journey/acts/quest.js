@@ -25,6 +25,10 @@ const QUESTS = {
     beats: ['morning-routine', 'code-flow', 'anthropic-goal', 'forward-horizon'],
     needed: 4,
   },
+  sakha: {
+    beats: ['interview-day', 'first-paycheck', 'wfh-covid', 'late-night-coding'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

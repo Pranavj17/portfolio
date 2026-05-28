@@ -51,4 +51,13 @@ const NPCS = {
     ],
     close: "the day belongs to whoever claims the first hour. you're claiming yours.",
   },
+  sakha: {
+    name: 'THE TECH LEAD', sprite: '🧑‍🔧',
+    open: 'five interviews. tell me about the last one.',
+    choices: [
+      { label: 'ran out of time',              reply: 'time runs out on everyone. you came back. that\'s the part.' },
+      { label: 'over-prepared the wrong part', reply: 'every junior does. mine was hash maps. yours?' },
+    ],
+    close: 'monday at nine. wear something with a collar.',
+  },
 };

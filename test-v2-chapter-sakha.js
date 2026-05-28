@@ -7,9 +7,7 @@ const {
 const URL = process.argv[2] || 'http://localhost:3000';
 
 // Walk until the bridge reports the desired chapter or we time out.
-// SCRIPBOX chapter.x = 4400 — much farther than CMR/ITICS, so use a longer
-// timeout. With vehicle auto-upgrades (run/cycle/bike) the walk is faster
-// than a pure 60 px/s baseline.
+// SAKHA chapter.x = 3600 — between ITICS (500) and SCRIPBOX (4400).
 async function walkUntilChapter(page, chapterId, maxMs = 90000) {
   await page.keyboard.down('ArrowRight');
   const t0 = Date.now();
@@ -32,14 +30,15 @@ async function walkUntilChapter(page, chapterId, maxMs = 90000) {
 
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  // Pre-seed earlier chapters so the orchestrator's re-entry guard skips them
-  // when the player walks past their world-x positions. Seed BEFORE the
-  // second load so the v2 store reads the seeded snapshot at bootstrap.
-  await seedCompletedChapters(page, ['itics', 'cmr', 'sakha']);
+  // Pre-seed earlier v2-enabled chapters (those at x < SAKHA's x=3600) so the
+  // orchestrator's re-entry guard skips them as the player walks past.
+  // ITICS=500, CMR=1200 are before SAKHA. SCRIPBOX=4400 and NOW=6200 are after,
+  // so the player won't reach them in this walk and they don't need seeding.
+  await seedCompletedChapters(page, ['itics', 'cmr']);
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => !!window.__journeyV1Bridge && !!window.__journeyV2, { timeout: 8000 });
 
-  await walkUntilChapter(page, 'scripbox');
+  await walkUntilChapter(page, 'sakha', 90000);
   await waitVisible(page, '#v2-cutscene', 12000);
   await page.click('#v2-cutscene');
 
@@ -51,22 +50,28 @@ async function walkUntilChapter(page, chapterId, maxMs = 90000) {
   await new Promise(r => setTimeout(r, 100));
   await page.click('#v2-npc');
 
-  await collectBeatsViaV1(page, 'scripbox', ['pr-review', 'anthropic-catalog', 'claude-code']);
+  await collectBeatsViaV1(page, 'sakha', ['interview-day', 'first-paycheck', 'wfh-covid']);
 
   await waitVisible(page, '#v2-minigame', 8000);
-  // debug-the-pr is TAP-on-line. Tap roughly at line 1 (the bug line).
-  await page.click('#v2-minigame-canvas');
-  await new Promise(r => setTimeout(r, 8500));
+  // standup-bingo: random cells flash; tap repeatedly at center to potentially catch
+  const box = await page.$eval('#v2-minigame-canvas', el => {
+    const b = el.getBoundingClientRect();
+    return { left: b.left, top: b.top, w: b.width, h: b.height };
+  });
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.click(box.left + box.w / 2, box.top + box.h / 2);
+    await new Promise(r => setTimeout(r, 900));
+  }
+  await new Promise(r => setTimeout(r, 1500));
 
   await waitVisible(page, '#v2-culmination', 3000);
-  // v1's playStageVideo may overlay culmination; click via in-page dispatch
   await page.evaluate(() => document.getElementById('v2-culmination').click());
 
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('journey')));
-  const ch = persisted.chapters?.scripbox;
-  if (!ch || ch.phase !== 'complete') throw new Error(`SCRIPBOX phase != complete: ${ch?.phase}`);
-  if (typeof ch.score !== 'number') throw new Error('SCRIPBOX score missing');
+  const ch = persisted.chapters?.sakha;
+  if (!ch || ch.phase !== 'complete') throw new Error(`SAKHA phase != complete: ${ch?.phase}`);
+  if (typeof ch.score !== 'number') throw new Error('SAKHA score missing');
 
-  console.log(`PASS: SCRIPBOX full vignette · score=${ch.score} npcChoice=${ch.npcChoice}`);
+  console.log(`PASS: SAKHA full vignette · score=${ch.score} npcChoice=${ch.npcChoice}`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
