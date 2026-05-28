@@ -11,7 +11,7 @@
     "watch": "nodemon --watch routes --watch server.js --watch public/index.html --watch public/styles.css --watch src/journey --exec 'npm run build:v2 && node server.js'",
     "postinstall": "npm run build",
     "generate-pdf": "node generate-pdf.js",
-    "test:unit": "node --test tests/unit/",
+    "test:unit": "node --test tests/unit/*.test.js",
     "test:integration": "for f in test-v2-flag.js test-v2-cutscene.js test-v2-npc.js test-v2-minigame.js test-v2-culmination.js test-v2-chapter-cmr.js test-v2-chapter-itics.js test-v2-chapter-scripbox.js test-v2-chapter-now.js test-v2-chapter-sakha.js test-v2-chapter-college.js test-v2-chapter-fever104.js test-v2-chapter-vwgt.js test-v2-reentry.js test-v2-reduced-motion.js; do echo \"▸ $f\"; node $f || exit 1; done",
     "test": "npm run test:unit && npm run test:integration"
   },
