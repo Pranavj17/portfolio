@@ -75,10 +75,10 @@ function collectedBeatsMap() {
   return m;
 }
 
-let _questPollTimer = null;
+const _questPollTimers = {};   // { [chapterId]: intervalId }
 function pollQuest(chapterId) {
-  if (_questPollTimer) clearInterval(_questPollTimer);
-  _questPollTimer = setInterval(() => {
+  if (_questPollTimers[chapterId]) clearInterval(_questPollTimers[chapterId]);
+  _questPollTimers[chapterId] = setInterval(() => {
     const cm = collectedBeatsMap();
     showQuestHud(chapterId, cm);
     const q = QUESTS[chapterId];
@@ -88,16 +88,19 @@ function pollQuest(chapterId) {
   }, 500);
 }
 
-let _act3Started = false;
+const _act3Started = {};       // { [chapterId]: true }
 function checkQuestComplete(chapterId) {
-  if (_act3Started) return;
+  if (_act3Started[chapterId]) return;
   const q = QUESTS[chapterId];
   const cm = collectedBeatsMap();
   if (!q || !isQuestComplete(q.beats, q.needed, cm)) return;
   // Need NPC choice recorded AND quest complete
   if (window.__journeyV2.store.getChapter(chapterId).npcChoice == null) return;
-  _act3Started = true;
-  if (_questPollTimer) clearInterval(_questPollTimer);
+  _act3Started[chapterId] = true;
+  if (_questPollTimers[chapterId]) {
+    clearInterval(_questPollTimers[chapterId]);
+    delete _questPollTimers[chapterId];
+  }
   hideQuestHud();
   window.__journeyV2.store.send(chapterId, 'QUEST_COMPLETE');   // → closing
   initMinigame(chapterId, ({ score, label }) => {
@@ -106,7 +109,7 @@ function checkQuestComplete(chapterId) {
     const lbl = window.__journeyV1Bridge?.getChapterLabel?.(chapterId) ?? chapterId.toUpperCase();
     showCulmination(chapterId, lbl, () => {
       window.__journeyV2.store.send(chapterId, 'DISMISS');      // → complete
-      _act3Started = false;
+      delete _act3Started[chapterId];
       _activeFlow = null;
     });
   });
