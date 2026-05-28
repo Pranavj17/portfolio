@@ -60,4 +60,13 @@ const NPCS = {
     ],
     close: 'monday at nine. wear something with a collar.',
   },
+  college: {
+    name: 'THE TRIPLE-RIDER', sprite: '🛵',
+    open: 'you walking again?',
+    choices: [
+      { label: 'saving bus fare', reply: 'lend me ten then. tomorrow\'s my treat.' },
+      { label: 'lost my pass',    reply: 'same. third time this month. hop on.' },
+    ],
+    close: 'next class is on the other side. hold on tight.',
+  },
 };

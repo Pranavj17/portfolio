@@ -26,6 +26,7 @@ const MANIFEST = [
   'src/journey/acts/minigames/debug-the-pr.js',
   'src/journey/acts/minigames/type-the-future.js',
   'src/journey/acts/minigames/standup-bingo.js',
+  'src/journey/acts/minigames/cad-snap.js',
   'src/journey/acts/culmination.js',
   'src/journey/bootstrap.js',
 ];

@@ -30,4 +30,8 @@ const CUTSCENES = {
     lines: ['interview · five.', 'the call.', 'you cracked it.'],
     durationMs: 7000,
   },
+  college: {
+    lines: ['bus three of three.', 'campus by 8:55.', 'four years like this.'],
+    durationMs: 7500,
+  },
 };

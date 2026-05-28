@@ -34,7 +34,7 @@ async function walkUntilChapter(page, chapterId, maxMs = 90000) {
   // orchestrator's re-entry guard skips them as the player walks past.
   // ITICS=500, CMR=1200 are before SAKHA. SCRIPBOX=4400 and NOW=6200 are after,
   // so the player won't reach them in this walk and they don't need seeding.
-  await seedCompletedChapters(page, ['itics', 'cmr']);
+  await seedCompletedChapters(page, ['itics', 'cmr', 'college']);
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => !!window.__journeyV1Bridge && !!window.__journeyV2, { timeout: 8000 });
 

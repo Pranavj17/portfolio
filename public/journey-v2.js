@@ -19,7 +19,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null
@@ -265,6 +265,10 @@ const CUTSCENES = {
     lines: ['interview · five.', 'the call.', 'you cracked it.'],
     durationMs: 7000,
   },
+  college: {
+    lines: ['bus three of three.', 'campus by 8:55.', 'four years like this.'],
+    durationMs: 7500,
+  },
 };
 
 
@@ -277,6 +281,7 @@ const CULMINATIONS = {
   scripbox: "the catalog page that wouldn't stop reloading. you sent the link to four people who never asked. for the first time the work didn't just pay — it was seen by a name you'd only ever read in papers.",
   now: 'morning coffee · terminal warmth · two hours that feel like ten minutes. the day belongs to whoever claims the first hour. you\'re claiming yours.',
   sakha: "three years and one pandemic. you bought a watch for dad and a saree for mum from your first paycheck. by the time covid ended you had shipped enough PRs that the team's git log read like your handwriting.",
+  college: "four years of triples and three-bus commutes. you didn't graduate top of class. you graduated knowing what real work felt like before anyone paid you for it.",
 };
 
 
@@ -342,6 +347,15 @@ const NPCS = {
       { label: 'over-prepared the wrong part', reply: 'every junior does. mine was hash maps. yours?' },
     ],
     close: 'monday at nine. wear something with a collar.',
+  },
+  college: {
+    name: 'THE TRIPLE-RIDER', sprite: '🛵',
+    open: 'you walking again?',
+    choices: [
+      { label: 'saving bus fare', reply: 'lend me ten then. tomorrow\'s my treat.' },
+      { label: 'lost my pass',    reply: 'same. third time this month. hop on.' },
+    ],
+    close: 'next class is on the other side. hold on tight.',
   },
 };
 
@@ -570,6 +584,10 @@ const QUESTS = {
   },
   sakha: {
     beats: ['interview-day', 'first-paycheck', 'wfh-covid', 'late-night-coding'],
+    needed: 3,
+  },
+  college: {
+    beats: ['bosch-intern', 'abb-intern', 'fest-stage', 'convocation'],
     needed: 3,
   },
 };
@@ -1010,6 +1028,116 @@ MINIGAMES.sakha = {
   score(state) {
     const raw = 50 + state.caught * 6;
     return Math.max(50, Math.min(100, raw));
+  },
+
+  scoreLabel(score) { return `${score}/100`; },
+};
+
+
+// === src/journey/acts/minigames/cad-snap.js ===
+
+/**
+ * `cad-snap` · DSCE mini-game.
+ * Pick up parts (tap) then place at slots (tap). Auto-snap when released
+ * within snap-distance. Score scales with snapped count.
+ *
+ * Internal helpers `snapPart` and `tryPlace` are exposed via the game
+ * object so unit tests can drive the state machine.
+ */
+const CAD_SNAP_DISTANCE = 30;
+
+MINIGAMES.college = {
+  id: 'cad-snap',
+  label: 'DSCE · CAD',
+  durationMs: 10000,
+  prompt: 'tap a part to pick it up · tap a slot to drop it',
+
+  init(ctx, helpers) {
+    const W = helpers.canvas ? helpers.canvas.width : 360;
+    const H = helpers.canvas ? helpers.canvas.height : 240;
+    return {
+      slots: [
+        { x: W * 0.25, y: H * 0.30, label: 'piston' },
+        { x: W * 0.50, y: H * 0.30, label: 'gear'   },
+        { x: W * 0.75, y: H * 0.30, label: 'cam'    },
+      ],
+      parts: [
+        { x: W * 0.20, y: H * 0.80, label: 'piston', snapped: false },
+        { x: W * 0.50, y: H * 0.80, label: 'gear',   snapped: false },
+        { x: W * 0.80, y: H * 0.80, label: 'cam',    snapped: false },
+      ],
+      dragging: -1,
+      elapsedMs: 0,
+      canvas: helpers.canvas,
+    };
+  },
+
+  snapPart(state, idx) {
+    const part = state.parts[idx];
+    const slot = state.slots.find(s => s.label === part.label);
+    part.x = slot.x;
+    part.y = slot.y;
+    part.snapped = true;
+  },
+
+  tryPlace(state, idx) {
+    const part = state.parts[idx];
+    for (const slot of state.slots) {
+      if (slot.label !== part.label) continue;
+      const dx = slot.x - part.x, dy = slot.y - part.y;
+      if (Math.sqrt(dx * dx + dy * dy) <= CAD_SNAP_DISTANCE) {
+        this.snapPart(state, idx);
+        return true;
+      }
+    }
+    return false;
+  },
+
+  update(state, dt) { state.elapsedMs += dt; },
+
+  render(state, ctx) {
+    const W = state.canvas.width, H = state.canvas.height;
+    ctx.fillStyle = '#1f1610'; ctx.fillRect(0, 0, W, H);
+    ctx.font = '11px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    for (const slot of state.slots) {
+      ctx.strokeStyle = '#5a2e1a'; ctx.lineWidth = 1;
+      ctx.strokeRect(slot.x - 22, slot.y - 22, 44, 44);
+      ctx.fillStyle = '#5a2e1a';
+      ctx.fillText(slot.label, slot.x, slot.y + 40);
+    }
+    for (let i = 0; i < state.parts.length; i++) {
+      const p = state.parts[i];
+      ctx.fillStyle = p.snapped ? '#d4a653' : '#e9d8b0';
+      ctx.fillRect(p.x - 18, p.y - 18, 36, 36);
+      ctx.fillStyle = '#1f1610';
+      ctx.fillText(p.label, p.x, p.y + 4);
+    }
+    ctx.textAlign = 'left';
+  },
+
+  onGesture(state, gesture, ev) {
+    if (gesture.kind !== 'TAP' && gesture.kind !== 'HOLD') return;
+    if (state.dragging >= 0) {
+      this.tryPlace(state, state.dragging);
+      state.dragging = -1;
+    } else {
+      const x = ev.offsetX ?? 0, y = ev.offsetY ?? 0;
+      for (let i = 0; i < state.parts.length; i++) {
+        const p = state.parts[i];
+        if (p.snapped) continue;
+        if (Math.abs(p.x - x) <= 22 && Math.abs(p.y - y) <= 22) {
+          p.x = x; p.y = y;
+          state.dragging = i;
+          return;
+        }
+      }
+    }
+  },
+
+  score(state) {
+    const snapped = state.parts.filter(p => p.snapped).length;
+    return Math.max(50, Math.min(100, 50 + snapped * 17));
   },
 
   scoreLabel(score) { return `${score}/100`; },

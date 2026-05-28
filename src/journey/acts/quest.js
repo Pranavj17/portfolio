@@ -29,6 +29,10 @@ const QUESTS = {
     beats: ['interview-day', 'first-paycheck', 'wfh-covid', 'late-night-coding'],
     needed: 3,
   },
+  college: {
+    beats: ['bosch-intern', 'abb-intern', 'fest-stage', 'convocation'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {
