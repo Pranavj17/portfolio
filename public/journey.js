@@ -9308,4 +9308,36 @@
 
     // debug
     window.__journey = { state, CHAPTERS, BEATS, openLoreCard, dismissLoreCard };
+
+    // === v2 bridge · exposes v1 internals to journey-v2.js when both load ===
+    // Defensive: each accessor is null-safe so v1 still works if v2 isn't loaded.
+    window.__journeyV1Bridge = {
+        getCurrentChapterId() {
+            if (typeof state !== 'object' || typeof state.playerX !== 'number') return null;
+            if (typeof chapterIdxAt !== 'function' || !Array.isArray(CHAPTERS)) return null;
+            const idx = chapterIdxAt(state.playerX);
+            return (idx >= 0 && idx < CHAPTERS.length) ? CHAPTERS[idx].id : null;
+        },
+        getDiscoveredBeats() {
+            // v1 stores beats as `${chapter}:${beatId}` (see openLoreCard).
+            // v2's QUESTS config uses unprefixed beat ids, so we strip the
+            // prefix here at the boundary. Bridge returns a Set of bare ids.
+            if (!state || !(state.discoveredBeats instanceof Set)) return new Set();
+            const out = new Set();
+            for (const raw of state.discoveredBeats) {
+                const i = raw.indexOf(':');
+                out.add(i >= 0 ? raw.slice(i + 1) : raw);
+            }
+            return out;
+        },
+        getIntertitle(id) {
+            return (typeof CHAPTER_INTERTITLES === 'object') ? (CHAPTER_INTERTITLES[id] || {}) : {};
+        },
+        getChapterLabel(id) {
+            if (!Array.isArray(CHAPTERS)) return id.toUpperCase();
+            const ch = CHAPTERS.find(c => c.id === id);
+            return ch ? ch.label : id.toUpperCase();
+        },
+        playStageVideo: typeof playStageVideo === 'function' ? playStageVideo : (() => {}),
+    };
 })();
