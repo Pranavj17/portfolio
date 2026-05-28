@@ -1045,6 +1045,26 @@
     </div>
 
     <script>
+      // v1 → v2 bridge. For the Phase 2 vertical slice we honor #cmr as a
+      // forced chapter override; otherwise the bridge reports no chapter, and
+      // v2 idles. Phase 3 replaces this with real v1 chapter-detection wiring.
+      if (new URLSearchParams(location.search).get('v') === '2') {
+        window.__journeyV1Bridge = {
+          getCurrentChapterId: () => location.hash === '#cmr' ? 'cmr' : null,
+          getDiscoveredBeats: () => new Set(JSON.parse(localStorage.getItem('cmr-beats') ?? '[]')),
+          getIntertitle: id => ({ cmr: { act: 'ACT II', title: 'THE PRESSURE COOKER' } }[id] ?? {}),
+          getChapterLabel: id => ({ cmr: 'CMR NATIONAL' }[id] ?? id.toUpperCase()),
+        };
+        // Dev affordance: tap the canvas to add a beat to localStorage so the
+        // quest progresses without v1 walking. Phase 3 replaces this with v1 wiring.
+        window.__cmrAddBeat = function (id) {
+          const cur = JSON.parse(localStorage.getItem('cmr-beats') ?? '[]');
+          if (!cur.includes(id)) cur.push(id);
+          localStorage.setItem('cmr-beats', JSON.stringify(cur));
+        };
+      }
+    </script>
+    <script>
       // Feature flag: ?v=2 loads the 3-act milestone harness; default stays v1.
       (function () {
         var v = new URLSearchParams(location.search).get('v');
