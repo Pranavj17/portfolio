@@ -59,16 +59,22 @@ function startChapterFlow(chapterId) {
 function enterExploring(chapterId) {
   const collectedMap = collectedBeatsMap();
   showQuestHud(chapterId, collectedMap);
-  // The NPC is presented when the player taps the NPC sprite. For the
-  // Phase-2 slice we auto-present it 800ms after entering exploring (so the
-  // cutscene fade isn't stepped on). Phase 3 wires a real tappable sprite.
-  setTimeout(() => {
-    presentNpc(chapterId, idx => {
-      window.__journeyV2.store.setNpcChoice(chapterId, idx);
-      checkQuestComplete(chapterId);
-    });
-  }, 800);
-  // Poll for quest completion as the player walks and collects beats
+  const npcAlreadyAnswered = window.__journeyV2.store.getChapter(chapterId).npcChoice != null;
+  if (!npcAlreadyAnswered) {
+    // First entry · auto-present the NPC after 800ms so the cutscene fade
+    // doesn't step on it. The choice callback feeds into checkQuestComplete.
+    setTimeout(() => {
+      presentNpc(chapterId, idx => {
+        window.__journeyV2.store.setNpcChoice(chapterId, idx);
+        checkQuestComplete(chapterId);
+      });
+    }, 800);
+  } else {
+    // C-2 fix · re-entry · NPC already answered, don't re-present. If the
+    // quest is now complete (player may have collected the remaining beats
+    // while away), advance to Act III immediately.
+    setTimeout(() => checkQuestComplete(chapterId), 100);
+  }
   pollQuest(chapterId);
 }
 
