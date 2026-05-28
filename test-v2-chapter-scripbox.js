@@ -59,8 +59,7 @@ async function walkUntilChapter(page, chapterId, maxMs = 90000) {
   await new Promise(r => setTimeout(r, 8500));
 
   await waitVisible(page, '#v2-culmination', 3000);
-  // v1's playStageVideo may overlay culmination; click via in-page dispatch
-  await page.evaluate(() => document.getElementById('v2-culmination').click());
+  await page.click('#v2-culmination');
 
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('journey')));
   const ch = persisted.chapters?.scripbox;
