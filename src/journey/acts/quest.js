@@ -17,6 +17,10 @@ const QUESTS = {
     beats: ['football-match', 'cricket-match', 'sports-day', 'assembly-stage'],
     needed: 3,
   },
+  scripbox: {
+    beats: ['pr-review', 'anthropic-catalog', 'claude-code', 'whiteboard', 'anthropic-talk'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

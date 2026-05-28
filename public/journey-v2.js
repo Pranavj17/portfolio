@@ -19,7 +19,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null
@@ -253,6 +253,10 @@ const CUTSCENES = {
     lines: ['8:30 a.m.', 'the bell.', 'a decade of mornings just like this.'],
     durationMs: 7000,
   },
+  scripbox: {
+    lines: ['the catalog refresh.', 'seventeen times.', 'PR #2913 · merged.'],
+    durationMs: 7500,
+  },
 };
 
 
@@ -262,6 +266,7 @@ const CULMINATIONS = {
   __placeholder: 'a placeholder culminating sentence that closes the chapter as one thread.',
   cmr: "the year you stopped sleeping. you didn't crack JEE. you also didn't break. that turned out to be the more useful skill.",
   itics: 'the years that taught you how to lose without breaking. cricket whites, scuffed knees, the morning bell that never asked twice.',
+  scripbox: "the catalog page that wouldn't stop reloading. you sent the link to four people who never asked. for the first time the work didn't just pay — it was seen by a name you'd only ever read in papers.",
 };
 
 
@@ -300,6 +305,15 @@ const NPCS = {
       { label: 'took an auto',      reply: 'splurged. mom is going to know.' },
     ],
     close: 'come on. assembly already started.',
+  },
+  scripbox: {
+    name: 'THE PEER', sprite: '🧑‍💻',
+    open: 'show me the MCP protocol again.',
+    choices: [
+      { label: 'stdio json-rpc', reply: 'okay. and tools/list versus prompts/list?' },
+      { label: "it's simpler than it sounds", reply: 'every server reviewer in the catalog said the same thing.' },
+    ],
+    close: 'send the PR. ship the page. refresh seventeen times.',
   },
 };
 
@@ -516,6 +530,10 @@ const QUESTS = {
   },
   itics: {
     beats: ['football-match', 'cricket-match', 'sports-day', 'assembly-stage'],
+    needed: 3,
+  },
+  scripbox: {
+    beats: ['pr-review', 'anthropic-catalog', 'claude-code', 'whiteboard', 'anthropic-talk'],
     needed: 3,
   },
 };
@@ -752,6 +770,73 @@ MINIGAMES.itics = {
     const dist = Math.abs(state.kickAt - 0.5);
     const raw = 100 - Math.round(dist * 100);
     return Math.max(50, Math.min(100, raw));
+  },
+
+  scoreLabel(score) { return `${score}/100`; },
+};
+
+
+// === src/journey/acts/minigames/debug-the-pr.js ===
+
+/**
+ * `debug-the-pr` · SCRIPBOX mini-game.
+ * 4 lines of JS. One has a bug. Tap the line you think is wrong. All
+ * answers are "valid" (no-fail), but the score is higher if you pick the
+ * actual bug AND pick it fast.
+ */
+MINIGAMES.scripbox = {
+  id: 'debug-the-pr',
+  label: 'SCRIPBOX · DEBUG',
+  durationMs: 8000,
+  prompt: 'tap the line with the bug · all answers are valid',
+
+  init(ctx, helpers) {
+    return {
+      lines: [
+        '  const beats = state.discoveredBeats;',
+        '  if (beats.size = 0) return;',
+        '  for (const id of beats) {',
+        '    render(id);',
+      ],
+      bugLine: 1,
+      pickedIdx: null,
+      elapsedMs: 0,
+      canvas: helpers.canvas,
+    };
+  },
+
+  update(state, dt) { state.elapsedMs += dt; },
+
+  render(state, ctx) {
+    const W = state.canvas.width, H = state.canvas.height;
+    ctx.fillStyle = '#1f1610'; ctx.fillRect(0, 0, W, H);
+    ctx.font = '13px "IBM Plex Mono", monospace';
+    const lh = 40;
+    for (let i = 0; i < state.lines.length; i++) {
+      const y = 30 + i * lh;
+      if (state.pickedIdx === i) {
+        ctx.fillStyle = '#3d2818'; ctx.fillRect(10, y - 18, W - 20, lh - 4);
+        ctx.strokeStyle = '#d4a653'; ctx.lineWidth = 2;
+        ctx.strokeRect(10, y - 18, W - 20, lh - 4);
+      }
+      ctx.fillStyle = '#e9d8b0';
+      ctx.fillText(`${i + 1}  ${state.lines[i]}`, 20, y);
+    }
+  },
+
+  onGesture(state, gesture, ev) {
+    if (gesture.kind !== 'TAP') return;
+    const y = ev.offsetY ?? (ev.changedTouches ? ev.changedTouches[0].clientY : 0);
+    const lh = 40;
+    const idx = Math.max(0, Math.min(3, Math.floor((y - 30) / lh)));
+    state.pickedIdx = idx;
+  },
+
+  score(state) {
+    if (state.pickedIdx === null) return 50;
+    const right = state.pickedIdx === state.bugLine;
+    const speed = right ? Math.max(0, 50 - Math.floor(state.elapsedMs / 160)) : 0;
+    return Math.max(50, Math.min(100, (right ? 50 : 0) + speed + 50));
   },
 
   scoreLabel(score) { return `${score}/100`; },

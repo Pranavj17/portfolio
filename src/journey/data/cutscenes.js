@@ -18,4 +18,8 @@ const CUTSCENES = {
     lines: ['8:30 a.m.', 'the bell.', 'a decade of mornings just like this.'],
     durationMs: 7000,
   },
+  scripbox: {
+    lines: ['the catalog refresh.', 'seventeen times.', 'PR #2913 · merged.'],
+    durationMs: 7500,
+  },
 };

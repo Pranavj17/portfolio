@@ -23,6 +23,7 @@ const MANIFEST = [
   'src/journey/acts/minigame.js',
   'src/journey/acts/minigames/mock-test.js',
   'src/journey/acts/minigames/kick-football.js',
+  'src/journey/acts/minigames/debug-the-pr.js',
   'src/journey/acts/culmination.js',
   'src/journey/bootstrap.js',
 ];

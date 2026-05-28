@@ -33,4 +33,13 @@ const NPCS = {
     ],
     close: 'come on. assembly already started.',
   },
+  scripbox: {
+    name: 'THE PEER', sprite: '🧑‍💻',
+    open: 'show me the MCP protocol again.',
+    choices: [
+      { label: 'stdio json-rpc', reply: 'okay. and tools/list versus prompts/list?' },
+      { label: "it's simpler than it sounds", reply: 'every server reviewer in the catalog said the same thing.' },
+    ],
+    close: 'send the PR. ship the page. refresh seventeen times.',
+  },
 };
