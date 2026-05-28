@@ -106,6 +106,9 @@ dist
 # Superpowers brainstorm mockups (visual companion artifacts)
 .superpowers/
 
+# build/ output of `npm run build` (cp -r public/* build/) — never tracked
+build/
+
 # Wrangler local secrets (NVIDIA_API_KEY, etc. for `wrangler dev`)
 # Production secrets are stored via `wrangler secret put`, not on disk.
 .dev.vars
