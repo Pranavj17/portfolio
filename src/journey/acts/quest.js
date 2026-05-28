@@ -13,6 +13,34 @@ const QUESTS = {
     beats: ['tuition-rush', 'mock-test', 'study-lamp', 'first-crush'],
     needed: 3,
   },
+  itics: {
+    beats: ['football-match', 'cricket-match', 'sports-day', 'assembly-stage'],
+    needed: 3,
+  },
+  scripbox: {
+    beats: ['pr-review', 'anthropic-catalog', 'claude-code', 'whiteboard', 'anthropic-talk'],
+    needed: 3,
+  },
+  now: {
+    beats: ['morning-routine', 'code-flow', 'anthropic-goal', 'forward-horizon'],
+    needed: 4,
+  },
+  sakha: {
+    beats: ['interview-day', 'first-paycheck', 'wfh-covid', 'late-night-coding'],
+    needed: 3,
+  },
+  college: {
+    beats: ['bosch-intern', 'abb-intern', 'fest-stage', 'convocation'],
+    needed: 3,
+  },
+  fever104: {
+    beats: ['headphones', 'script-binder', 'sound-engineer', 'trainee-cert'],
+    needed: 3,
+  },
+  vwgt: {
+    beats: ['test-drive', 'documents-signing', 'keys-handover', 'first-drive-out'],
+    needed: 4,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

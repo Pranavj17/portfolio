@@ -24,4 +24,67 @@ const NPCS = {
     ],
     close: 'go. the bus leaves in twelve.',
   },
+  itics: {
+    name: 'THE FIRST FRIEND', sprite: '🧒',
+    open: 'you missed the bus again.',
+    choices: [
+      { label: 'ran the whole way', reply: 'three kilometres. shoes still untied.' },
+      { label: 'took an auto',      reply: 'splurged. mom is going to know.' },
+    ],
+    close: 'come on. assembly already started.',
+  },
+  scripbox: {
+    name: 'THE PEER', sprite: '🧑‍💻',
+    open: 'show me the MCP protocol again.',
+    choices: [
+      { label: 'stdio json-rpc', reply: 'okay. and tools/list versus prompts/list?' },
+      { label: "it's simpler than it sounds", reply: 'every server reviewer in the catalog said the same thing.' },
+    ],
+    close: 'send the PR. ship the page. refresh seventeen times.',
+  },
+  now: {
+    name: 'THE SELF · FUTURE', sprite: '🪞',
+    open: 'still here?',
+    choices: [
+      { label: 'always',  reply: 'good. keep claiming the hour.' },
+      { label: 'for now', reply: 'for now is enough. it always was.' },
+    ],
+    close: "the day belongs to whoever claims the first hour. you're claiming yours.",
+  },
+  sakha: {
+    name: 'THE TECH LEAD', sprite: '🧑‍🔧',
+    open: 'five interviews. tell me about the last one.',
+    choices: [
+      { label: 'ran out of time',              reply: 'time runs out on everyone. you came back. that\'s the part.' },
+      { label: 'over-prepared the wrong part', reply: 'every junior does. mine was hash maps. yours?' },
+    ],
+    close: 'monday at nine. wear something with a collar.',
+  },
+  college: {
+    name: 'THE TRIPLE-RIDER', sprite: '🛵',
+    open: 'you walking again?',
+    choices: [
+      { label: 'saving bus fare', reply: 'lend me ten then. tomorrow\'s my treat.' },
+      { label: 'lost my pass',    reply: 'same. third time this month. hop on.' },
+    ],
+    close: 'next class is on the other side. hold on tight.',
+  },
+  fever104: {
+    name: 'THE CONDUCTOR', sprite: '🎚️',
+    open: 'feel the room first. then the levels.',
+    choices: [
+      { label: 'still hearing the bus outside', reply: 'good. don\'t lose that. you\'ll need it on monday.' },
+      { label: 'ready',                          reply: 'you\'re not. nobody is on day one. fader up.' },
+    ],
+    close: 'count me in. four bars.',
+  },
+  vwgt: {
+    name: 'THE SALESMAN', sprite: '🎩',
+    open: 'thirty-five minutes on the ORR sold this car.',
+    choices: [
+      { label: 'i knew at the second roundabout', reply: 'most do. the turbo speaks before the heart catches up.' },
+      { label: 'the turbo did',                    reply: '1.5 TSI. 110 kilowatts of small-block thunder.' },
+    ],
+    close: 'sign here. keys are warm. drive carefully out the gate.',
+  },
 };

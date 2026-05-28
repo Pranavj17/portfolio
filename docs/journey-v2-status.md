@@ -4,48 +4,62 @@
 
 ## Phase 1 · Foundation harness · ✅ Complete
 
-All six harness modules (cutscene, NPC, quest, minigame, culmination,
-input router) tested end-to-end against placeholder content.
-
 ## Phase 2 · CMR vertical slice · ✅ Complete
 
-- Live at `/journey.html?v=2#cmr` (hash-based chapter override for Phase 2)
-- All 4 content layers populated (CUTSCENES, NPCS, QUESTS, CULMINATIONS)
-- Mini-game: `mock-test` (one MCQ, 8s, no-fail)
-- End-to-end Puppeteer test green: `test-v2-chapter-cmr.js`
-- Stability: 3 consecutive PASS runs, ~11s each
-- Score under default 8s-timeout completion: 50 (no-fail floor)
+## Phase 3 · All 7 remaining chapters · ✅ Complete
 
-## TODO (deferred, requires headed browser)
+- All 8 chapters (cmr, itics, scripbox, now, sakha, college, fever104, vwgt)
+  playable via `/journey.html?v=2`
+- v1 world + walking always loaded; v2 vignettes layer on top under `?v=2`
+- Mini-games: mock-test, kick-football, debug-the-PR, type-the-future,
+  standup-bingo, CAD-snap, live-mix, parallel-park
+- Orchestrator re-entry loop fixed (Phase 3 Task 4)
+- Per-chapter `_act3Started` / `_questPollTimers` maps (Phase 3 Task 5)
+- Real `window.__journeyV1Bridge` exposed from v1's IIFE (Phase 3 Task 6);
+  hash bridge removed; v1 bridge `getCurrentChapterId()` enforces strict
+  band detection so playerX=0 doesn't auto-fire the first chapter
+- v1 bridge `getDiscoveredBeats()` strips v1's `${ch}:${id}` prefix so
+  v2's unprefixed quest IDs match
+- Shared `tests/integration/helpers.js` exposes `waitVisible`,
+  `withV2Page`, `holdRightFor`, `collectBeatsViaV1`,
+  `seedCompletedChapters`; chapter e2e tests walk via v1 controls
+- Built-artifact policy documented in `docs/journey-v2-build-policy.md`;
+  unit test asserts committed bundle matches a fresh build
 
-- [ ] Manual mobile smoke on Chrome DevTools iPhone 14 Pro emulator (390×844)
-- [ ] Lighthouse mobile Performance score (target: ≥85)
+## TODO (deferred to Phase 4 cutover, requires headed browser or design work)
 
-## Phase 3 · Roll out remaining 7 chapters · 🚧 Next
+- [ ] Manual mobile smoke on Chrome DevTools iPhone 14 Pro (390×844)
+- [ ] Lighthouse mobile Performance (target ≥85)
+- [ ] Reduced-motion implementation in cutscene.js (currently stale JSDoc)
+- [ ] Z-index tiering for v2 overlays (currently all 60)
+- [ ] **v1 `playStageVideo` blocks v2 culmination clicks** — workaround
+  in e2e tests is `page.evaluate(() => document.getElementById('v2-culmination').click())`,
+  but real users hit the same z-index issue when the v1 stage video
+  overlay covers the v2 culmination card. Phase 4 should either suppress
+  v1's stage-video chain for v2-owned chapters, OR raise v2's culmination
+  z-index above v1's stage-video overlay.
+- [ ] Speed-run leaderboard via Cloudflare Worker (Phase 5 polish)
 
-Separate plan: `docs/superpowers/plans/<TBD>-journey-3-act-phase-3.md`.
+## Phase 4 · Cutover · 🚧 Next
 
-Cluster order:
-1. **Cluster A · TAP-only** — ITICS, SCRIPBOX, NOW
-2. **Cluster B · TAP-on-flashing** — SAKHA
-3. **Cluster C · DRAG/SWIPE** — DSCE, FEVER 104, THE GT
+Separate plan: `docs/superpowers/plans/<TBD>-journey-3-act-phase-4.md`.
 
-Phase 3 also replaces the hash-based v1 bridge in journey.html with real
-v1 chapter detection (wire to v1's `chapterIdxAt(playerX)` and
-`state.discoveredBeats`).
+- Delete `public/journey.js` (v1)
+- Rename `public/journey-v2.js` → `public/journey.js`
+- Remove the script-swap from `public/journey.html`; load `journey.js`
+  directly
+- Update `JOURNEY_LORE.md` source-of-truth note
+- Re-record stage videos if framing changed (probably unnecessary)
+- Update social-share image
+- Lighthouse pass on the consolidated bundle
 
-## Test summary (as of 2026-05-28)
+## Test summary (as of Phase 3 finalize)
 
-- 34 unit tests (`tests/unit/`) — all PASS
-- 6 integration tests (`test-v2-*.js`) — all PASS
-  - `test-v2-flag.js` — feature flag wiring
-  - `test-v2-cutscene.js` — Act I overlay
-  - `test-v2-npc.js` — Act II NPC dialog
-  - `test-v2-minigame.js` — Act III harness (with __stub)
-  - `test-v2-culmination.js` — Act III paragraph card
-  - `test-v2-chapter-cmr.js` — full CMR vignette end-to-end
+- Unit tests: 87 (one per pure function + bundle drift check)
+- Integration tests: 13 (5 module-level + 8 chapter e2e: CMR, ITICS,
+  SCRIPBOX, NOW, SAKHA, DSCE/college, FEVER 104, THE GT/vwgt)
 
-## Commit history (Phase 1 + Phase 2)
+## Commit history
 
-Run `git log --oneline feat/journey-3-act-milestones ^main` for the full
-list. Roughly 17 commits, from the spec/plan through Task 16.
+Run `git log --oneline feat/journey-3-act-milestones-phase-3 ^main` for
+the full Phase 3 commit list (~14 commits + small polish/fix commits).

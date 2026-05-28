@@ -1,67 +1,78 @@
 /**
- * End-to-end test: visit journey.html?v=2#cmr, walk the full 3-act flow,
- * assert localStorage.journey.chapters.cmr.phase === 'complete'.
+ * End-to-end test (Phase 3 template): visit journey.html?v=2, hold → to
+ * walk to CMR's world-x (~1200), let v2 detect the chapter via the v1
+ * bridge, walk the full 3-act flow, assert localStorage.journey.chapters.cmr
+ * .phase === 'complete'.
+ *
+ * Beats are unlocked by triggering v1's openLoreCard for each quest beat
+ * via the window.__journey debug handle (v1 stores them as `${ch}:${id}`,
+ * the bridge strips the prefix). For CMR we collect 3 of the 4 quest beats.
  */
 const puppeteer = require('puppeteer');
+const { waitVisible, holdRightFor, collectBeatsViaV1, seedCompletedChapters } = require('./tests/integration/helpers');
 const URL = process.argv[2] || 'http://localhost:3000';
 
-async function waitVisible(page, sel, timeout = 5000) {
+// Walk until the bridge reports the desired chapter or we time out.
+async function walkUntilChapter(page, chapterId, maxMs = 60000) {
+  await page.keyboard.down('ArrowRight');
   const t0 = Date.now();
-  while (Date.now() - t0 < timeout) {
-    const ok = await page.evaluate(s => {
-      const el = document.querySelector(s);
-      return el && el.getAttribute('aria-hidden') === 'false';
-    }, sel);
-    if (ok) return;
-    await new Promise(r => setTimeout(r, 100));
+  try {
+    while (Date.now() - t0 < maxMs) {
+      const cur = await page.evaluate(() => window.__journeyV1Bridge.getCurrentChapterId());
+      if (cur === chapterId) return;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    throw new Error(`timeout walking to chapter ${chapterId} (last seen via bridge)`);
+  } finally {
+    await page.keyboard.up('ArrowRight');
   }
-  throw new Error(`timeout waiting for ${sel} to become visible`);
 }
 
 (async () => {
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
   const page = await browser.newPage();
-  await page.setViewport({ width: 800, height: 600 });
+  await page.setViewport({ width: 1100, height: 700 });
 
-  // Clear storage for a fresh run
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => { localStorage.clear(); });
-  await page.goto(`${URL}/journey.html?v=2#cmr`, { waitUntil: 'networkidle0' });
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  // Phase 3+: more than one chapter is v2-enabled. The walk from x=0 to
+  // CMR (x=1200) crosses every earlier v2 chapter's band — and each one
+  // would auto-fire its 3-act flow, polluting the DOM by the time CMR is
+  // reached. Pre-seed earlier chapters as 'complete' so re-entry guard
+  // (core.js startChapterFlow) skips them.
+  await seedCompletedChapters(page, ['itics']);
+  await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
+  // Wait for v1 + v2 to both initialize. v1 sets the bridge synchronously
+  // inside its IIFE; v2 starts its polling interval from bootstrap.js.
+  await page.waitForFunction(() => !!window.__journeyV1Bridge && !!window.__journeyV2, { timeout: 8000 });
 
-  // 1. Cutscene appears
-  await waitVisible(page, '#v2-cutscene');
+  // Walk into CMR's chapter band. v1's chapter-detection threshold is
+  // chapter.x - 200, so for CMR (x=1200) we need playerX >= 1000. With the
+  // chapter-proximity slowdown (0.45x near each chapter) this takes
+  // 25-35s of real walking from x=0.
+  await walkUntilChapter(page, 'cmr');
+  await waitVisible(page, '#v2-cutscene', 8000);
   await page.click('#v2-cutscene');
 
-  // 2. Quest HUD appears
   await waitVisible(page, '#v2-quest-hud');
-
-  // 3. NPC appears (~800ms after exploring)
   await waitVisible(page, '#v2-npc', 3000);
   await page.click('.v2-npc-choice[data-idx="0"]');
   await new Promise(r => setTimeout(r, 100));
-  await page.click('#v2-npc');  // advance to close line
+  await page.click('#v2-npc');
   await new Promise(r => setTimeout(r, 100));
-  await page.click('#v2-npc');  // dismiss
+  await page.click('#v2-npc');
 
-  // 4. Add 3 beats to satisfy the quest
-  await page.evaluate(() => {
-    window.__cmrAddBeat('tuition-rush');
-    window.__cmrAddBeat('mock-test');
-    window.__cmrAddBeat('first-crush');
-  });
+  // Collect 3 of the 4 CMR quest beats via v1's openLoreCard. The quest-poll
+  // interval (500ms in core.js) picks the collection up and gates Act III.
+  await collectBeatsViaV1(page, 'cmr', ['tuition-rush', 'mock-test', 'first-crush']);
 
-  // 5. Mini-game appears
-  await waitVisible(page, '#v2-minigame', 3000);
-  // Tap option 1
+  await waitVisible(page, '#v2-minigame', 8000);
   await page.click('#v2-minigame-canvas');
-  // Wait the mock-test duration + buffer
   await new Promise(r => setTimeout(r, 8500));
 
-  // 6. Culmination appears
   await waitVisible(page, '#v2-culmination', 3000);
   await page.click('#v2-culmination');
 
-  // 7. Assert phase complete + score recorded
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('journey')));
   if (!persisted || persisted.v !== 2) throw new Error('storage v != 2');
   const ch = persisted.chapters?.cmr;
@@ -70,6 +81,13 @@ async function waitVisible(page, sel, timeout = 5000) {
   if (typeof ch.score !== 'number') throw new Error(`expected score:number, got ${ch.score}`);
   if (ch.npcChoice !== 0) throw new Error(`expected npcChoice=0, got ${ch.npcChoice}`);
 
-  console.log(`PASS: CMR full vignette · score=${ch.score} npcChoice=${ch.npcChoice}`);
+  // Re-entry guard from Task 4
+  await new Promise(r => setTimeout(r, 600));
+  const npcReappeared = await page.evaluate(() =>
+    document.getElementById('v2-npc').getAttribute('aria-hidden') === 'false'
+  );
+  if (npcReappeared) throw new Error('completed chapter re-fired NPC (re-entry loop bug)');
+
+  console.log(`PASS: CMR full vignette via v1 walk · score=${ch.score} npcChoice=${ch.npcChoice}`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

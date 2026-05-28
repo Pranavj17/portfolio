@@ -1,9 +1,9 @@
-> **Phase 2 status (2026-05-28):** CMR National vignette shipped to v2
-> (behind `?v=2` flag). Source-of-truth for CMR cutscene/NPC/quest/culmination
-> is now `src/journey/data/cutscenes.js`, `src/journey/world/npcs.js`,
-> `src/journey/acts/quest.js`, `src/journey/data/culminations.js`. This
-> markdown file remains source-of-truth for CHAPTER LORE / BEAT LORE used
-> in the v1 walk-by experience.
+> **Phase 3 status (2026-05-28):** All 8 chapters shipped to v2
+> (behind `?v=2` flag). Source-of-truth for all chapter cutscene/NPC/
+> quest/culmination is now under `src/journey/data/`, `src/journey/world/`,
+> and `src/journey/acts/quest.js`. This markdown file remains
+> source-of-truth for CHAPTER LORE / BEAT LORE used by v1's walk-by
+> experience until the Phase 4 cutover consolidates everything.
 
 ---
 

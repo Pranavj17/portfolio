@@ -14,4 +14,32 @@ const CUTSCENES = {
     lines: ['5:30 a.m.', 'the alarm again.', 'two years to crack JEE.'],
     durationMs: 8000,
   },
+  itics: {
+    lines: ['8:30 a.m.', 'the bell.', 'a decade of mornings just like this.'],
+    durationMs: 7000,
+  },
+  scripbox: {
+    lines: ['the catalog refresh.', 'seventeen times.', 'PR #2913 · merged.'],
+    durationMs: 7500,
+  },
+  now: {
+    lines: ['the first hour.', 'belongs to whoever claims it.', 'claim it.'],
+    durationMs: 6000,
+  },
+  sakha: {
+    lines: ['interview · five.', 'the call.', 'you cracked it.'],
+    durationMs: 7000,
+  },
+  college: {
+    lines: ['bus three of three.', 'campus by 8:55.', 'four years like this.'],
+    durationMs: 7500,
+  },
+  fever104: {
+    lines: ['ON-AIR · red.', 'the booth goes quiet.', 'three months.'],
+    durationMs: 7000,
+  },
+  vwgt: {
+    lines: ['wooden tray.', 'metallic key.', 'november sixteenth.'],
+    durationMs: 7000,
+  },
 };
