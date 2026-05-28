@@ -15,4 +15,13 @@ const NPCS = {
     ],
     close: 'go well.',
   },
+  cmr: {
+    name: 'THE MOTHER', sprite: '👩',
+    open: 'you slept four hours.',
+    choices: [
+      { label: "i'll sleep after JEE", reply: 'you said that yesterday too.' },
+      { label: 'tea?',                 reply: 'already on the stove.' },
+    ],
+    close: 'go. the bus leaves in twelve.',
+  },
 };

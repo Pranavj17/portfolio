@@ -9,6 +9,10 @@
 
 const QUESTS = {
   __placeholder: { beats: ['p1', 'p2', 'p3'], needed: 2 },
+  cmr: {
+    beats: ['tuition-rush', 'mock-test', 'study-lamp', 'first-crush'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

@@ -126,6 +126,10 @@ const CUTSCENES = {
     lines: ['act i', 'a placeholder line', 'tap to continue'],
     durationMs: 4000,
   },
+  cmr: {
+    lines: ['5:30 a.m.', 'the alarm again.', 'two years to crack JEE.'],
+    durationMs: 8000,
+  },
 };
 
 
@@ -133,6 +137,7 @@ const CUTSCENES = {
 
 const CULMINATIONS = {
   __placeholder: 'a placeholder culminating sentence that closes the chapter as one thread.',
+  cmr: "the year you stopped sleeping. you didn't crack JEE. you also didn't break. that turned out to be the more useful skill.",
 };
 
 
@@ -153,6 +158,15 @@ const NPCS = {
       { label: 'choice b', reply: 'reply b.' },
     ],
     close: 'go well.',
+  },
+  cmr: {
+    name: 'THE MOTHER', sprite: '👩',
+    open: 'you slept four hours.',
+    choices: [
+      { label: "i'll sleep after JEE", reply: 'you said that yesterday too.' },
+      { label: 'tea?',                 reply: 'already on the stove.' },
+    ],
+    close: 'go. the bus leaves in twelve.',
   },
 };
 
@@ -363,6 +377,10 @@ function presentNpc(chapterId, onDone) {
 
 const QUESTS = {
   __placeholder: { beats: ['p1', 'p2', 'p3'], needed: 2 },
+  cmr: {
+    beats: ['tuition-rush', 'mock-test', 'study-lamp', 'first-crush'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

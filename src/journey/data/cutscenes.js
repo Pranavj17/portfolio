@@ -10,4 +10,8 @@ const CUTSCENES = {
     lines: ['act i', 'a placeholder line', 'tap to continue'],
     durationMs: 4000,
   },
+  cmr: {
+    lines: ['5:30 a.m.', 'the alarm again.', 'two years to crack JEE.'],
+    durationMs: 8000,
+  },
 };
