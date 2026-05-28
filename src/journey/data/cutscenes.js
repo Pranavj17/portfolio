@@ -14,4 +14,8 @@ const CUTSCENES = {
     lines: ['5:30 a.m.', 'the alarm again.', 'two years to crack JEE.'],
     durationMs: 8000,
   },
+  itics: {
+    lines: ['8:30 a.m.', 'the bell.', 'a decade of mornings just like this.'],
+    durationMs: 7000,
+  },
 };

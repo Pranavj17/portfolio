@@ -54,7 +54,19 @@ async function collectBeatsViaV1(page, chapterId, beatIds) {
   await page.setViewport({ width: 1100, height: 700 });
 
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    // Phase 3+: more than one chapter is v2-enabled. The walk from x=0 to
+    // CMR (x=1200) crosses every earlier v2 chapter's band — and each one
+    // would auto-fire its 3-act flow, polluting the DOM by the time CMR is
+    // reached. Pre-seed earlier chapters as 'complete' so re-entry guard
+    // (core.js startChapterFlow) skips them.
+    localStorage.setItem('journey', JSON.stringify({
+      v: 2,
+      chapters: { itics: { phase: 'complete', score: 100, npcChoice: 0 } },
+    }));
+  });
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   // Wait for v1 + v2 to both initialize. v1 sets the bridge synchronously
   // inside its IIFE; v2 starts its polling interval from bootstrap.js.

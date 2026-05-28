@@ -24,4 +24,13 @@ const NPCS = {
     ],
     close: 'go. the bus leaves in twelve.',
   },
+  itics: {
+    name: 'THE FIRST FRIEND', sprite: '🧒',
+    open: 'you missed the bus again.',
+    choices: [
+      { label: 'ran the whole way', reply: 'three kilometres. shoes still untied.' },
+      { label: 'took an auto',      reply: 'splurged. mom is going to know.' },
+    ],
+    close: 'come on. assembly already started.',
+  },
 };

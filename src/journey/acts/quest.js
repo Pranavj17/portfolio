@@ -13,6 +13,10 @@ const QUESTS = {
     beats: ['tuition-rush', 'mock-test', 'study-lamp', 'first-crush'],
     needed: 3,
   },
+  itics: {
+    beats: ['football-match', 'cricket-match', 'sports-day', 'assembly-stage'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

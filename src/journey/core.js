@@ -14,7 +14,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null

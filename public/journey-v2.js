@@ -19,7 +19,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null
@@ -249,6 +249,10 @@ const CUTSCENES = {
     lines: ['5:30 a.m.', 'the alarm again.', 'two years to crack JEE.'],
     durationMs: 8000,
   },
+  itics: {
+    lines: ['8:30 a.m.', 'the bell.', 'a decade of mornings just like this.'],
+    durationMs: 7000,
+  },
 };
 
 
@@ -257,6 +261,7 @@ const CUTSCENES = {
 const CULMINATIONS = {
   __placeholder: 'a placeholder culminating sentence that closes the chapter as one thread.',
   cmr: "the year you stopped sleeping. you didn't crack JEE. you also didn't break. that turned out to be the more useful skill.",
+  itics: 'the years that taught you how to lose without breaking. cricket whites, scuffed knees, the morning bell that never asked twice.',
 };
 
 
@@ -286,6 +291,15 @@ const NPCS = {
       { label: 'tea?',                 reply: 'already on the stove.' },
     ],
     close: 'go. the bus leaves in twelve.',
+  },
+  itics: {
+    name: 'THE FIRST FRIEND', sprite: '🧒',
+    open: 'you missed the bus again.',
+    choices: [
+      { label: 'ran the whole way', reply: 'three kilometres. shoes still untied.' },
+      { label: 'took an auto',      reply: 'splurged. mom is going to know.' },
+    ],
+    close: 'come on. assembly already started.',
   },
 };
 
@@ -500,6 +514,10 @@ const QUESTS = {
     beats: ['tuition-rush', 'mock-test', 'study-lamp', 'first-crush'],
     needed: 3,
   },
+  itics: {
+    beats: ['football-match', 'cricket-match', 'sports-day', 'assembly-stage'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {
@@ -662,6 +680,78 @@ MINIGAMES.cmr = {
     if (state.pickedIdx === null) return 50;   // no-fail floor for non-participation
     const speed = 100 - Math.floor(state.elapsedMs / 80);
     return Math.max(50, Math.min(100, speed));
+  },
+
+  scoreLabel(score) { return `${score}/100`; },
+};
+
+
+// === src/journey/acts/minigames/kick-football.js ===
+
+/**
+ * `kick-football` · ITICS mini-game.
+ * Timing bar: an arrow sweeps left-right between 0 and 1 at ~1 cycle/sec.
+ * Player taps to "kick"; score = 100 if arrow is at 0.5, decays linearly
+ * to floor 50 at the edges. One tap only. No-fail.
+ */
+MINIGAMES.itics = {
+  id: 'kick-football',
+  label: 'ITICS · KICK',
+  durationMs: 6000,
+  prompt: 'tap when the arrow lands dead-center · one kick only',
+
+  init(ctx, helpers) {
+    return {
+      arrow: 0,
+      dir: 1,
+      kicked: false,
+      kickAt: null,
+      elapsedMs: 0,
+      canvas: helpers.canvas,
+    };
+  },
+
+  update(state, dt) {
+    state.elapsedMs += dt;
+    if (state.kicked) return;
+    const speed = dt / 500;
+    state.arrow += state.dir * speed;
+    if (state.arrow >= 1) { state.arrow = 1; state.dir = -1; }
+    if (state.arrow <= 0) { state.arrow = 0; state.dir = 1; }
+  },
+
+  render(state, ctx) {
+    const W = state.canvas.width, H = state.canvas.height;
+    ctx.fillStyle = '#1f1610'; ctx.fillRect(0, 0, W, H);
+    const barY = H / 2;
+    ctx.strokeStyle = '#5a2e1a'; ctx.lineWidth = 2;
+    ctx.strokeRect(20, barY - 18, W - 40, 36);
+    ctx.fillStyle = '#3d2818';
+    ctx.fillRect(20 + (W - 40) * 0.45, barY - 16, (W - 40) * 0.1, 32);
+    const ax = 20 + (W - 40) * state.arrow;
+    ctx.fillStyle = state.kicked ? '#d4a653' : '#e9d8b0';
+    ctx.beginPath();
+    ctx.moveTo(ax, barY - 28); ctx.lineTo(ax - 7, barY - 14); ctx.lineTo(ax + 7, barY - 14);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e9d8b0';
+    ctx.font = '14px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.kicked ? 'KICKED' : 'tap to kick', W / 2, H - 30);
+    ctx.textAlign = 'left';
+  },
+
+  onGesture(state, gesture, _ev) {
+    if (gesture.kind !== 'TAP') return;
+    if (state.kicked) return;
+    state.kicked = true;
+    state.kickAt = state.arrow;
+  },
+
+  score(state) {
+    if (!state.kicked || state.kickAt === null) return 50;
+    const dist = Math.abs(state.kickAt - 0.5);
+    const raw = 100 - Math.round(dist * 100);
+    return Math.max(50, Math.min(100, raw));
   },
 
   scoreLabel(score) { return `${score}/100`; },

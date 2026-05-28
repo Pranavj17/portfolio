@@ -9316,7 +9316,14 @@
             if (typeof state !== 'object' || typeof state.playerX !== 'number') return null;
             if (typeof chapterIdxAt !== 'function' || !Array.isArray(CHAPTERS)) return null;
             const idx = chapterIdxAt(state.playerX);
-            return (idx >= 0 && idx < CHAPTERS.length) ? CHAPTERS[idx].id : null;
+            if (idx < 0 || idx >= CHAPTERS.length) return null;
+            // Only report a chapter once the player has actually crossed into
+            // its band (chapter.x - 200). chapterIdxAt defaults to idx=0 even
+            // at world origin, which would auto-fire the first chapter's v2
+            // flow on page load — breaking fixture tests that drive their own
+            // __placeholder cutscene/npc/minigame. Strict band gate.
+            if (state.playerX < CHAPTERS[idx].x - 200) return null;
+            return CHAPTERS[idx].id;
         },
         getDiscoveredBeats() {
             // v1 stores beats as `${chapter}:${beatId}` (see openLoreCard).
