@@ -22,4 +22,8 @@ const CUTSCENES = {
     lines: ['the catalog refresh.', 'seventeen times.', 'PR #2913 · merged.'],
     durationMs: 7500,
   },
+  now: {
+    lines: ['the first hour.', 'belongs to whoever claims it.', 'claim it.'],
+    durationMs: 6000,
+  },
 };

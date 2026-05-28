@@ -42,4 +42,13 @@ const NPCS = {
     ],
     close: 'send the PR. ship the page. refresh seventeen times.',
   },
+  now: {
+    name: 'THE SELF · FUTURE', sprite: '🪞',
+    open: 'still here?',
+    choices: [
+      { label: 'always',  reply: 'good. keep claiming the hour.' },
+      { label: 'for now', reply: 'for now is enough. it always was.' },
+    ],
+    close: "the day belongs to whoever claims the first hour. you're claiming yours.",
+  },
 };

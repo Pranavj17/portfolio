@@ -12,7 +12,7 @@
     "postinstall": "npm run build",
     "generate-pdf": "node generate-pdf.js",
     "test:unit": "node --test tests/unit/",
-    "test:integration": "for f in test-v2-flag.js test-v2-cutscene.js test-v2-npc.js test-v2-minigame.js test-v2-culmination.js test-v2-chapter-cmr.js test-v2-chapter-itics.js test-v2-chapter-scripbox.js; do echo \"▸ $f\"; node $f || exit 1; done",
+    "test:integration": "for f in test-v2-flag.js test-v2-cutscene.js test-v2-npc.js test-v2-minigame.js test-v2-culmination.js test-v2-chapter-cmr.js test-v2-chapter-itics.js test-v2-chapter-scripbox.js test-v2-chapter-now.js; do echo \"▸ $f\"; node $f || exit 1; done",
     "test": "npm run test:unit && npm run test:integration"
   },
   "dependencies": {

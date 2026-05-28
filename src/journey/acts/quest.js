@@ -21,6 +21,10 @@ const QUESTS = {
     beats: ['pr-review', 'anthropic-catalog', 'claude-code', 'whiteboard', 'anthropic-talk'],
     needed: 3,
   },
+  now: {
+    beats: ['morning-routine', 'code-flow', 'anthropic-goal', 'forward-horizon'],
+    needed: 4,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {
