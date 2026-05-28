@@ -38,4 +38,8 @@ const CUTSCENES = {
     lines: ['ON-AIR · red.', 'the booth goes quiet.', 'three months.'],
     durationMs: 7000,
   },
+  vwgt: {
+    lines: ['wooden tray.', 'metallic key.', 'november sixteenth.'],
+    durationMs: 7000,
+  },
 };

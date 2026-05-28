@@ -19,7 +19,7 @@
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104', 'vwgt']);   // expand each Phase 3 task
 
 /**
  * Returns the v2 chapter id for the player's current world-x, or null
@@ -273,6 +273,10 @@ const CUTSCENES = {
     lines: ['ON-AIR · red.', 'the booth goes quiet.', 'three months.'],
     durationMs: 7000,
   },
+  vwgt: {
+    lines: ['wooden tray.', 'metallic key.', 'november sixteenth.'],
+    durationMs: 7000,
+  },
 };
 
 
@@ -287,6 +291,7 @@ const CULMINATIONS = {
   sakha: "three years and one pandemic. you bought a watch for dad and a saree for mum from your first paycheck. by the time covid ended you had shipped enough PRs that the team's git log read like your handwriting.",
   college: "four years of triples and three-bus commutes. you didn't graduate top of class. you graduated knowing what real work felt like before anyone paid you for it.",
   fever104: "three months in a soundproof room. you learned that a producer's whole craft is silence — choosing what NOT to play, what to fade, what to ride. everything later is a version of this.",
+  vwgt: '1.5 TSI · turbo · november 16. ten years of saving became one signature. the salesperson clapped. you drove out with the garland still on the bonnet and three lefts of empty road ahead.',
 };
 
 
@@ -370,6 +375,15 @@ const NPCS = {
       { label: 'ready',                          reply: 'you\'re not. nobody is on day one. fader up.' },
     ],
     close: 'count me in. four bars.',
+  },
+  vwgt: {
+    name: 'THE SALESMAN', sprite: '🎩',
+    open: 'thirty-five minutes on the ORR sold this car.',
+    choices: [
+      { label: 'i knew at the second roundabout', reply: 'most do. the turbo speaks before the heart catches up.' },
+      { label: 'the turbo did',                    reply: '1.5 TSI. 110 kilowatts of small-block thunder.' },
+    ],
+    close: 'sign here. keys are warm. drive carefully out the gate.',
   },
 };
 
@@ -607,6 +621,10 @@ const QUESTS = {
   fever104: {
     beats: ['headphones', 'script-binder', 'sound-engineer', 'trainee-cert'],
     needed: 3,
+  },
+  vwgt: {
+    beats: ['test-drive', 'documents-signing', 'keys-handover', 'first-drive-out'],
+    needed: 4,
   },
 };
 
@@ -1226,6 +1244,69 @@ MINIGAMES.fever104 = {
     for (let i = 0; i < 3; i++) sumDist += Math.abs(state.faders[i] - state.targets[i]);
     const meanDist = sumDist / 3;
     const raw = 100 - Math.round(meanDist * 100);
+    return Math.max(50, Math.min(100, raw));
+  },
+
+  scoreLabel(score) { return `${score}/100`; },
+};
+
+
+// === src/journey/acts/minigames/parallel-park.js ===
+
+/**
+ * `parallel-park` · THE GT mini-game.
+ * Top-down lane view; car at the center; cones on left/right.
+ * SWIPE-H nudges the car along a 0..1 scale. Touching a wall (carX <= 0
+ * or carX >= 1) clamps and increments wallTouches. Score = 100 - 10
+ * per touch, floor 50.
+ */
+const PARALLEL_PARK_NUDGE = 0.07;
+
+MINIGAMES.vwgt = {
+  id: 'parallel-park',
+  label: 'THE GT · PARK',
+  durationMs: 10000,
+  prompt: 'swipe left/right to steer · don\'t touch the cones',
+
+  init(ctx, helpers) {
+    return {
+      carX: 0.5,
+      wallTouches: 0,
+      elapsedMs: 0,
+      canvas: helpers.canvas,
+    };
+  },
+
+  update(state, dt) { state.elapsedMs += dt; },
+
+  render(state, ctx) {
+    const W = state.canvas.width, H = state.canvas.height;
+    ctx.fillStyle = '#1f1610'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#a4332e';
+    ctx.fillRect(0, H * 0.20, 30, H * 0.60);
+    ctx.fillRect(W - 30, H * 0.20, 30, H * 0.60);
+    const cx = 30 + (W - 60) * state.carX;
+    ctx.fillStyle = '#d4a653';
+    ctx.fillRect(cx - 30, H * 0.40, 60, H * 0.20);
+    ctx.fillStyle = '#1f1610';
+    ctx.font = '11px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GT', cx, H * 0.50 + 4);
+    ctx.fillStyle = '#e9d8b0';
+    ctx.fillText(`touches: ${state.wallTouches}`, W / 2, H - 10);
+    ctx.textAlign = 'left';
+  },
+
+  onGesture(state, gesture, _ev) {
+    if (gesture.kind !== 'SWIPE-H') return;
+    const next = state.carX + gesture.dir * PARALLEL_PARK_NUDGE;
+    if (next >= 1) { state.carX = 1; state.wallTouches++; }
+    else if (next <= 0) { state.carX = 0; state.wallTouches++; }
+    else state.carX = next;
+  },
+
+  score(state) {
+    const raw = 100 - state.wallTouches * 10;
     return Math.max(50, Math.min(100, raw));
   },
 

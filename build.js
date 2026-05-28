@@ -28,6 +28,7 @@ const MANIFEST = [
   'src/journey/acts/minigames/standup-bingo.js',
   'src/journey/acts/minigames/cad-snap.js',
   'src/journey/acts/minigames/live-mix.js',
+  'src/journey/acts/minigames/parallel-park.js',
   'src/journey/acts/culmination.js',
   'src/journey/bootstrap.js',
 ];

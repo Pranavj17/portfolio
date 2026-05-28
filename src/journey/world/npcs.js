@@ -78,4 +78,13 @@ const NPCS = {
     ],
     close: 'count me in. four bars.',
   },
+  vwgt: {
+    name: 'THE SALESMAN', sprite: '🎩',
+    open: 'thirty-five minutes on the ORR sold this car.',
+    choices: [
+      { label: 'i knew at the second roundabout', reply: 'most do. the turbo speaks before the heart catches up.' },
+      { label: 'the turbo did',                    reply: '1.5 TSI. 110 kilowatts of small-block thunder.' },
+    ],
+    close: 'sign here. keys are warm. drive carefully out the gate.',
+  },
 };

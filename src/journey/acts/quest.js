@@ -37,6 +37,10 @@ const QUESTS = {
     beats: ['headphones', 'script-binder', 'sound-engineer', 'trainee-cert'],
     needed: 3,
   },
+  vwgt: {
+    beats: ['test-drive', 'documents-signing', 'keys-handover', 'first-drive-out'],
+    needed: 4,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {
