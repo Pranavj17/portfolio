@@ -50,6 +50,14 @@ const URL = process.argv[2] || 'http://localhost:3000';
   if (typeof ch.score !== 'number') throw new Error(`expected score:number, got ${ch.score}`);
   if (ch.npcChoice !== 0) throw new Error(`expected npcChoice=0, got ${ch.npcChoice}`);
 
+  // Re-entry: orchestrator poll is still running. Wait two ticks (~600ms),
+  // then assert that the NPC overlay did NOT reappear.
+  await new Promise(r => setTimeout(r, 600));
+  const npcReappeared = await page.evaluate(() =>
+    document.getElementById('v2-npc').getAttribute('aria-hidden') === 'false'
+  );
+  if (npcReappeared) throw new Error('completed chapter re-fired NPC (re-entry loop bug)');
+
   console.log(`PASS: CMR full vignette · score=${ch.score} npcChoice=${ch.npcChoice}`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

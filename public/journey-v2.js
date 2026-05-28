@@ -37,9 +37,12 @@ let _activeFlow = null;
 
 function startChapterFlow(chapterId) {
   if (_activeFlow === chapterId) return;
-  _activeFlow = chapterId;
   const store = window.__journeyV2.store;
   const phase = store.getChapter(chapterId).phase;
+  // Re-entry: completed chapters don't auto-replay. Medal-mode replay is a
+  // Phase 4 polish item (see docs/journey-v2-status.md).
+  if (phase === 'complete') return;
+  _activeFlow = chapterId;
   const intertitle = (window.__journeyV1Bridge?.getIntertitle?.(chapterId)) || {};
 
   if (phase === 'unseen') {
