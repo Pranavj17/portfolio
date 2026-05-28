@@ -11,27 +11,8 @@
  * football-match · cricket-match · sports-day · assembly-stage.
  */
 const puppeteer = require('puppeteer');
-const { waitVisible } = require('./tests/integration/helpers');
+const { waitVisible, holdRightFor, collectBeatsViaV1 } = require('./tests/integration/helpers');
 const URL = process.argv[2] || 'http://localhost:3000';
-
-async function holdRightFor(page, ms) {
-  await page.keyboard.down('ArrowRight');
-  await new Promise(r => setTimeout(r, ms));
-  await page.keyboard.up('ArrowRight');
-}
-
-async function collectBeatsViaV1(page, chapterId, beatIds) {
-  await page.evaluate(({ ch, ids }) => {
-    const j = window.__journey;
-    if (!j) throw new Error('window.__journey not exposed by v1');
-    for (const id of ids) {
-      const beat = j.BEATS.find(b => b.ch === ch && b.id === id);
-      if (!beat) continue;
-      j.openLoreCard(beat);
-      j.dismissLoreCard();
-    }
-  }, { ch: chapterId, ids: beatIds });
-}
 
 (async () => {
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });

@@ -9,14 +9,8 @@
  * the bridge strips the prefix). For CMR we collect 3 of the 4 quest beats.
  */
 const puppeteer = require('puppeteer');
-const { waitVisible } = require('./tests/integration/helpers');
+const { waitVisible, holdRightFor, collectBeatsViaV1, seedCompletedChapters } = require('./tests/integration/helpers');
 const URL = process.argv[2] || 'http://localhost:3000';
-
-async function holdRightFor(page, ms) {
-  await page.keyboard.down('ArrowRight');
-  await new Promise(r => setTimeout(r, ms));
-  await page.keyboard.up('ArrowRight');
-}
 
 // Walk until the bridge reports the desired chapter or we time out.
 async function walkUntilChapter(page, chapterId, maxMs = 60000) {
@@ -34,39 +28,19 @@ async function walkUntilChapter(page, chapterId, maxMs = 60000) {
   }
 }
 
-// Trigger v1's openLoreCard for each beatId on the given chapter, then dismiss.
-async function collectBeatsViaV1(page, chapterId, beatIds) {
-  await page.evaluate(({ ch, ids }) => {
-    const j = window.__journey;
-    if (!j) throw new Error('window.__journey not exposed by v1');
-    for (const id of ids) {
-      const beat = j.BEATS.find(b => b.ch === ch && b.id === id);
-      if (!beat) continue;
-      j.openLoreCard(beat);
-      j.dismissLoreCard();
-    }
-  }, { ch: chapterId, ids: beatIds });
-}
-
 (async () => {
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
   const page = await browser.newPage();
   await page.setViewport({ width: 1100, height: 700 });
 
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    // Phase 3+: more than one chapter is v2-enabled. The walk from x=0 to
-    // CMR (x=1200) crosses every earlier v2 chapter's band — and each one
-    // would auto-fire its 3-act flow, polluting the DOM by the time CMR is
-    // reached. Pre-seed earlier chapters as 'complete' so re-entry guard
-    // (core.js startChapterFlow) skips them.
-    localStorage.setItem('journey', JSON.stringify({
-      v: 2,
-      chapters: { itics: { phase: 'complete', score: 100, npcChoice: 0 } },
-    }));
-  });
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  // Phase 3+: more than one chapter is v2-enabled. The walk from x=0 to
+  // CMR (x=1200) crosses every earlier v2 chapter's band — and each one
+  // would auto-fire its 3-act flow, polluting the DOM by the time CMR is
+  // reached. Pre-seed earlier chapters as 'complete' so re-entry guard
+  // (core.js startChapterFlow) skips them.
+  await seedCompletedChapters(page, ['itics']);
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   // Wait for v1 + v2 to both initialize. v1 sets the bridge synchronously
   // inside its IIFE; v2 starts its polling interval from bootstrap.js.

@@ -35,4 +35,41 @@ async function withV2Page(url, fn, { viewport = { width: 800, height: 600 } } = 
   }
 }
 
-module.exports = { waitVisible, withV2Page };
+async function holdRightFor(page, ms) {
+  await page.keyboard.down('ArrowRight');
+  await new Promise(r => setTimeout(r, ms));
+  await page.keyboard.up('ArrowRight');
+}
+
+// Trigger v1's openLoreCard for each beatId on the given chapter, then dismiss.
+// v1 stores beats as `${ch}:${id}`; the bridge strips the prefix so v2 sees the
+// bare id. Used by chapter tests to satisfy each chapter's 3-of-4 quest gate.
+async function collectBeatsViaV1(page, chapterId, beatIds) {
+  await page.evaluate(({ ch, ids }) => {
+    const j = window.__journey;
+    if (!j) throw new Error('window.__journey not exposed by v1');
+    for (const id of ids) {
+      const beat = j.BEATS.find(b => b.ch === ch && b.id === id);
+      if (!beat) continue;
+      j.openLoreCard(beat);
+      j.dismissLoreCard();
+    }
+  }, { ch: chapterId, ids: beatIds });
+}
+
+// Pre-seed earlier chapters as 'complete' so the orchestrator's re-entry guard
+// (src/journey/core.js: `if (phase === 'complete') return;`) skips them when the
+// player walks past their world-x positions. Without this, walking from x=0
+// toward a later chapter (e.g. CMR at x=1200) would auto-fire every earlier
+// v2 chapter's 3-act flow in sequence and pollute the DOM.
+async function seedCompletedChapters(page, chapterIds) {
+  await page.evaluate((ids) => {
+    const chapters = {};
+    for (const id of ids) {
+      chapters[id] = { phase: 'complete', score: null, npcChoice: null };
+    }
+    localStorage.setItem('journey', JSON.stringify({ v: 2, chapters }));
+  }, chapterIds);
+}
+
+module.exports = { waitVisible, withV2Page, holdRightFor, collectBeatsViaV1, seedCompletedChapters };
