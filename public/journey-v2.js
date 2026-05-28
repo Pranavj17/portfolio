@@ -59,16 +59,22 @@ function startChapterFlow(chapterId) {
 function enterExploring(chapterId) {
   const collectedMap = collectedBeatsMap();
   showQuestHud(chapterId, collectedMap);
-  // The NPC is presented when the player taps the NPC sprite. For the
-  // Phase-2 slice we auto-present it 800ms after entering exploring (so the
-  // cutscene fade isn't stepped on). Phase 3 wires a real tappable sprite.
-  setTimeout(() => {
-    presentNpc(chapterId, idx => {
-      window.__journeyV2.store.setNpcChoice(chapterId, idx);
-      checkQuestComplete(chapterId);
-    });
-  }, 800);
-  // Poll for quest completion as the player walks and collects beats
+  const npcAlreadyAnswered = window.__journeyV2.store.getChapter(chapterId).npcChoice != null;
+  if (!npcAlreadyAnswered) {
+    // First entry · auto-present the NPC after 800ms so the cutscene fade
+    // doesn't step on it. The choice callback feeds into checkQuestComplete.
+    setTimeout(() => {
+      presentNpc(chapterId, idx => {
+        window.__journeyV2.store.setNpcChoice(chapterId, idx);
+        checkQuestComplete(chapterId);
+      });
+    }, 800);
+  } else {
+    // C-2 fix · re-entry · NPC already answered, don't re-present. If the
+    // quest is now complete (player may have collected the remaining beats
+    // while away), advance to Act III immediately.
+    setTimeout(() => checkQuestComplete(chapterId), 100);
+  }
   pollQuest(chapterId);
 }
 
@@ -123,6 +129,17 @@ function checkQuestComplete(chapterId) {
 // Polled from a setInterval that bootstrap starts.
 function tickChapterFlow() {
   const id = detectActiveV2Chapter();
+  // C-1 fix · if the bridge no longer reports our active chapter (player
+  // walked into a different chapter, or out of any v2-enabled band), tear
+  // down the leftover poll timer + HUD so they don't run forever.
+  if (_activeFlow && _activeFlow !== id) {
+    if (_questPollTimers[_activeFlow]) {
+      clearInterval(_questPollTimers[_activeFlow]);
+      delete _questPollTimers[_activeFlow];
+    }
+    hideQuestHud();
+    _activeFlow = null;
+  }
   if (id) startChapterFlow(id);
 }
 
@@ -484,8 +501,16 @@ function hideQuestHud() {
  * after durationMs. Calls onDismiss() exactly once.
  *
  * Browser-only: touches DOM. Reduced-motion mode displays all lines at
- * once with no animation and shortens display time.
+ * once with no animation-delay and shortens the auto-dismiss timer.
  */
+
+// Pure helper · tested independently in tests/unit/cutscene.test.js.
+function isReducedMotion(win) {
+  if (!win || typeof win.matchMedia !== 'function') return false;
+  try { return !!win.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch (_) { return false; }
+}
+
 function playCutscene(chapterId, intertitle, onDismiss) {
   const data = CUTSCENES[chapterId] ?? CUTSCENES.__placeholder;
   const overlay = document.getElementById('v2-cutscene');
@@ -495,9 +520,10 @@ function playCutscene(chapterId, intertitle, onDismiss) {
     onDismiss();
     return;
   }
+  const reduced = isReducedMotion(window);
   actEl.textContent = intertitle?.act ? `${intertitle.act} · ${intertitle.title ?? ''}` : '';
   linesEl.innerHTML = data.lines
-    .map((t, i) => `<div class="v2-line" style="animation-delay:${i * 0.7}s">${t}</div>`)
+    .map((t, i) => `<div class="v2-line" style="${reduced ? '' : `animation-delay:${i * 0.7}s`}">${t}</div>`)
     .join('');
   overlay.setAttribute('aria-hidden', 'false');
 
@@ -513,7 +539,10 @@ function playCutscene(chapterId, intertitle, onDismiss) {
   function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); } }
   overlay.addEventListener('click', dismiss);
   document.addEventListener('keydown', onKey, true);
-  setTimeout(dismiss, data.durationMs);
+  // Auto-dismiss: 3000ms cap under reduced-motion (so the user isn't
+  // stuck reading the same card for the full content duration).
+  const effectiveDuration = reduced ? Math.min(data.durationMs, 3000) : data.durationMs;
+  setTimeout(dismiss, effectiveDuration);
 }
 
 

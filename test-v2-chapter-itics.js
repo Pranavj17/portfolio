@@ -43,12 +43,7 @@ const URL = process.argv[2] || 'http://localhost:3000';
   await new Promise(r => setTimeout(r, 6500));
 
   await waitVisible(page, '#v2-culmination', 3000);
-  // v1 fires its own playStageVideo on chapter entry (~1.6s after walking in).
-  // For ITICS the stage video may still be playing when culmination opens,
-  // blocking puppeteer clicks (it has higher z-index + pointer-events: auto
-  // while body.stage-video-active). Dispatch the click in-page so the v2
-  // culmination overlay's listener fires regardless of v1 stage overlay.
-  await page.evaluate(() => document.getElementById('v2-culmination').click());
+  await page.click('#v2-culmination');
   await new Promise(r => setTimeout(r, 200));
 
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('journey')));

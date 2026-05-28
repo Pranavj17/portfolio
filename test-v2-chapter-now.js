@@ -61,7 +61,7 @@ async function walkUntilChapter(page, chapterId, maxMs = 60000) {
   await new Promise(r => setTimeout(r, 7500));
 
   await waitVisible(page, '#v2-culmination', 3000);
-  await page.evaluate(() => document.getElementById('v2-culmination').click());
+  await page.click('#v2-culmination');
 
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('journey')));
   const ch = persisted.chapters?.now;

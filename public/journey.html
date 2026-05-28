@@ -845,6 +845,13 @@
         }
         .v2-cutscene-lines { font-size: 1.2rem; line-height: 1.6; }
         .v2-cutscene-lines .v2-line { opacity: 0; animation: v2-fade 0.6s forwards; }
+        /* Reduced-motion override · skip the opacity fade entirely so the lines
+           appear at their final state immediately. Works in concert with the JS
+           branch in src/journey/acts/cutscene.js which also drops the
+           animation-delay attribute when prefers-reduced-motion is set. */
+        @media (prefers-reduced-motion: reduce) {
+          .v2-cutscene-lines .v2-line { animation: none; opacity: 1; }
+        }
         .v2-cutscene-cta {
           margin-top: 24px; font-family: 'IBM Plex Mono', monospace;
           font-size: 0.8rem; opacity: 0.55;
@@ -893,6 +900,10 @@
         /* v2 · Act III culmination card */
         .v2-culmination-card { max-width: 540px; padding: 32px; text-align: center; }
         .v2-culmination-text { font-family: 'IM Fell English', serif; font-style: italic; font-size: 1.25rem; line-height: 1.7; color: var(--paper); }
+        /* I-6 · culmination must sit ABOVE v1's stage-video overlay (z-index 70)
+           so real-user clicks reach the dismiss handler. ID selector outranks the
+           .v2-overlay { z-index: 60 } class. */
+        #v2-culmination { z-index: 80; }
     </style>
 
 </head>
