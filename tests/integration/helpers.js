@@ -72,4 +72,18 @@ async function seedCompletedChapters(page, chapterIds) {
   }, chapterIds);
 }
 
-module.exports = { waitVisible, withV2Page, holdRightFor, collectBeatsViaV1, seedCompletedChapters };
+/**
+ * Teleport the v1 player to a specific world-x via the __journey debug handle.
+ * Bypasses v1's walking simulation — useful for testing orchestrator state
+ * transitions in scenarios that would otherwise require minutes of real-time
+ * walking.
+ */
+async function teleportPlayer(page, worldX) {
+  await page.evaluate(x => {
+    if (window.__journey && window.__journey.state) {
+      window.__journey.state.playerX = x;
+    }
+  }, worldX);
+}
+
+module.exports = { waitVisible, withV2Page, holdRightFor, collectBeatsViaV1, seedCompletedChapters, teleportPlayer };

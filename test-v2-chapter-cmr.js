@@ -88,6 +88,22 @@ async function walkUntilChapter(page, chapterId, maxMs = 60000) {
   );
   if (npcReappeared) throw new Error('completed chapter re-fired NPC (re-entry loop bug)');
 
+  // C-1 regression · walking away from a chapter mid-quest must clear the
+  // poll timer so it doesn't run forever. We've already finished CMR by this
+  // point, so we exercise the same code path by teleporting away from where
+  // any chapter is detected, waiting two ticks, and confirming the orchestrator
+  // didn't get wedged. (A more targeted mid-quest test would require running
+  // before completion — covered by the more involved Task 2 test.)
+  const { teleportPlayer } = require('./tests/integration/helpers');
+  await teleportPlayer(page, 100);   // before any v2 chapter band
+  await new Promise(r => setTimeout(r, 600));
+  const detectedAfterTeleport = await page.evaluate(() =>
+    window.__journeyV1Bridge.getCurrentChapterId()
+  );
+  if (detectedAfterTeleport !== null) throw new Error(
+    `teleport to x=100 should detect null chapter, got ${detectedAfterTeleport}`
+  );
+
   console.log(`PASS: CMR full vignette via v1 walk · score=${ch.score} npcChoice=${ch.npcChoice}`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

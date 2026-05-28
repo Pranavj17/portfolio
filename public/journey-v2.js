@@ -123,6 +123,17 @@ function checkQuestComplete(chapterId) {
 // Polled from a setInterval that bootstrap starts.
 function tickChapterFlow() {
   const id = detectActiveV2Chapter();
+  // C-1 fix · if the bridge no longer reports our active chapter (player
+  // walked into a different chapter, or out of any v2-enabled band), tear
+  // down the leftover poll timer + HUD so they don't run forever.
+  if (_activeFlow && _activeFlow !== id) {
+    if (_questPollTimers[_activeFlow]) {
+      clearInterval(_questPollTimers[_activeFlow]);
+      delete _questPollTimers[_activeFlow];
+    }
+    hideQuestHud();
+    _activeFlow = null;
+  }
   if (id) startChapterFlow(id);
 }
 
