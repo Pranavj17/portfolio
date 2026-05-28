@@ -1,3 +1,12 @@
+> **Phase 2 status (2026-05-28):** CMR National vignette shipped to v2
+> (behind `?v=2` flag). Source-of-truth for CMR cutscene/NPC/quest/culmination
+> is now `src/journey/data/cutscenes.js`, `src/journey/world/npcs.js`,
+> `src/journey/acts/quest.js`, `src/journey/data/culminations.js`. This
+> markdown file remains source-of-truth for CHAPTER LORE / BEAT LORE used
+> in the v1 walk-by experience.
+
+---
+
 # Journey · Lore Content
 
 Fill in the strings below, then tell me "lore ready" and I'll implement Phase A + Contact CTA from `~/.claude/plans/eventual-honking-dragon.md`.
