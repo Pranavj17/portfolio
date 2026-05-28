@@ -33,6 +33,10 @@ const QUESTS = {
     beats: ['bosch-intern', 'abb-intern', 'fest-stage', 'convocation'],
     needed: 3,
   },
+  fever104: {
+    beats: ['headphones', 'script-binder', 'sound-engineer', 'trainee-cert'],
+    needed: 3,
+  },
 };
 
 function questProgress(beatIds, needed, collectedMap) {

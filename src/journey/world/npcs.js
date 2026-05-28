@@ -69,4 +69,13 @@ const NPCS = {
     ],
     close: 'next class is on the other side. hold on tight.',
   },
+  fever104: {
+    name: 'THE CONDUCTOR', sprite: '🎚️',
+    open: 'feel the room first. then the levels.',
+    choices: [
+      { label: 'still hearing the bus outside', reply: 'good. don\'t lose that. you\'ll need it on monday.' },
+      { label: 'ready',                          reply: 'you\'re not. nobody is on day one. fader up.' },
+    ],
+    close: 'count me in. four bars.',
+  },
 };

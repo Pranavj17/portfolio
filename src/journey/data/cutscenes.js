@@ -34,4 +34,8 @@ const CUTSCENES = {
     lines: ['bus three of three.', 'campus by 8:55.', 'four years like this.'],
     durationMs: 7500,
   },
+  fever104: {
+    lines: ['ON-AIR · red.', 'the booth goes quiet.', 'three months.'],
+    durationMs: 7000,
+  },
 };

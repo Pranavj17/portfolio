@@ -35,7 +35,7 @@ async function walkUntilChapter(page, chapterId, maxMs = 90000) {
   // Pre-seed earlier chapters so the orchestrator's re-entry guard skips them
   // when the player walks past their world-x positions. Seed BEFORE the
   // second load so the v2 store reads the seeded snapshot at bootstrap.
-  await seedCompletedChapters(page, ['itics', 'cmr', 'college', 'sakha']);
+  await seedCompletedChapters(page, ['itics', 'cmr', 'college', 'fever104', 'sakha']);
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => !!window.__journeyV1Bridge && !!window.__journeyV2, { timeout: 8000 });
 

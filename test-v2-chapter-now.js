@@ -28,7 +28,7 @@ async function walkUntilChapter(page, chapterId, maxMs = 60000) {
 
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await seedCompletedChapters(page, ['itics', 'cmr', 'college', 'sakha', 'scripbox']);
+  await seedCompletedChapters(page, ['itics', 'cmr', 'college', 'fever104', 'sakha', 'scripbox']);
   await page.goto(`${URL}/journey.html?v=2`, { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => !!window.__journeyV1Bridge && !!window.__journeyV2, { timeout: 8000 });
 
