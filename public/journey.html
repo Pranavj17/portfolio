@@ -904,6 +904,110 @@
            so real-user clicks reach the dismiss handler. ID selector outranks the
            .v2-overlay { z-index: 60 } class. */
         #v2-culmination { z-index: 80; }
+
+        /* ============================================================
+           v2 · MEMORY ROOM — full-screen interior you step into after a
+           milestone to replay its memories. Own canvas above the world.
+           ============================================================ */
+        .v2-room {
+          position: fixed; inset: 0; z-index: 200; display: none;
+          background: #0a0603;
+        }
+        .v2-room[aria-hidden="false"] { display: block; }
+        #v2-room-canvas {
+          position: absolute; inset: 0; display: block;
+          width: 100%; height: 100%; touch-action: none; outline: none;
+        }
+        .v2-room-hud {
+          position: absolute; inset: 0; pointer-events: none;
+          font-family: 'IBM Plex Mono', monospace; color: var(--paper);
+        }
+        .v2-room-titles {
+          position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+          text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+        }
+        .v2-room-title {
+          font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.18em;
+          font-size: clamp(18px, 3.4vw, 30px); color: var(--paper);
+        }
+        .v2-room-sub {
+          font-family: 'IM Fell English', serif; font-style: italic;
+          font-size: clamp(11px, 1.6vw, 14px); color: var(--accent); opacity: 0.85; margin-top: 4px;
+        }
+        .v2-room-progress {
+          position: absolute; top: 18px; right: 18px;
+          font-size: 0.74rem; letter-spacing: 0.16em; color: var(--accent);
+          background: rgba(20,12,6,0.6); border: 1px solid var(--mahogany);
+          padding: 6px 12px; border-radius: 3px;
+        }
+        .v2-room-hint {
+          position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+          font-family: 'IM Fell English', serif; font-style: italic;
+          font-size: 12px; color: var(--paper-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+          animation: tapHintPulse 2.6s ease-in-out infinite;
+        }
+        /* memory card · parchment modal that rises when a memory is tapped */
+        .v2-room-card {
+          position: absolute; inset: 0; display: none;
+          align-items: center; justify-content: center; padding: 22px;
+          background: radial-gradient(ellipse at center, rgba(10,6,3,0.55), rgba(8,5,2,0.86));
+          pointer-events: auto;
+        }
+        .v2-room-card[aria-hidden="false"] { display: flex; }
+        .v2-room-card-inner {
+          max-width: 520px; width: 100%; text-align: center; padding: 30px 30px 24px;
+          background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dim) 100%);
+          border: 1.5px solid var(--mahogany); border-radius: 4px;
+          box-shadow: 0 18px 60px rgba(0,0,0,0.7), 0 0 50px rgba(212,166,83,0.18),
+                      inset 0 0 26px rgba(90,46,26,0.22);
+          transform: translateY(18px) scale(0.97); opacity: 0;
+          transition: transform 0.42s cubic-bezier(.18,.85,.25,1), opacity 0.42s ease;
+        }
+        .v2-room-card.shown .v2-room-card-inner { transform: translateY(0) scale(1); opacity: 1; }
+        .v2-room-card-title {
+          font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.10em;
+          font-size: 1.15rem; color: var(--ink); margin-bottom: 14px;
+        }
+        .v2-room-card-body {
+          font-family: 'IM Fell English', serif; font-size: 1.12rem; line-height: 1.65;
+          color: var(--ink); font-style: italic;
+        }
+        .v2-room-card-cta {
+          margin-top: 20px; font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mahogany); opacity: 0.7;
+        }
+        /* "step inside the memory" door prompt · overworld HUD */
+        .v2-room-door {
+          position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%);
+          z-index: 90; display: none; align-items: center; gap: 10px;
+          padding: 11px 22px; cursor: pointer;
+          font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 600;
+          letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink);
+          background: linear-gradient(180deg, var(--accent) 0%, #b8901a 100%);
+          border: 1.5px solid var(--gold); border-radius: 3px;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.6), 0 0 28px rgba(212,166,83,0.5);
+          pointer-events: auto; animation: doorPulse 2.2s ease-in-out infinite;
+        }
+        .v2-room-door[aria-hidden="false"] { display: inline-flex; }
+        .v2-room-door:hover { transform: translateX(-50%) translateY(-2px); }
+        .v2-room-door-icon { font-size: 17px; }
+        @keyframes doorPulse {
+          0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.6), 0 0 22px rgba(212,166,83,0.4); }
+          50%      { box-shadow: 0 6px 24px rgba(0,0,0,0.6), 0 0 38px rgba(212,166,83,0.85); }
+        }
+        @media (max-width: 600px) {
+          .v2-room-door { bottom: 80px; font-size: 11px; padding: 9px 16px; }
+          .v2-room-card-inner { padding: 24px 20px 20px; }
+          .v2-room-card-body { font-size: 1rem; }
+        }
+        /* room-launched modals must sit ABOVE the room overlay (z 200) */
+        body.v2-room-open #v2-minigame,
+        body.v2-room-open #v2-culmination,
+        body.v2-room-open .stage-video-overlay { z-index: 240; }
+        @media (prefers-reduced-motion: reduce) {
+          .v2-room-hint, .v2-room-door { animation: none; }
+          .v2-room-card-inner { transition: none; }
+        }
     </style>
 
 </head>
@@ -1055,6 +1159,32 @@
       </div>
     </div>
 
+    <!-- v2 · "step inside the memory" door prompt (overworld HUD) -->
+    <button id="v2-room-door" class="v2-room-door" type="button" aria-hidden="true">
+      <span class="v2-room-door-icon">🚪</span>
+      <span class="v2-room-door-label">step inside the memory</span>
+    </button>
+
+    <!-- v2 · MEMORY ROOM overlay -->
+    <div id="v2-room" class="v2-room" aria-hidden="true">
+      <canvas id="v2-room-canvas"></canvas>
+      <div class="v2-room-hud">
+        <div class="v2-room-titles">
+          <div class="v2-room-title" id="v2-room-title"></div>
+          <div class="v2-room-sub" id="v2-room-sub"></div>
+        </div>
+        <div class="v2-room-progress" id="v2-room-progress"></div>
+        <div class="v2-room-hint" id="v2-room-hint">tap the glowing memories · the door takes you back</div>
+      </div>
+      <div id="v2-room-card" class="v2-room-card" aria-hidden="true">
+        <div class="v2-room-card-inner">
+          <div class="v2-room-card-title" id="v2-room-card-title"></div>
+          <div class="v2-room-card-body" id="v2-room-card-body"></div>
+          <div class="v2-room-card-cta">▸ tap to close ▸</div>
+        </div>
+      </div>
+    </div>
+
     <script>
       // Phase 3 load model: v1 ALWAYS loads (it owns the world + walking).
       // When ?v=2 is in the URL, v2 also loads after v1, layering the 3-act
@@ -1068,7 +1198,7 @@
         if (v === '2') {
           v1.onload = function () {
             var v2 = document.createElement('script');
-            v2.src = '/journey-v2.js';
+            v2.src = '/journey-v2.js?v=20260530r';
             document.body.appendChild(v2);
           };
         }

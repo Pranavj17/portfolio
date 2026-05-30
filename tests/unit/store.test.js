@@ -25,7 +25,8 @@ function mockStorage() {
 
 test('createChapterStore returns empty chapters when storage is blank', () => {
   const store = globalThis.Store.createChapterStore(mockStorage());
-  assert.deepStrictEqual(store.getChapter('cmr'), { phase: 'unseen', score: null, npcChoice: null });
+  assert.deepStrictEqual(store.getChapter('cmr'),
+    { phase: 'unseen', score: null, npcChoice: null, roomVisited: false, memoriesPlayed: [] });
 });
 
 test('store.send(id, ENTER) moves unseen → cutscene and persists', () => {
@@ -58,5 +59,28 @@ test('setScore preserves phase and npcChoice across calls', () => {
   store.setNpcChoice('cmr', 2);
   store.setScore('cmr', 78);
   assert.deepStrictEqual(store.getChapter('cmr'),
-    { phase: 'cutscene', score: 78, npcChoice: 2 });
+    { phase: 'cutscene', score: 78, npcChoice: 2, roomVisited: false, memoriesPlayed: [] });
+});
+
+test('markRoomVisited flips the flag and persists', () => {
+  const store = globalThis.Store.createChapterStore(mockStorage());
+  assert.strictEqual(store.getChapter('cmr').roomVisited, false);
+  store.markRoomVisited('cmr');
+  assert.strictEqual(store.getChapter('cmr').roomVisited, true);
+});
+
+test('markMemoryPlayed appends unique beat ids', () => {
+  const store = globalThis.Store.createChapterStore(mockStorage());
+  store.markMemoryPlayed('cmr', 'study-lamp');
+  store.markMemoryPlayed('cmr', 'study-lamp');   // dupe ignored
+  store.markMemoryPlayed('cmr', 'mock-test');
+  assert.deepStrictEqual(store.getChapter('cmr').memoriesPlayed, ['study-lamp', 'mock-test']);
+});
+
+test('room fields survive a phase transition', () => {
+  const store = globalThis.Store.createChapterStore(mockStorage());
+  store.markMemoryPlayed('cmr', 'study-lamp');
+  store.send('cmr', 'ENTER');
+  assert.deepStrictEqual(store.getChapter('cmr').memoriesPlayed, ['study-lamp']);
+  assert.strictEqual(store.getChapter('cmr').phase, 'cutscene');
 });

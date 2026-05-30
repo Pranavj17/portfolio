@@ -12,6 +12,11 @@ window.__journeyV2 = {
   // exposed for the chapter-flow polling
   detectActiveV2Chapter,
   startChapterFlow,
+  // Memory Room API (Phase R)
+  openMemoryRoom,
+  closeMemoryRoom,
+  isRoomOpen,
+  buildRoom,
 };
 
 // Start polling for v2 chapter entry. The v1 bundle (journey.js) is NOT

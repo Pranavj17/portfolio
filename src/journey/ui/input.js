@@ -21,26 +21,55 @@ function classifyGesture({ dx, dy, durationMs }) {
 }
 
 /**
+ * canvasPoint(rect, bufW, bufH, clientX, clientY) — map a viewport point into
+ * canvas backing-buffer coordinates. A mini-game / room canvas is drawn at its
+ * intrinsic size (e.g. 360×240, or DPR-scaled full screen) but CSS-stretched to
+ * fill its box, so a raw clientX lands in the wrong space — and touch events
+ * carry no offsetX at all. This is the single source of truth for canvas
+ * hit-testing. Pure + unit-tested.
+ *
+ *   rect — target.getBoundingClientRect() (or any {left,top,width,height})
+ *   bufW/bufH — target.width / target.height (the backing buffer)
+ */
+function canvasPoint(rect, bufW, bufH, clientX, clientY) {
+  const sx = rect.width ? bufW / rect.width : 1;
+  const sy = rect.height ? bufH / rect.height : 1;
+  return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };
+}
+
+/**
  * attachInputRouter(target, onGesture) — wires touch + mouse on `target`
  * and invokes onGesture(result, originalEvent) for each completed gesture.
- * Returns a detach() function. Browser-only (uses addEventListener).
+ * The result carries canvas-space coords: `x/y` = release point, `x0/y0` =
+ * press point. Returns a detach() function. Browser-only (uses addEventListener).
  */
 function attachInputRouter(target, onGesture) {
   let start = null;
   const isTouch = e => e.touches && e.touches.length > 0;
 
+  function localPoint(clientX, clientY) {
+    const rect = target.getBoundingClientRect();
+    return canvasPoint(rect, target.width, target.height, clientX, clientY);
+  }
+
   function pointerStart(e) {
     const p = isTouch(e) ? e.touches[0] : e;
-    start = { x: p.clientX, y: p.clientY, t: Date.now() };
+    const c = localPoint(p.clientX, p.clientY);
+    start = { x: p.clientX, y: p.clientY, cx: c.x, cy: c.y, t: Date.now() };
   }
   function pointerEnd(e) {
     if (!start) return;
     const p = e.changedTouches ? e.changedTouches[0] : e;
+    const end = localPoint(p.clientX, p.clientY);
     const result = classifyGesture({
       dx: p.clientX - start.x,
       dy: p.clientY - start.y,
       durationMs: Date.now() - start.t,
     });
+    // Canvas-space coords for hit-testing. Replaces the old ev.offsetX reads
+    // (absent on touch; wrong space on a CSS-stretched backing buffer).
+    result.x = end.x;   result.y = end.y;
+    result.x0 = start.cx; result.y0 = start.cy;
     start = null;
     onGesture(result, e);
   }
