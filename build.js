@@ -30,6 +30,13 @@ const MANIFEST = [
   'src/journey/acts/minigames/live-mix.js',
   'src/journey/acts/minigames/parallel-park.js',
   'src/journey/acts/culmination.js',
+  // Memory Rooms (Phase R) — geometry/motes are pure deps for render+controller;
+  // data.js reads QUESTS/CULMINATIONS/MINIGAMES (all declared earlier).
+  'src/journey/room/geometry.js',
+  'src/journey/room/motes.js',
+  'src/journey/room/data.js',
+  'src/journey/room/render.js',
+  'src/journey/room/controller.js',
   'src/journey/bootstrap.js',
 ];
 

@@ -136,4 +136,34 @@ function tickChapterFlow() {
     _activeFlow = null;
   }
   if (id) startChapterFlow(id);
+  updateRoomDoor(id);
+}
+
+/**
+ * Show the "step inside the memory" door prompt whenever the player is standing
+ * in a chapter band they've already completed. Tapping it enters that chapter's
+ * Memory Room. Hidden while a room is open or when not in a completed band.
+ */
+function updateRoomDoor(activeId) {
+  const door = document.getElementById('v2-room-door');
+  if (!door) return;
+  if (typeof isRoomOpen === 'function' && isRoomOpen()) {
+    door.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  const store = window.__journeyV2 && window.__journeyV2.store;
+  const ready = activeId && store && store.getChapter(activeId).phase === 'complete';
+  if (ready) {
+    if (door.__chapter !== activeId) {
+      door.__chapter = activeId;
+      door.onclick = () => {
+        door.setAttribute('aria-hidden', 'true');
+        if (typeof openMemoryRoom === 'function') openMemoryRoom(activeId);
+      };
+    }
+    door.setAttribute('aria-hidden', 'false');
+  } else {
+    door.setAttribute('aria-hidden', 'true');
+    door.__chapter = null;
+  }
 }

@@ -11,9 +11,11 @@ function createChapterStore(storage) {
 
   function getChapter(id) {
     const existing = state.chapters[id];
+    // roomVisited / memoriesPlayed are additive Memory-Room fields; default them
+    // so chapters saved before the rooms shipped still read cleanly.
     return existing
-      ? { ...existing }
-      : { phase: 'unseen', score: null, npcChoice: null };
+      ? { roomVisited: false, memoriesPlayed: [], ...existing }
+      : { phase: 'unseen', score: null, npcChoice: null, roomVisited: false, memoriesPlayed: [] };
   }
 
   function send(id, event) {
@@ -34,5 +36,22 @@ function createChapterStore(storage) {
     persist();
   }
 
-  return { getChapter, send, setScore, setNpcChoice, _state: () => state };
+  function markRoomVisited(id) {
+    state.chapters[id] = { ...getChapter(id), roomVisited: true };
+    persist();
+  }
+
+  function markMemoryPlayed(id, beatId) {
+    const cur = getChapter(id);
+    const played = Array.isArray(cur.memoriesPlayed) ? cur.memoriesPlayed : [];
+    if (played.includes(beatId)) return;
+    state.chapters[id] = { ...cur, memoriesPlayed: [...played, beatId] };
+    persist();
+  }
+
+  return {
+    getChapter, send, setScore, setNpcChoice,
+    markRoomVisited, markMemoryPlayed,
+    _state: () => state,
+  };
 }

@@ -15,9 +15,10 @@ function showCulmination(chapterId, chapterLabel, onDone) {
   function dismiss() {
     $overlay.removeEventListener('click', dismiss);
     $overlay.setAttribute('aria-hidden', 'true');
-    // Chain into stage video if v1 helper exposed it (it's a top-level
-    // function in journey.js; we sniff for it).
-    const playVid = window.__playStageVideoV1 || (typeof playStageVideo !== 'undefined' ? playStageVideo : null);
+    // Chain into the v1 stage-video player. It lives inside v1's IIFE and is
+    // only reachable through the bridge — the old `typeof playStageVideo` sniff
+    // resolved to this module's own name (a no-op), so the video never played.
+    const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
     if (typeof playVid === 'function') {
       try { playVid(chapterId, chapterLabel); } catch (_) {}
     }

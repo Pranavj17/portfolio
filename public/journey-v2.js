@@ -141,6 +141,36 @@ function tickChapterFlow() {
     _activeFlow = null;
   }
   if (id) startChapterFlow(id);
+  updateRoomDoor(id);
+}
+
+/**
+ * Show the "step inside the memory" door prompt whenever the player is standing
+ * in a chapter band they've already completed. Tapping it enters that chapter's
+ * Memory Room. Hidden while a room is open or when not in a completed band.
+ */
+function updateRoomDoor(activeId) {
+  const door = document.getElementById('v2-room-door');
+  if (!door) return;
+  if (typeof isRoomOpen === 'function' && isRoomOpen()) {
+    door.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  const store = window.__journeyV2 && window.__journeyV2.store;
+  const ready = activeId && store && store.getChapter(activeId).phase === 'complete';
+  if (ready) {
+    if (door.__chapter !== activeId) {
+      door.__chapter = activeId;
+      door.onclick = () => {
+        door.setAttribute('aria-hidden', 'true');
+        if (typeof openMemoryRoom === 'function') openMemoryRoom(activeId);
+      };
+    }
+    door.setAttribute('aria-hidden', 'false');
+  } else {
+    door.setAttribute('aria-hidden', 'true');
+    door.__chapter = null;
+  }
 }
 
 
@@ -222,9 +252,11 @@ function createChapterStore(storage) {
 
   function getChapter(id) {
     const existing = state.chapters[id];
+    // roomVisited / memoriesPlayed are additive Memory-Room fields; default them
+    // so chapters saved before the rooms shipped still read cleanly.
     return existing
-      ? { ...existing }
-      : { phase: 'unseen', score: null, npcChoice: null };
+      ? { roomVisited: false, memoriesPlayed: [], ...existing }
+      : { phase: 'unseen', score: null, npcChoice: null, roomVisited: false, memoriesPlayed: [] };
   }
 
   function send(id, event) {
@@ -245,7 +277,24 @@ function createChapterStore(storage) {
     persist();
   }
 
-  return { getChapter, send, setScore, setNpcChoice, _state: () => state };
+  function markRoomVisited(id) {
+    state.chapters[id] = { ...getChapter(id), roomVisited: true };
+    persist();
+  }
+
+  function markMemoryPlayed(id, beatId) {
+    const cur = getChapter(id);
+    const played = Array.isArray(cur.memoriesPlayed) ? cur.memoriesPlayed : [];
+    if (played.includes(beatId)) return;
+    state.chapters[id] = { ...cur, memoriesPlayed: [...played, beatId] };
+    persist();
+  }
+
+  return {
+    getChapter, send, setScore, setNpcChoice,
+    markRoomVisited, markMemoryPlayed,
+    _state: () => state,
+  };
 }
 
 
@@ -429,26 +478,55 @@ function classifyGesture({ dx, dy, durationMs }) {
 }
 
 /**
+ * canvasPoint(rect, bufW, bufH, clientX, clientY) — map a viewport point into
+ * canvas backing-buffer coordinates. A mini-game / room canvas is drawn at its
+ * intrinsic size (e.g. 360×240, or DPR-scaled full screen) but CSS-stretched to
+ * fill its box, so a raw clientX lands in the wrong space — and touch events
+ * carry no offsetX at all. This is the single source of truth for canvas
+ * hit-testing. Pure + unit-tested.
+ *
+ *   rect — target.getBoundingClientRect() (or any {left,top,width,height})
+ *   bufW/bufH — target.width / target.height (the backing buffer)
+ */
+function canvasPoint(rect, bufW, bufH, clientX, clientY) {
+  const sx = rect.width ? bufW / rect.width : 1;
+  const sy = rect.height ? bufH / rect.height : 1;
+  return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };
+}
+
+/**
  * attachInputRouter(target, onGesture) — wires touch + mouse on `target`
  * and invokes onGesture(result, originalEvent) for each completed gesture.
- * Returns a detach() function. Browser-only (uses addEventListener).
+ * The result carries canvas-space coords: `x/y` = release point, `x0/y0` =
+ * press point. Returns a detach() function. Browser-only (uses addEventListener).
  */
 function attachInputRouter(target, onGesture) {
   let start = null;
   const isTouch = e => e.touches && e.touches.length > 0;
 
+  function localPoint(clientX, clientY) {
+    const rect = target.getBoundingClientRect();
+    return canvasPoint(rect, target.width, target.height, clientX, clientY);
+  }
+
   function pointerStart(e) {
     const p = isTouch(e) ? e.touches[0] : e;
-    start = { x: p.clientX, y: p.clientY, t: Date.now() };
+    const c = localPoint(p.clientX, p.clientY);
+    start = { x: p.clientX, y: p.clientY, cx: c.x, cy: c.y, t: Date.now() };
   }
   function pointerEnd(e) {
     if (!start) return;
     const p = e.changedTouches ? e.changedTouches[0] : e;
+    const end = localPoint(p.clientX, p.clientY);
     const result = classifyGesture({
       dx: p.clientX - start.x,
       dy: p.clientY - start.y,
       durationMs: Date.now() - start.t,
     });
+    // Canvas-space coords for hit-testing. Replaces the old ev.offsetX reads
+    // (absent on touch; wrong space on a CSS-stretched backing buffer).
+    result.x = end.x;   result.y = end.y;
+    result.x0 = start.cx; result.y0 = start.cy;
     start = null;
     onGesture(result, e);
   }
@@ -1361,15 +1439,898 @@ function showCulmination(chapterId, chapterLabel, onDone) {
   function dismiss() {
     $overlay.removeEventListener('click', dismiss);
     $overlay.setAttribute('aria-hidden', 'true');
-    // Chain into stage video if v1 helper exposed it (it's a top-level
-    // function in journey.js; we sniff for it).
-    const playVid = window.__playStageVideoV1 || (typeof playStageVideo !== 'undefined' ? playStageVideo : null);
+    // Chain into the v1 stage-video player. It lives inside v1's IIFE and is
+    // only reachable through the bridge — the old `typeof playStageVideo` sniff
+    // resolved to this module's own name (a no-op), so the video never played.
+    const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
     if (typeof playVid === 'function') {
       try { playVid(chapterId, chapterLabel); } catch (_) {}
     }
     onDone();
   }
   $overlay.addEventListener('click', dismiss);
+}
+
+
+// === src/journey/room/geometry.js ===
+
+/**
+ * Pure geometry for the Memory Room.
+ *
+ * A room is authored in a fixed virtual space (ROOM_W × ROOM_H). The renderer
+ * maps that space onto whatever canvas the device has, with a parallax camera
+ * that pans a little toward the pointer / device-tilt to sell depth. EVERY tap
+ * is hit-tested through propScreenRect, so what you can touch is exactly what
+ * you see — no matter the screen size. All functions here are pure (no DOM) so
+ * they're unit-tested without a browser.
+ */
+const ROOM_W = 1000;
+const ROOM_H = 600;
+const ROOM_OVERSCAN = 1.08;   // draw a touch larger than fit so parallax never reveals an edge
+const CAM_PARALLAX_PX = 48;   // max room-space camera shift from a full pointer deflection
+
+function clampUnit(v) { return v < -1 ? -1 : (v > 1 ? 1 : v); }
+function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeOutCubic(t) { const u = 1 - t; return 1 - u * u * u; }
+function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+/**
+ * depth 0 = far wall (barely moves), 1 = foreground (moves most with camera).
+ * Near things parallax more than far things — the core depth cue.
+ */
+function parallaxFactor(depth) { return 0.25 + depth * 0.75; }
+
+/**
+ * Per-frame mapping from room space to canvas space.
+ *   cam = { x, y } pointer-normalized in [-1,1].
+ */
+function roomLayout(canvasW, canvasH, cam) {
+  const scale = Math.min(canvasW / ROOM_W, canvasH / ROOM_H) * ROOM_OVERSCAN;
+  return {
+    canvasW, canvasH, scale,
+    originX: canvasW / 2,
+    originY: canvasH / 2,
+    camX: (cam && cam.x ? cam.x : 0) * CAM_PARALLAX_PX,
+    camY: (cam && cam.y ? cam.y : 0) * CAM_PARALLAX_PX,
+  };
+}
+
+/**
+ * Screen rect for a prop (center cx/cy + size w/h) under the frame layout.
+ * Near props render larger and shift more with the camera.
+ */
+function propScreenRect(prop, layout) {
+  const depth = prop.depth == null ? 0.5 : prop.depth;
+  const pf = parallaxFactor(depth);
+  const rx = prop.x - ROOM_W / 2;
+  const ry = prop.y - ROOM_H / 2;
+  const cx = layout.originX + (rx - layout.camX * pf) * layout.scale;
+  const cy = layout.originY + (ry - layout.camY * pf) * layout.scale;
+  const sizeScale = layout.scale * (0.65 + depth * 0.7);
+  const w = (prop.w == null ? 90 : prop.w) * sizeScale;
+  const h = (prop.h == null ? 90 : prop.h) * sizeScale;
+  return { cx, cy, w, h, depth };
+}
+
+/**
+ * Topmost interactable prop under a canvas-space tap, or null. Near props
+ * (higher depth) win overlaps. `pad` grows the hit box for fat-finger taps.
+ * Props with kind 'decor' are scenery and never interactable.
+ */
+function hitTestProps(props, sx, sy, layout, pad) {
+  if (pad == null) pad = 12;
+  let best = null, bestDepth = -1;
+  for (const prop of props) {
+    if (prop.kind === 'decor') continue;
+    const r = propScreenRect(prop, layout);
+    const hw = r.w / 2 + pad, hh = r.h / 2 + pad;
+    if (sx >= r.cx - hw && sx <= r.cx + hw && sy >= r.cy - hh && sy <= r.cy + hh) {
+      if (r.depth >= bestDepth) { best = prop; bestDepth = r.depth; }
+    }
+  }
+  return best;
+}
+
+
+// === src/journey/room/motes.js ===
+
+/**
+ * Dust motes drifting in the room's light shaft — the cheapest, highest-impact
+ * "this is a 3D space" cue. Positions are normalized [0,1] over the canvas so
+ * they're resolution-independent. The step is pure (dt in ms) so it's testable
+ * without a browser; makeMotes takes an injectable rng for deterministic tests.
+ */
+function makeMotes(n, rng) {
+  rng = rng || Math.random;
+  const motes = [];
+  for (let i = 0; i < n; i++) {
+    motes.push({
+      x: rng(),
+      y: rng(),
+      r: 0.6 + rng() * 1.9,          // radius in px (scaled at draw time)
+      vy: 0.015 + rng() * 0.045,     // rise speed, normalized units/sec
+      sway: 0.4 + rng() * 1.4,       // horizontal sway frequency
+      amp: 0.004 + rng() * 0.012,    // sway amplitude
+      phase: rng() * Math.PI * 2,
+      a: 0.12 + rng() * 0.40,        // base alpha
+    });
+  }
+  return motes;
+}
+
+/**
+ * Advance motes by dtMs. Each rises slowly, sways, and wraps to the bottom
+ * once it floats off the top. Returns the same array (mutated) for chaining.
+ */
+function stepMotes(motes, dtMs) {
+  const dt = dtMs / 1000;
+  for (const m of motes) {
+    m.y -= m.vy * dt;
+    m.phase += m.sway * dt;
+    if (m.y < -0.05) { m.y = 1.05; }
+  }
+  return motes;
+}
+
+
+// === src/journey/room/data.js ===
+
+/**
+ * Memory Room content + procedural layout.
+ *
+ * A room is mostly GENERATED, not hand-placed: the memory objects come from the
+ * chapter's quest beats (QUESTS, already in the bundle) and are enriched at open
+ * time from v1's authored beat lore (window.__journey.BEATS — each beat carries
+ * { title, lore, hint:<emoji> }). So a memory card shows the real title, the real
+ * prose, and the real emoji with zero duplication. Per-chapter we only author the
+ * era palette + a title; layout is computed. That keeps all 8 rooms consistent
+ * and cheap to maintain while still feeling individually art-directed via colour.
+ */
+
+// Per-era tint over the shared sepia base. Every value stays in the RDR palette.
+const ROOM_META = {
+  __default: {
+    title: 'A MEMORY', subtitle: '',
+    palette: { wall1: '#3a2616', wall2: '#180f07', floor: '#0f0a05', accent: '#d4a653', frame: '#5a2e1a' },
+    light: { x: 200, y: 150, w: 300, warmth: 1 }, motes: 26,
+  },
+  itics:    { title: 'ITICS', subtitle: 'until 2013 · the first bell',
+    palette: { wall1: '#3a2716', wall2: '#1a1108', floor: '#100a05', accent: '#d4a653', frame: '#5a2e1a' },
+    light: { x: 200, y: 150, w: 320, warmth: 1.05 }, motes: 30 },
+  cmr:      { title: 'CMR NATIONAL', subtitle: '2013–2015 · the pressure cooker',
+    palette: { wall1: '#2a2418', wall2: '#120f08', floor: '#0c0905', accent: '#c9b58c', frame: '#4a2a18' },
+    light: { x: 175, y: 130, w: 240, warmth: 0.82 }, motes: 22 },
+  college:  { title: 'D.S.C.E.', subtitle: '2015–2019 · triples & three-bus commutes',
+    palette: { wall1: '#33291a', wall2: '#16100a', floor: '#0e0a05', accent: '#c47540', frame: '#5a3018' },
+    light: { x: 210, y: 160, w: 300, warmth: 0.95 }, motes: 28 },
+  fever104: { title: 'FEVER 104 FM', subtitle: 'Mar–May 2019 · the soundproof room',
+    palette: { wall1: '#3a1e16', wall2: '#190d08', floor: '#0f0805', accent: '#e0a35a', frame: '#5a2618' },
+    light: { x: 190, y: 150, w: 280, warmth: 1.1 }, motes: 24 },
+  sakha:    { title: 'SAKHA GLOBAL', subtitle: '2019–2022 · the first paycheck',
+    palette: { wall1: '#2e2a1e', wall2: '#15120b', floor: '#0d0a06', accent: '#d4a653', frame: '#534127' },
+    light: { x: 205, y: 150, w: 300, warmth: 0.98 }, motes: 26 },
+  scripbox: { title: 'SCRIPBOX', subtitle: '2022–present · a protocol no one had heard of',
+    palette: { wall1: '#2b2c20', wall2: '#121309', floor: '#0b0c06', accent: '#e6c285', frame: '#4d4327' },
+    light: { x: 200, y: 140, w: 300, warmth: 1.0 }, motes: 28 },
+  vwgt:     { title: 'THE GT', subtitle: 'Nov 16 2025 · one signature',
+    palette: { wall1: '#332014', wall2: '#160c06', floor: '#0e0805', accent: '#e6c285', frame: '#5a3016' },
+    light: { x: 210, y: 150, w: 320, warmth: 1.08 }, motes: 30 },
+  now:      { title: 'NOW', subtitle: '2026–present · still building',
+    palette: { wall1: '#3d2c18', wall2: '#1c1206', floor: '#100a05', accent: '#f0c060', frame: '#5a3a1a' },
+    light: { x: 220, y: 140, w: 340, warmth: 1.15 }, motes: 32 },
+};
+
+// Fallback emoji if a beat has no hint and isn't found in v1 BEATS.
+const MEMORY_FALLBACK_ICON = '🖼️';
+
+/** Look up a chapter's authored beat lore from v1 (window.__journey.BEATS). */
+function lookupBeat(chapterId, beatId) {
+  const all = (typeof window !== 'undefined' && window.__journey && window.__journey.BEATS) || [];
+  const full = chapterId + '-' + beatId;
+  return all.find(b => b.id === full || b.id === beatId) || null;
+}
+
+function humanize(id) {
+  return String(id).replace(/[-_]/g, ' ');
+}
+
+/** Distribute N memory frames across the back/mid wall in a gentle zig-zag arc. */
+function layoutMemories(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n <= 1 ? 0.5 : i / (n - 1);
+    out.push({
+      x: 300 + t * 430,            // 300 → 730 across the wall
+      y: 258 + (i % 2) * 74,       // zig-zag two rows
+      depth: 0.48 + t * 0.22,      // far-left → nearer-right
+      w: 116, h: 150,
+    });
+  }
+  return out;
+}
+
+/**
+ * Build the full room descriptor for a chapter. Memory props are generated from
+ * QUESTS[chapterId].beats and enriched from v1 BEATS; the four fixtures
+ * (projector / arcade / journal / exit) and the window are fixed furniture.
+ */
+function buildRoom(chapterId) {
+  const meta = ROOM_META[chapterId] || ROOM_META.__default;
+  const beats = (typeof QUESTS !== 'undefined' && QUESTS[chapterId] && QUESTS[chapterId].beats) || [];
+  const slots = layoutMemories(beats.length);
+
+  const props = [];
+
+  // Window — the light source, far back, non-interactable.
+  props.push({ id: 'window', kind: 'decor', draw: 'window',
+    x: meta.light.x, y: meta.light.y, depth: 0.04, w: meta.light.w, h: meta.light.w * 0.9 });
+
+  // Projector screen — plays the chapter's stage video (far wall).
+  props.push({ id: 'screen', kind: 'video', draw: 'screen', icon: '▶',
+    x: 510, y: 150, depth: 0.18, w: 270, h: 150, title: 'the reel' });
+
+  // Memory frames — one per quest beat, enriched from authored lore.
+  beats.forEach((beatId, i) => {
+    const beat = lookupBeat(chapterId, beatId);
+    const s = slots[i];
+    props.push({
+      id: beatId, kind: 'memory', draw: 'frame', beat: beatId,
+      x: s.x, y: s.y, depth: s.depth, w: s.w, h: s.h,
+      icon: (beat && beat.hint) || MEMORY_FALLBACK_ICON,
+      title: (beat && beat.title) || humanize(beatId),
+      body: (beat && beat.lore) || 'a memory from this chapter.',
+    });
+  });
+
+  // Arcade cabinet — replays the chapter's mini-game (foreground left).
+  props.push({ id: 'arcade', kind: 'minigame', draw: 'arcade', icon: '🕹',
+    x: 150, y: 432, depth: 0.9, w: 150, h: 196,
+    title: (typeof MINIGAMES !== 'undefined' && MINIGAMES[chapterId] && MINIGAMES[chapterId].label) || 'replay' });
+
+  // Journal — the culmination paragraph (foreground right).
+  props.push({ id: 'journal', kind: 'culmination', draw: 'journal', icon: '📖',
+    x: 848, y: 470, depth: 0.92, w: 150, h: 120, title: 'the page',
+    body: (typeof CULMINATIONS !== 'undefined' && (CULMINATIONS[chapterId] || CULMINATIONS.__placeholder)) || '' });
+
+  // Exit door — back to the overworld (right wall).
+  props.push({ id: 'exit', kind: 'exit', draw: 'door', icon: '→',
+    x: 940, y: 332, depth: 0.42, w: 132, h: 300, title: 'step back out' });
+
+  return {
+    chapterId,
+    title: meta.title,
+    subtitle: meta.subtitle,
+    palette: meta.palette,
+    light: meta.light,
+    moteCount: meta.motes,
+    props,
+  };
+}
+
+
+// === src/journey/room/render.js ===
+
+/**
+ * Memory Room renderer. Pure-ish: draws a room descriptor onto a 2D context for
+ * the current frame. No state of its own — the controller owns the loop, camera,
+ * motes and hover/played sets and hands them in via `frame`. All art is
+ * procedural canvas (no image assets) to honour the overworld's zero-extra-
+ * request constraint, layered far→near with a volumetric light shaft, drifting
+ * motes, and per-prop bloom so it reads as a lit 3D space.
+ *
+ *   frame = { tMs, motes, hoverId, played:Set, reduced:bool, intro:0..1 }
+ */
+function drawRoom(ctx, room, layout, frame) {
+  const W = layout.canvasW, H = layout.canvasH;
+  const p = room.palette;
+  const t = frame.tMs || 0;
+  const reduced = !!frame.reduced;
+
+  // 1 · back wall — vertical era-tinted gradient + soft corner darkening.
+  const wall = ctx.createLinearGradient(0, 0, 0, H);
+  wall.addColorStop(0, p.wall1);
+  wall.addColorStop(1, p.wall2);
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, W, H);
+
+  // 2 · floor — lower third, darker, with a faint reflective sheen line.
+  const floorTop = H * 0.66;
+  const floor = ctx.createLinearGradient(0, floorTop, 0, H);
+  floor.addColorStop(0, p.wall2);
+  floor.addColorStop(1, p.floor);
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, floorTop, W, H - floorTop);
+  ctx.strokeStyle = 'rgba(212,166,83,0.10)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, floorTop); ctx.lineTo(W, floorTop); ctx.stroke();
+
+  // window screen position (light origin), used by the shaft + motes.
+  const win = room.props.find(pr => pr.id === 'window');
+  const winRect = win ? propScreenRect(win, layout) : { cx: W * 0.2, cy: H * 0.25, w: 200, h: 200 };
+
+  // 3 · volumetric light shaft — additive warm cone from the window, with a
+  // slow breathing intensity. Skipped flat in reduced-motion.
+  drawLightShaft(ctx, W, H, winRect, p, room.light, reduced ? 0.5 : 0.5 + 0.12 * Math.sin(t / 1400));
+
+  // 4 · props, far → near. Draw decor first within that ordering anyway.
+  const ordered = room.props.slice().sort((a, b) => (a.depth || 0) - (b.depth || 0));
+
+  // motes live between the far wall and the near furniture (drawn after the
+  // far screen/window, before the near interactables) — split the prop list.
+  let motesDrawn = false;
+  for (const prop of ordered) {
+    if (!motesDrawn && (prop.depth || 0) >= 0.4) {
+      drawMotes(ctx, W, H, frame.motes, winRect, p.accent);
+      motesDrawn = true;
+    }
+    drawProp(ctx, prop, layout, frame, p, t);
+  }
+  if (!motesDrawn) drawMotes(ctx, W, H, frame.motes, winRect, p.accent);
+
+  // 5 · vignette — period-photo corner darkening (over everything in the room).
+  const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.72);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(8,5,2,0.62)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  // 6 · iris-in transition overlay (a closing/opening circular mask).
+  if (frame.intro != null && frame.intro < 1) {
+    const r = Math.max(W, H) * (0.05 + easeOutCubic(frame.intro) * 1.05);
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,5,2,1)';
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2, true);   // counter-clockwise → punch a hole
+    ctx.fill('evenodd');
+    ctx.restore();
+  }
+}
+
+function drawLightShaft(ctx, W, H, winRect, p, light, intensity) {
+  const ox = winRect.cx, oy = winRect.cy;
+  const spread = winRect.w * 1.1;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(ox, oy, ox + W * 0.5, H);
+  const warm = (light && light.warmth) || 1;
+  g.addColorStop(0, `rgba(${Math.round(240 * warm)}, ${Math.round(205 * warm)}, ${Math.round(140 * warm)}, ${0.30 * intensity})`);
+  g.addColorStop(1, 'rgba(120,80,30,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(ox - spread * 0.35, oy);
+  ctx.lineTo(ox + spread * 0.35, oy);
+  ctx.lineTo(ox + W * 0.62, H);
+  ctx.lineTo(ox - W * 0.10, H);
+  ctx.closePath();
+  ctx.fill();
+  // bright bloom at the window mouth
+  const b = ctx.createRadialGradient(ox, oy, 2, ox, oy, spread);
+  b.addColorStop(0, `rgba(255,235,180,${0.34 * intensity})`);
+  b.addColorStop(1, 'rgba(255,235,180,0)');
+  ctx.fillStyle = b;
+  ctx.fillRect(ox - spread, oy - spread, spread * 2, spread * 2);
+  ctx.restore();
+}
+
+function drawMotes(ctx, W, H, motes, winRect, accent) {
+  if (!motes) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const m of motes) {
+    const x = m.x * W + Math.sin(m.phase) * m.amp * W;
+    const y = m.y * H;
+    // brighter the closer to the shaft centre line
+    const dx = (x - winRect.cx) / W;
+    const near = Math.max(0, 1 - Math.abs(dx) * 1.8);
+    const a = m.a * (0.35 + near * 0.65);
+    ctx.fillStyle = `rgba(247,232,188,${a})`;
+    ctx.beginPath();
+    ctx.arc(x, y, m.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawProp(ctx, prop, layout, frame, palette, t) {
+  let r = propScreenRect(prop, layout);
+  const hovered = frame.hoverId === prop.id;
+  const played = prop.kind === 'memory' && frame.played && frame.played.has(prop.beat);
+
+  if (hovered) { r = { ...r, w: r.w * 1.08, h: r.h * 1.08 }; }
+
+  // glow halo for interactable, unplayed / hovered props
+  if (prop.kind !== 'decor') {
+    const pulse = 0.5 + 0.5 * Math.sin(t / 600 + (prop.x || 0));
+    const baseA = played ? 0.10 : (hovered ? 0.55 : 0.22 + pulse * 0.16);
+    drawHalo(ctx, r.cx, r.cy, Math.max(r.w, r.h) * (hovered ? 0.95 : 0.8), palette.accent, baseA);
+  }
+
+  switch (prop.draw) {
+    case 'window':  drawWindowSprite(ctx, r, palette); break;
+    case 'screen':  drawScreenSprite(ctx, r, palette, t); break;
+    case 'arcade':  drawArcadeSprite(ctx, r, palette, t); break;
+    case 'journal': drawJournalSprite(ctx, r, palette); break;
+    case 'door':    drawDoorSprite(ctx, r, palette, t); break;
+    case 'frame':
+    default:        drawFrameSprite(ctx, r, palette, prop, played, hovered); break;
+  }
+
+  // floating label on hover
+  if (hovered && prop.title) {
+    drawLabel(ctx, r.cx, r.cy - r.h / 2 - 16, prop.title);
+  }
+}
+
+function drawHalo(ctx, x, y, radius, color, alpha) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x, y, 1, x, y, radius);
+  g.addColorStop(0, hexA(color, alpha));
+  g.addColorStop(1, hexA(color, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  ctx.restore();
+}
+
+function rr(ctx, x, y, w, h, rad) {
+  const r = Math.min(rad, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawFrameSprite(ctx, r, p, prop, played, hovered) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  // drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  rr(ctx, x + 4, y + 6, w, h, 6); ctx.fill();
+  // outer frame
+  const fg = ctx.createLinearGradient(x, y, x, y + h);
+  fg.addColorStop(0, '#6b3a1f'); fg.addColorStop(1, p.frame);
+  ctx.fillStyle = fg; rr(ctx, x, y, w, h, 6); ctx.fill();
+  // inner mat (parchment)
+  const m = w * 0.12;
+  const mat = ctx.createLinearGradient(x, y, x, y + h);
+  mat.addColorStop(0, '#e9d8b0'); mat.addColorStop(1, '#c9b58c');
+  ctx.fillStyle = mat; rr(ctx, x + m, y + m, w - 2 * m, h - 2 * m, 3); ctx.fill();
+  // icon
+  ctx.save();
+  ctx.globalAlpha = played ? 0.55 : 1;
+  ctx.font = `${Math.round(h * 0.40)}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(prop.icon || '🖼️', r.cx, r.cy - h * 0.04);
+  ctx.restore();
+  // played wax seal ✓ / unplayed shimmer dot
+  if (played) {
+    ctx.fillStyle = '#7a1f12';
+    ctx.beginPath(); ctx.arc(r.cx, y + h - m - 4, h * 0.10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e9d8b0'; ctx.font = `${Math.round(h * 0.12)}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✓', r.cx, y + h - m - 4);
+  } else {
+    ctx.fillStyle = hovered ? p.accent : 'rgba(212,166,83,0.85)';
+    ctx.beginPath(); ctx.arc(r.cx, y + h - m - 2, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+function drawScreenSprite(ctx, r, p, t) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  ctx.fillStyle = '#0a0a0c'; rr(ctx, x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = p.frame; ctx.lineWidth = 3; rr(ctx, x, y, w, h, 4); ctx.stroke();
+  // soft projector glow
+  const g = ctx.createRadialGradient(r.cx, r.cy, 2, r.cx, r.cy, w * 0.6);
+  g.addColorStop(0, hexA(p.accent, 0.30)); g.addColorStop(1, hexA(p.accent, 0));
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  // scanlines
+  ctx.strokeStyle = 'rgba(255,235,180,0.05)';
+  for (let yy = y + 4; yy < y + h; yy += 5) { ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + w - 3, yy); ctx.stroke(); }
+  // play glyph
+  ctx.fillStyle = hexA(p.accent, 0.9);
+  const s = h * 0.22;
+  ctx.beginPath(); ctx.moveTo(r.cx - s * 0.5, r.cy - s); ctx.lineTo(r.cx - s * 0.5, r.cy + s); ctx.lineTo(r.cx + s, r.cy); ctx.closePath(); ctx.fill();
+}
+
+function drawArcadeSprite(ctx, r, p, t) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  // body
+  ctx.fillStyle = '#241712'; rr(ctx, x, y, w, h, 6); ctx.fill();
+  ctx.strokeStyle = p.frame; ctx.lineWidth = 2; rr(ctx, x, y, w, h, 6); ctx.stroke();
+  // marquee
+  const mg = ctx.createLinearGradient(x, y, x, y + h * 0.16);
+  mg.addColorStop(0, p.accent); mg.addColorStop(1, '#8a5a1a');
+  ctx.fillStyle = mg; rr(ctx, x + 6, y + 6, w - 12, h * 0.14, 3); ctx.fill();
+  // screen
+  ctx.fillStyle = '#05060a'; ctx.fillRect(x + 10, y + h * 0.22, w - 20, h * 0.34);
+  const sg = ctx.createRadialGradient(r.cx, y + h * 0.39, 2, r.cx, y + h * 0.39, w * 0.5);
+  const flick = 0.5 + 0.3 * Math.sin(t / 220);
+  sg.addColorStop(0, hexA(p.accent, 0.35 * flick)); sg.addColorStop(1, hexA(p.accent, 0));
+  ctx.fillStyle = sg; ctx.fillRect(x + 10, y + h * 0.22, w - 20, h * 0.34);
+  // control panel + joystick
+  ctx.fillStyle = '#1a110b'; ctx.fillRect(x + 8, y + h * 0.60, w - 16, h * 0.22);
+  ctx.fillStyle = p.accent; ctx.beginPath(); ctx.arc(x + w * 0.35, y + h * 0.71, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#a4332e'; ctx.beginPath(); ctx.arc(x + w * 0.6, y + h * 0.71, 5, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawJournalSprite(ctx, r, p) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  // lectern
+  ctx.fillStyle = '#2a1a10'; ctx.beginPath();
+  ctx.moveTo(r.cx - w * 0.30, y + h); ctx.lineTo(r.cx + w * 0.30, y + h);
+  ctx.lineTo(r.cx + w * 0.42, y + h * 0.55); ctx.lineTo(r.cx - w * 0.42, y + h * 0.55); ctx.closePath(); ctx.fill();
+  // open book — two pages
+  ctx.fillStyle = '#e9d8b0';
+  ctx.beginPath(); ctx.moveTo(r.cx, y + h * 0.30); ctx.lineTo(x + 6, y + h * 0.40);
+  ctx.lineTo(x + 10, y + h * 0.62); ctx.lineTo(r.cx, y + h * 0.55); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(r.cx, y + h * 0.30); ctx.lineTo(x + w - 6, y + h * 0.40);
+  ctx.lineTo(x + w - 10, y + h * 0.62); ctx.lineTo(r.cx, y + h * 0.55); ctx.closePath(); ctx.fill();
+  // text lines
+  ctx.strokeStyle = 'rgba(90,46,26,0.5)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const ly = y + h * (0.40 + i * 0.05);
+    ctx.beginPath(); ctx.moveTo(x + 12, ly); ctx.lineTo(r.cx - 6, ly + h * 0.012); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(r.cx + 6, ly); ctx.lineTo(x + w - 12, ly + h * 0.012); ctx.stroke();
+  }
+}
+
+function drawDoorSprite(ctx, r, p, t) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  // frame
+  ctx.fillStyle = '#2a1a10'; rr(ctx, x, y, w, h, 4); ctx.fill();
+  // door ajar — warm light spilling
+  const lg = ctx.createLinearGradient(x + w * 0.2, y, x + w, y);
+  lg.addColorStop(0, '#3a2616'); lg.addColorStop(1, hexA('#f0c878', 0.9));
+  ctx.fillStyle = lg; ctx.fillRect(x + w * 0.18, y + 8, w * 0.7, h - 16);
+  // glow from the gap
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x + w * 0.85, r.cy, 2, x + w * 0.85, r.cy, h * 0.6);
+  const pulse = 0.6 + 0.25 * Math.sin(t / 700);
+  g.addColorStop(0, hexA('#ffdf9a', 0.5 * pulse)); g.addColorStop(1, hexA('#ffdf9a', 0));
+  ctx.fillStyle = g; ctx.fillRect(x, y, w * 1.5, h); ctx.restore();
+  // arrow glyph
+  ctx.fillStyle = '#2a1a10'; ctx.font = `${Math.round(h * 0.14)}px 'Cinzel', serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('→', x + w * 0.52, r.cy);
+}
+
+function drawWindowSprite(ctx, r, p) {
+  const x = r.cx - r.w / 2, y = r.cy - r.h / 2, w = r.w, h = r.h;
+  // bright sky behind panes (the light source)
+  const sky = ctx.createLinearGradient(x, y, x, y + h);
+  sky.addColorStop(0, '#fff0cf'); sky.addColorStop(1, '#e6b066');
+  ctx.fillStyle = sky; ctx.fillRect(x, y, w, h);
+  // muntin bars
+  ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = Math.max(3, w * 0.03);
+  ctx.strokeRect(x, y, w, h);
+  ctx.beginPath(); ctx.moveTo(r.cx, y); ctx.lineTo(r.cx, y + h);
+  ctx.moveTo(x, r.cy); ctx.lineTo(x + w, r.cy); ctx.stroke();
+  // outer bloom
+  drawHalo(ctx, r.cx, r.cy, w * 0.9, '#ffe9b0', 0.30);
+}
+
+function drawLabel(ctx, x, y, text) {
+  ctx.save();
+  ctx.font = "600 13px 'Cinzel', serif";
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(text).width + 22;
+  ctx.fillStyle = 'rgba(20,12,6,0.86)';
+  rr(ctx, x - tw / 2, y - 13, tw, 24, 4); ctx.fill();
+  ctx.strokeStyle = 'rgba(212,166,83,0.6)'; ctx.lineWidth = 1; rr(ctx, x - tw / 2, y - 13, tw, 24, 4); ctx.stroke();
+  ctx.fillStyle = '#e9d8b0';
+  ctx.fillText(text, x, y + 1);
+  ctx.restore();
+}
+
+/** hex (#rrggbb) + alpha → rgba() string. Tolerates already-rgba input. */
+function hexA(hex, a) {
+  if (typeof hex !== 'string' || hex[0] !== '#') return `rgba(212,166,83,${a})`;
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+
+// === src/journey/room/controller.js ===
+
+/**
+ * Memory Room controller — owns the open/close lifecycle, the rAF loop, the
+ * parallax camera, pointer/tilt input, the memory cards, and the cinematic
+ * enter/exit. The v1 overworld keeps running cheaply underneath an opaque
+ * overlay; we only suppress its movement keys + shield its pointer listeners
+ * while a room is open, then resume the player exactly where they were (no v1
+ * surgery, lowest regression risk).
+ */
+const MOVE_KEYS = new Set([
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Spacebar',
+  'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'h', 'H',
+]);
+
+let _room = null;   // active session or null
+
+function roomStore() { return window.__journeyV2 && window.__journeyV2.store; }
+function isRoomOpen() { return !!_room; }
+
+function openMemoryRoom(chapterId) {
+  if (_room) return;
+  const overlay = document.getElementById('v2-room');
+  const canvas = document.getElementById('v2-room-canvas');
+  if (!overlay || !canvas) return;
+
+  const room = buildRoom(chapterId);
+  const store = roomStore();
+  const rec = store ? store.getChapter(chapterId) : {};
+  const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  const sess = {
+    chapterId, room, canvas, overlay,
+    ctx: canvas.getContext('2d'),
+    cam: { x: 0, y: 0, tx: 0, ty: 0 },
+    motes: (typeof makeMotes === 'function') ? makeMotes(reduced ? Math.round(room.moteCount / 2) : room.moteCount) : [],
+    played: new Set(Array.isArray(rec.memoriesPlayed) ? rec.memoriesPlayed : []),
+    hoverId: null,
+    cardOpen: false,
+    reduced,
+    tMs: 0,
+    intro: reduced ? 1 : 0,
+    last: (typeof performance !== 'undefined' ? performance.now() : 0),
+    raf: null,
+    detachInput: null,
+    handlers: {},
+  };
+  _room = sess;
+
+  sizeCanvas(sess);
+  if (store && store.markRoomVisited) store.markRoomVisited(chapterId);
+
+  document.body.classList.add('v2-room-open');
+  overlay.setAttribute('aria-hidden', 'false');
+  setRoomChrome(sess);
+
+  // --- freeze v1: swallow movement keys (capture), Esc exits ---
+  sess.handlers.key = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeMemoryRoom(); return; }
+    if (MOVE_KEYS.has(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  };
+  window.addEventListener('keydown', sess.handlers.key, true);
+  window.addEventListener('keyup', sess.handlers.key, true);
+
+  // --- shield v1 from our pointer input (stop bubbling past the overlay) ---
+  sess.handlers.shield = (e) => { e.stopPropagation(); };
+  ['mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'touchmove', 'pointerdown', 'pointerup']
+    .forEach(t => overlay.addEventListener(t, sess.handlers.shield));
+
+  // --- camera parallax: pointer (desktop) + device-tilt (mobile, best-effort) ---
+  sess.handlers.move = (e) => {
+    const p = e.touches ? e.touches[0] : e;
+    if (!p || p.clientX == null) return;
+    const w = window.innerWidth || 1, h = window.innerHeight || 1;
+    sess.cam.tx = clampUnit((p.clientX / w) * 2 - 1);
+    sess.cam.ty = clampUnit(((p.clientY / h) * 2 - 1) * 0.6);
+  };
+  overlay.addEventListener('mousemove', sess.handlers.move);
+  if (window.DeviceOrientationEvent && !reduced) {
+    sess.handlers.tilt = (e) => {
+      if (e.gamma == null) return;
+      sess.cam.tx = clampUnit(e.gamma / 28);
+      sess.cam.ty = clampUnit(((e.beta || 45) - 45) / 36);
+    };
+    window.addEventListener('deviceorientation', sess.handlers.tilt);
+  }
+
+  // --- taps select props ---
+  sess.detachInput = attachInputRouter(canvas, (gesture) => {
+    if (sess.cardOpen) return;            // card eats the next tap (handled by card)
+    if (gesture.kind !== 'TAP' && gesture.kind !== 'HOLD') return;
+    const layout = roomLayout(canvas.width, canvas.height, sess.cam);
+    const hit = hitTestProps(sess.room.props, gesture.x, gesture.y, layout);
+    if (hit) handleProp(sess, hit);
+  });
+  // hover highlight on desktop
+  sess.handlers.hover = (e) => {
+    const layout = roomLayout(canvas.width, canvas.height, sess.cam);
+    const pt = canvasPoint(canvas.getBoundingClientRect(), canvas.width, canvas.height, e.clientX, e.clientY);
+    const hit = hitTestProps(sess.room.props, pt.x, pt.y, layout);
+    sess.hoverId = hit ? hit.id : null;
+    canvas.style.cursor = hit ? 'pointer' : 'default';
+  };
+  canvas.addEventListener('mousemove', sess.handlers.hover);
+
+  sess.handlers.resize = () => sizeCanvas(sess);
+  window.addEventListener('resize', sess.handlers.resize);
+
+  // card dismiss
+  const card = document.getElementById('v2-room-card');
+  if (card) {
+    sess.handlers.card = () => closeRoomCard(sess);
+    card.addEventListener('click', sess.handlers.card);
+  }
+
+  startRoomAudio(sess);
+  loop(sess);
+}
+
+function sizeCanvas(sess) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = window.innerWidth, h = window.innerHeight;
+  sess.canvas.width = Math.round(w * dpr);
+  sess.canvas.height = Math.round(h * dpr);
+  sess.canvas.style.width = w + 'px';
+  sess.canvas.style.height = h + 'px';
+}
+
+function setRoomChrome(sess) {
+  const tEl = document.getElementById('v2-room-title');
+  const sEl = document.getElementById('v2-room-sub');
+  if (tEl) tEl.textContent = sess.room.title;
+  if (sEl) sEl.textContent = sess.room.subtitle || '';
+  updateRoomProgress(sess);
+}
+
+function updateRoomProgress(sess) {
+  const pEl = document.getElementById('v2-room-progress');
+  if (!pEl) return;
+  const total = sess.room.props.filter(p => p.kind === 'memory').length;
+  const done = sess.room.props.filter(p => p.kind === 'memory' && sess.played.has(p.beat)).length;
+  pEl.textContent = total ? `memories · ${done} / ${total}` : '';
+}
+
+function loop(sess) {
+  if (_room !== sess) return;
+  const now = (typeof performance !== 'undefined' ? performance.now() : sess.last + 16);
+  const dt = Math.min(60, now - sess.last);
+  sess.last = now;
+  sess.tMs += dt;
+
+  // ease camera toward target + a slow idle drift so the room always breathes
+  const drift = sess.reduced ? 0 : Math.sin(sess.tMs / 3200) * 0.10;
+  sess.cam.x = lerp(sess.cam.x, sess.cam.tx + drift, 0.06);
+  sess.cam.y = lerp(sess.cam.y, sess.cam.ty, 0.06);
+
+  if (!sess.reduced && typeof stepMotes === 'function') stepMotes(sess.motes, dt);
+  if (sess.intro < 1) sess.intro = Math.min(1, sess.intro + dt / 680);
+
+  const layout = roomLayout(sess.canvas.width, sess.canvas.height, sess.cam);
+  drawRoom(sess.ctx, sess.room, layout, {
+    tMs: sess.tMs, motes: sess.motes, hoverId: sess.hoverId,
+    played: sess.played, reduced: sess.reduced, intro: sess.intro,
+  });
+
+  sess.raf = requestAnimationFrame(() => loop(sess));
+}
+
+function handleProp(sess, prop) {
+  switch (prop.kind) {
+    case 'memory': {
+      if (!sess.played.has(prop.beat)) {
+        sess.played.add(prop.beat);
+        const store = roomStore();
+        if (store && store.markMemoryPlayed) store.markMemoryPlayed(sess.chapterId, prop.beat);
+        updateRoomProgress(sess);
+      }
+      openRoomCard(sess, prop.icon + '  ' + prop.title, prop.body);
+      break;
+    }
+    case 'culmination':
+      openRoomCard(sess, 'the page', prop.body);
+      break;
+    case 'minigame':
+      if (typeof initMinigame === 'function') {
+        initMinigame(sess.chapterId, ({ score }) => {
+          const store = roomStore();
+          const prev = store ? (store.getChapter(sess.chapterId).score || 0) : 0;
+          if (store && store.setScore && score > prev) store.setScore(sess.chapterId, score);
+        });
+      }
+      break;
+    case 'video': {
+      const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
+      const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
+        && window.__journeyV1Bridge.getChapterLabel(sess.chapterId)) || sess.room.title;
+      if (typeof playVid === 'function') { try { playVid(sess.chapterId, label); } catch (_) {} }
+      break;
+    }
+    case 'exit':
+      closeMemoryRoom();
+      break;
+  }
+}
+
+function openRoomCard(sess, title, body) {
+  const card = document.getElementById('v2-room-card');
+  const tEl = document.getElementById('v2-room-card-title');
+  const bEl = document.getElementById('v2-room-card-body');
+  if (!card) return;
+  if (tEl) tEl.textContent = title;
+  if (bEl) bEl.textContent = body;
+  card.setAttribute('aria-hidden', 'false');
+  card.classList.add('shown');
+  sess.cardOpen = true;
+}
+
+function closeRoomCard(sess) {
+  const card = document.getElementById('v2-room-card');
+  if (card) { card.classList.remove('shown'); card.setAttribute('aria-hidden', 'true'); }
+  // defer clearing the flag so the dismiss tap doesn't also hit a prop
+  setTimeout(() => { if (_room === sess) sess.cardOpen = false; }, 60);
+}
+
+function closeMemoryRoom() {
+  const sess = _room;
+  if (!sess) return;
+
+  const finish = () => {
+    if (sess.raf) cancelAnimationFrame(sess.raf);
+    if (sess.detachInput) sess.detachInput();
+    window.removeEventListener('keydown', sess.handlers.key, true);
+    window.removeEventListener('keyup', sess.handlers.key, true);
+    window.removeEventListener('resize', sess.handlers.resize);
+    if (sess.handlers.tilt) window.removeEventListener('deviceorientation', sess.handlers.tilt);
+    sess.overlay.removeEventListener('mousemove', sess.handlers.move);
+    sess.canvas.removeEventListener('mousemove', sess.handlers.hover);
+    ['mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'touchmove', 'pointerdown', 'pointerup']
+      .forEach(t => sess.overlay.removeEventListener(t, sess.handlers.shield));
+    const card = document.getElementById('v2-room-card');
+    if (card && sess.handlers.card) card.removeEventListener('click', sess.handlers.card);
+    sess.overlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('v2-room-open');
+    stopRoomAudio(sess);
+    _room = null;
+  };
+
+  if (sess.reduced) { finish(); return; }
+  // iris-out, then tear down
+  sess.closing = true;
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
+  const out = () => {
+    const now = (typeof performance !== 'undefined' ? performance.now() : t0 + 700);
+    sess.intro = 1 - Math.min(1, (now - t0) / 520);
+    const layout = roomLayout(sess.canvas.width, sess.canvas.height, sess.cam);
+    drawRoom(sess.ctx, sess.room, layout, {
+      tMs: sess.tMs, motes: sess.motes, hoverId: null,
+      played: sess.played, reduced: sess.reduced, intro: sess.intro,
+    });
+    if (sess.intro > 0) requestAnimationFrame(out); else finish();
+  };
+  if (sess.raf) cancelAnimationFrame(sess.raf);
+  out();
+}
+
+// --- subtle ambient drone (best-effort; silent if WebAudio unavailable) ---
+function startRoomAudio(sess) {
+  if (sess.reduced) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 420;
+    osc.type = 'triangle'; osc.frequency.value = 72;
+    osc2.type = 'sine'; osc2.frequency.value = 108;
+    gain.gain.value = 0;
+    osc.connect(lp); osc2.connect(lp); lp.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc2.start();
+    gain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 1.2);
+    sess.audio = { ctx, gain };
+  } catch (_) { /* no audio, no problem */ }
+}
+
+function stopRoomAudio(sess) {
+  if (!sess.audio) return;
+  try {
+    const { ctx, gain } = sess.audio;
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+    setTimeout(() => { try { ctx.close(); } catch (_) {} }, 600);
+  } catch (_) {}
+  sess.audio = null;
 }
 
 
@@ -1388,6 +2349,11 @@ window.__journeyV2 = {
   // exposed for the chapter-flow polling
   detectActiveV2Chapter,
   startChapterFlow,
+  // Memory Room API (Phase R)
+  openMemoryRoom,
+  closeMemoryRoom,
+  isRoomOpen,
+  buildRoom,
 };
 
 // Start polling for v2 chapter entry. The v1 bundle (journey.js) is NOT
