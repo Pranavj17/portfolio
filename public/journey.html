@@ -1280,6 +1280,22 @@
       // from inside its IIFE; the v2 bundle reads from it.
       (function () {
         var v = new URLSearchParams(location.search).get('v');
+        // v3 = the standalone first-person 3D journey. It does NOT load v1 or
+        // v2: it owns its own full-screen canvas + overlay UI and ignores the
+        // leftover v1/v2 DOM. three.js is vendored locally (CSP is script-src
+        // 'self', so a CDN would be blocked) and resolved via an importmap.
+        // The importmap MUST be appended before the module script.
+        if (v === '3') {
+          var imap = document.createElement('script');
+          imap.type = 'importmap';
+          imap.textContent = JSON.stringify({ imports: { three: '/vendor/three.module.js' } });
+          document.head.appendChild(imap);
+          var v3 = document.createElement('script');
+          v3.type = 'module';
+          v3.src = '/journey3d/main.js?v=20260531-1';
+          document.body.appendChild(v3);
+          return;
+        }
         var v1 = document.createElement('script');
         v1.src = '/journey.js?v=20260519-72';
         document.body.appendChild(v1);
