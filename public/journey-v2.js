@@ -5,26 +5,22 @@
 // === src/journey/core.js ===
 
 /**
- * v2 chapter flow orchestrator.
+ * v2 milestone orchestrator (room-as-milestone).
  *
- * The v1 game continues to handle the world, parallax, walking, beats, and
- * achievements. v2 sits on top and watches the v1 globals:
- *   - state.playerX (from v1, exposed on window for v2)
- *   - state.discoveredBeats (Set in v1)
- *   - CHAPTERS array (v1)
- *
- * When the player enters a chapter that has v2 content (NPCS[id] !== undefined
- * and id !== '__placeholder'), v2 takes over for the 3-act vignette. Otherwise
- * v1 chapter behavior runs as today.
+ * The v1 game owns the world, parallax, walking, beats, and achievements. v2
+ * sits on top and watches the v1 bridge to know which chapter band the player
+ * is standing in. There is no longer a walk-by vignette — the Memory Room IS
+ * the milestone. core.js shrank to a single job: when the player is in a
+ * v2-enabled band and no room is open, show the deterministic "STEP INSIDE"
+ * prompt wired to open that chapter's room.
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104', 'vwgt']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104', 'vwgt']);
 
 /**
- * Returns the v2 chapter id for the player's current world-x, or null
- * if no v2 chapter is active. Reads window.__journeyV1Bridge populated by
- * v1's game loop (added in the v1 patch below).
+ * Returns the v2 chapter id for the player's current world-x, or null if no v2
+ * chapter is active. Reads window.__journeyV1Bridge populated by v1's loop.
  */
 function detectActiveV2Chapter() {
   const b = window.__journeyV1Bridge;
@@ -33,137 +29,34 @@ function detectActiveV2Chapter() {
   return V2_ENABLED_CHAPTERS.has(id) ? id : null;
 }
 
-let _activeFlow = null;
-
-function startChapterFlow(chapterId) {
-  if (_activeFlow === chapterId) return;
-  const store = window.__journeyV2.store;
-  const phase = store.getChapter(chapterId).phase;
-  // Re-entry: completed chapters don't auto-replay. Medal-mode replay is a
-  // Phase 4 polish item (see docs/journey-v2-status.md).
-  if (phase === 'complete') return;
-  _activeFlow = chapterId;
-  const intertitle = (window.__journeyV1Bridge?.getIntertitle?.(chapterId)) || {};
-
-  if (phase === 'unseen') {
-    store.send(chapterId, 'ENTER');                 // → cutscene
-    playCutscene(chapterId, intertitle, () => {
-      store.send(chapterId, 'DISMISS');             // → exploring
-      enterExploring(chapterId);
-    });
-  } else {
-    enterExploring(chapterId);
-  }
-}
-
-function enterExploring(chapterId) {
-  const collectedMap = collectedBeatsMap();
-  showQuestHud(chapterId, collectedMap);
-  const npcAlreadyAnswered = window.__journeyV2.store.getChapter(chapterId).npcChoice != null;
-  if (!npcAlreadyAnswered) {
-    // First entry · auto-present the NPC after 800ms so the cutscene fade
-    // doesn't step on it. The choice callback feeds into checkQuestComplete.
-    setTimeout(() => {
-      presentNpc(chapterId, idx => {
-        window.__journeyV2.store.setNpcChoice(chapterId, idx);
-        checkQuestComplete(chapterId);
-      });
-    }, 800);
-  } else {
-    // C-2 fix · re-entry · NPC already answered, don't re-present. If the
-    // quest is now complete (player may have collected the remaining beats
-    // while away), advance to Act III immediately.
-    setTimeout(() => checkQuestComplete(chapterId), 100);
-  }
-  pollQuest(chapterId);
-}
-
-function collectedBeatsMap() {
-  const b = window.__journeyV1Bridge;
-  const set = b?.getDiscoveredBeats?.() ?? new Set();
-  const m = {};
-  for (const id of set) m[id] = true;
-  return m;
-}
-
-const _questPollTimers = {};   // { [chapterId]: intervalId }
-function pollQuest(chapterId) {
-  if (_questPollTimers[chapterId]) clearInterval(_questPollTimers[chapterId]);
-  _questPollTimers[chapterId] = setInterval(() => {
-    const cm = collectedBeatsMap();
-    showQuestHud(chapterId, cm);
-    const q = QUESTS[chapterId];
-    if (q && isQuestComplete(q.beats, q.needed, cm)) {
-      checkQuestComplete(chapterId);
-    }
-  }, 500);
-}
-
-const _act3Started = {};       // { [chapterId]: true }
-function checkQuestComplete(chapterId) {
-  if (_act3Started[chapterId]) return;
-  const q = QUESTS[chapterId];
-  const cm = collectedBeatsMap();
-  if (!q || !isQuestComplete(q.beats, q.needed, cm)) return;
-  // Need NPC choice recorded AND quest complete
-  if (window.__journeyV2.store.getChapter(chapterId).npcChoice == null) return;
-  _act3Started[chapterId] = true;
-  if (_questPollTimers[chapterId]) {
-    clearInterval(_questPollTimers[chapterId]);
-    delete _questPollTimers[chapterId];
-  }
-  hideQuestHud();
-  window.__journeyV2.store.send(chapterId, 'QUEST_COMPLETE');   // → closing
-  initMinigame(chapterId, ({ score, label }) => {
-    window.__journeyV2.store.setScore(chapterId, score);
-    window.__journeyV2.store.send(chapterId, 'MINIGAME_DONE');  // → culminating
-    const lbl = window.__journeyV1Bridge?.getChapterLabel?.(chapterId) ?? chapterId.toUpperCase();
-    showCulmination(chapterId, lbl, () => {
-      window.__journeyV2.store.send(chapterId, 'DISMISS');      // → complete
-      delete _act3Started[chapterId];
-      _activeFlow = null;
-    });
-  });
-}
-
-// Polled from a setInterval that bootstrap starts.
+/**
+ * Polled (250ms from bootstrap). The ONLY job: manage the STEP-INSIDE prompt.
+ *   - room open      → hide the prompt
+ *   - in a v2 band   → show "STEP INSIDE · <label>", wire tap → openMemoryRoom
+ *   - otherwise      → hide the prompt
+ * Deterministic — no phase/completion gating, so the prompt appears EVERY time
+ * the player stands at a milestone (fixes "sometimes shows up, sometimes not").
+ */
 function tickChapterFlow() {
   const id = detectActiveV2Chapter();
-  // C-1 fix · if the bridge no longer reports our active chapter (player
-  // walked into a different chapter, or out of any v2-enabled band), tear
-  // down the leftover poll timer + HUD so they don't run forever.
-  if (_activeFlow && _activeFlow !== id) {
-    if (_questPollTimers[_activeFlow]) {
-      clearInterval(_questPollTimers[_activeFlow]);
-      delete _questPollTimers[_activeFlow];
-    }
-    hideQuestHud();
-    _activeFlow = null;
-  }
-  if (id) startChapterFlow(id);
-  updateRoomDoor(id);
-}
-
-/**
- * Show the "step inside the memory" door prompt whenever the player is standing
- * in a chapter band they've already completed. Tapping it enters that chapter's
- * Memory Room. Hidden while a room is open or when not in a completed band.
- */
-function updateRoomDoor(activeId) {
   const door = document.getElementById('v2-room-door');
   if (!door) return;
+
   if (typeof isRoomOpen === 'function' && isRoomOpen()) {
     door.setAttribute('aria-hidden', 'true');
     return;
   }
-  const store = window.__journeyV2 && window.__journeyV2.store;
-  const ready = activeId && store && store.getChapter(activeId).phase === 'complete';
-  if (ready) {
-    if (door.__chapter !== activeId) {
-      door.__chapter = activeId;
+
+  if (id) {
+    const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
+      && window.__journeyV1Bridge.getChapterLabel(id)) || id.toUpperCase();
+    if (door.__chapter !== id) {
+      door.__chapter = id;
+      const labelEl = door.querySelector('.v2-room-door-label');
+      if (labelEl) labelEl.textContent = 'STEP INSIDE · ' + label;
       door.onclick = () => {
         door.setAttribute('aria-hidden', 'true');
-        if (typeof openMemoryRoom === 'function') openMemoryRoom(activeId);
+        if (typeof openMemoryRoom === 'function') openMemoryRoom(id);
       };
     }
     door.setAttribute('aria-hidden', 'false');
@@ -185,14 +78,44 @@ const JOURNEY_SCHEMA_VERSION = 2;
 
 function migrateJourneyState(stored) {
   if (!stored || typeof stored !== 'object') return { v: 2, chapters: {} };
-  if (stored.v === 2) return stored;
-  // v1 (or missing v): build chapters map from collected set
+  if (stored.v === 2) return migrateChapterRecords(stored);
+  // v1 (or missing v): build chapters map from the collected set — every
+  // collected chapter was a finished milestone, so it maps to visited+complete.
   const collected = Array.isArray(stored.collected) ? stored.collected : [];
   const chapters = {};
   for (const id of collected) {
-    chapters[id] = { phase: 'complete', score: null, npcChoice: null };
+    chapters[id] = { visited: true, complete: true, memoriesPlayed: [], score: null };
   }
   return { ...stored, v: 2, chapters };
+}
+
+/**
+ * Upgrade v:2 chapter records from the old phase machine to the room-as-
+ * milestone shape. `phase==='complete'` → {visited,complete:true};
+ * `memoriesPlayed`/`score` are preserved. Records already in the new shape pass
+ * through untouched. The schema version stays v:2 (no key bump).
+ */
+function migrateChapterRecords(stored) {
+  const chapters = stored.chapters;
+  if (!chapters || typeof chapters !== 'object') return stored;
+  let changed = false;
+  const next = {};
+  for (const id of Object.keys(chapters)) {
+    const rec = chapters[id] || {};
+    if ('phase' in rec) {
+      changed = true;
+      const done = rec.phase === 'complete';
+      next[id] = {
+        visited: done || !!rec.roomVisited,
+        complete: done,
+        memoriesPlayed: Array.isArray(rec.memoriesPlayed) ? rec.memoriesPlayed : [],
+        score: rec.score != null ? rec.score : null,
+      };
+    } else {
+      next[id] = rec;
+    }
+  }
+  return changed ? { ...stored, chapters: next } : stored;
 }
 
 function loadJourneyState(storage) {
@@ -200,8 +123,9 @@ function loadJourneyState(storage) {
   let parsed;
   try { parsed = raw ? JSON.parse(raw) : null; } catch (_) { parsed = null; }
   const migrated = migrateJourneyState(parsed);
-  // write-back any migration so v1 visitors are upgraded
-  if (parsed && parsed.v !== 2) {
+  // write-back any migration so older visitors are upgraded on the next load
+  // (covers both v1→v2 and old-v2-phase-records → room-as-milestone records).
+  if (parsed && migrated !== parsed) {
     try { storage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(migrated)); } catch (_) {}
   }
   return migrated;
@@ -212,37 +136,17 @@ function saveJourneyState(storage, state) {
 }
 
 
-// === src/journey/state/phase.js ===
-
-/**
- * Per-chapter phase machine.
- *   unseen → cutscene → exploring → closing → culminating → complete
- * Re-entry to a `complete` chapter via ENTER drops back to `exploring`
- * (cutscene is one-shot per chapter; NPC and beats remain interactive).
- */
-const CHAPTER_PHASES = ['unseen', 'cutscene', 'exploring', 'closing', 'culminating', 'complete'];
-
-const PHASE_TRANSITIONS = {
-  unseen:     { ENTER: 'cutscene' },
-  cutscene:   { DISMISS: 'exploring' },
-  exploring:  { QUEST_COMPLETE: 'closing' },
-  closing:    { MINIGAME_DONE: 'culminating' },
-  culminating:{ DISMISS: 'complete' },
-  complete:   { ENTER: 'exploring' },   // re-entry
-};
-
-function transitionChapterPhase(current, event) {
-  const row = PHASE_TRANSITIONS[current];
-  if (!row) throw new Error(`unknown phase: ${current}`);
-  return row[event] ?? current;
-}
-
-
 // === src/journey/state/store.js ===
 
 /**
- * Chapter store. Wraps localStorage via persistence module, exposes
- * getChapter / send (transition) / setScore / setNpcChoice.
+ * Chapter store. Wraps localStorage via the persistence module.
+ *
+ * Room-as-milestone shape — one record per chapter:
+ *   { visited:false, complete:false, memoriesPlayed:[], score:null }
+ * `visited`  → the room has been entered at least once.
+ * `complete` → the guided sequence has been finished at least once (a revisit
+ *              after this runs in free-explore mode).
+ * The old phase machine + npcChoice are gone; the room IS the milestone.
  */
 function createChapterStore(storage) {
   let state = loadJourneyState(storage);
@@ -250,35 +154,23 @@ function createChapterStore(storage) {
 
   function persist() { saveJourneyState(storage, state); }
 
+  function defaults() {
+    return { visited: false, complete: false, memoriesPlayed: [], score: null };
+  }
+
   function getChapter(id) {
     const existing = state.chapters[id];
-    // roomVisited / memoriesPlayed are additive Memory-Room fields; default them
-    // so chapters saved before the rooms shipped still read cleanly.
-    return existing
-      ? { roomVisited: false, memoriesPlayed: [], ...existing }
-      : { phase: 'unseen', score: null, npcChoice: null, roomVisited: false, memoriesPlayed: [] };
+    // Spread over defaults so records written before a field existed read cleanly.
+    return existing ? { ...defaults(), ...existing } : defaults();
   }
 
-  function send(id, event) {
-    const cur = getChapter(id);
-    const next = transitionChapterPhase(cur.phase, event);
-    state.chapters[id] = { ...cur, phase: next };
-    persist();
-    return next;
-  }
-
-  function setScore(id, score) {
-    state.chapters[id] = { ...getChapter(id), score };
+  function markVisited(id) {
+    state.chapters[id] = { ...getChapter(id), visited: true };
     persist();
   }
 
-  function setNpcChoice(id, idx) {
-    state.chapters[id] = { ...getChapter(id), npcChoice: idx };
-    persist();
-  }
-
-  function markRoomVisited(id) {
-    state.chapters[id] = { ...getChapter(id), roomVisited: true };
+  function markComplete(id) {
+    state.chapters[id] = { ...getChapter(id), visited: true, complete: true };
     persist();
   }
 
@@ -290,9 +182,13 @@ function createChapterStore(storage) {
     persist();
   }
 
+  function setScore(id, score) {
+    state.chapters[id] = { ...getChapter(id), score };
+    persist();
+  }
+
   return {
-    getChapter, send, setScore, setNpcChoice,
-    markRoomVisited, markMemoryPlayed,
+    getChapter, markVisited, markComplete, markMemoryPlayed, setScore,
     _state: () => state,
   };
 }
@@ -541,151 +437,6 @@ function attachInputRouter(target, onGesture) {
     target.removeEventListener('mousedown',  pointerStart);
     target.removeEventListener('mouseup',    pointerEnd);
   };
-}
-
-
-// === src/journey/ui/hud.js ===
-
-/**
- * Quest checklist renderer. Reads from QUESTS[chapterId] and a collectedMap,
- * paints the panel, fades in/out via aria-hidden.
- */
-function showQuestHud(chapterId, collectedMap) {
-  const q = QUESTS[chapterId];
-  if (!q) return hideQuestHud();
-  const $hud = document.getElementById('v2-quest-hud');
-  const $title = document.getElementById('v2-quest-title');
-  const $progress = document.getElementById('v2-quest-progress');
-  const $list = document.getElementById('v2-quest-list');
-  const p = questProgress(q.beats, q.needed, collectedMap);
-  $title.textContent = `${chapterId.toUpperCase()} · QUEST`;
-  $progress.textContent = `${p.done} / ${q.needed}`;
-  $list.innerHTML = q.beats
-    .map(b => `<li class="${collectedMap[b] ? 'done' : ''}">${collectedMap[b] ? '✓' : '○'} ${b}</li>`)
-    .join('');
-  $hud.setAttribute('aria-hidden', 'false');
-}
-
-function hideQuestHud() {
-  const $hud = document.getElementById('v2-quest-hud');
-  if ($hud) $hud.setAttribute('aria-hidden', 'true');
-}
-
-
-// === src/journey/acts/cutscene.js ===
-
-/**
- * Act I cutscene player. Fades lines in one-by-one, dismisses on tap or
- * after durationMs. Calls onDismiss() exactly once.
- *
- * Browser-only: touches DOM. Reduced-motion mode displays all lines at
- * once with no animation-delay and shortens the auto-dismiss timer.
- */
-
-// Pure helper · tested independently in tests/unit/cutscene.test.js.
-function isReducedMotion(win) {
-  if (!win || typeof win.matchMedia !== 'function') return false;
-  try { return !!win.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-  catch (_) { return false; }
-}
-
-function playCutscene(chapterId, intertitle, onDismiss) {
-  const data = CUTSCENES[chapterId] ?? CUTSCENES.__placeholder;
-  const overlay = document.getElementById('v2-cutscene');
-  const actEl   = document.getElementById('v2-cutscene-act');
-  const linesEl = document.getElementById('v2-cutscene-lines');
-  if (!overlay || !actEl || !linesEl) {
-    onDismiss();
-    return;
-  }
-  const reduced = isReducedMotion(window);
-  actEl.textContent = intertitle?.act ? `${intertitle.act} · ${intertitle.title ?? ''}` : '';
-  linesEl.innerHTML = data.lines
-    .map((t, i) => `<div class="v2-line" style="${reduced ? '' : `animation-delay:${i * 0.7}s`}">${t}</div>`)
-    .join('');
-  overlay.setAttribute('aria-hidden', 'false');
-
-  let dismissed = false;
-  function dismiss() {
-    if (dismissed) return;
-    dismissed = true;
-    overlay.setAttribute('aria-hidden', 'true');
-    document.removeEventListener('keydown', onKey, true);
-    overlay.removeEventListener('click', dismiss);
-    onDismiss();
-  }
-  function onKey(e) { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); } }
-  overlay.addEventListener('click', dismiss);
-  document.addEventListener('keydown', onKey, true);
-  // Auto-dismiss: 3000ms cap under reduced-motion (so the user isn't
-  // stuck reading the same card for the full content duration).
-  const effectiveDuration = reduced ? Math.min(data.durationMs, 3000) : data.durationMs;
-  setTimeout(dismiss, effectiveDuration);
-}
-
-
-// === src/journey/acts/npc.js ===
-
-/**
- * Act II NPC encounter. Renders open line, then choices. Player taps a
- * choice → reply replaces the line, choices clear, "tap to continue"
- * appears. Tap anywhere → close line → onDone(choiceIdx).
- *
- * Phase machine: choose → reply → close → done. `clickChoice` runs in
- * the capture phase and stops propagation so the same click cannot also
- * trigger `clickAdvance` in the bubble phase. A `done` flag guards
- * against rapid double-clicks calling onDone twice.
- */
-function presentNpc(chapterId, onDone) {
-  const data = NPCS[chapterId] ?? NPCS.__placeholder;
-  const overlay = document.getElementById('v2-npc');
-  const $sprite = document.getElementById('v2-npc-sprite');
-  const $name   = document.getElementById('v2-npc-name');
-  const $line   = document.getElementById('v2-npc-line');
-  const $choices = document.getElementById('v2-npc-choices');
-  if (!overlay) { onDone(null); return; }
-
-  $sprite.textContent = data.sprite;
-  $name.textContent = data.name;
-  $line.textContent = data.open;
-  $choices.innerHTML = data.choices
-    .map((c, i) => `<button class="v2-npc-choice" data-idx="${i}">${c.label}</button>`)
-    .join('');
-  overlay.setAttribute('aria-hidden', 'false');
-
-  let phase = 'choose';  // choose → reply → close → done
-  let pickedIdx = null;
-  let done = false;
-
-  function clickChoice(e) {
-    const btn = e.target.closest('.v2-npc-choice');
-    if (!btn || phase !== 'choose') return;
-    // Stop the same click from advancing the reply→close transition.
-    e.stopPropagation();
-    pickedIdx = parseInt(btn.dataset.idx, 10);
-    $line.textContent = data.choices[pickedIdx].reply;
-    $choices.innerHTML = `<div class="v2-cutscene-cta">▸ tap to continue ▸</div>`;
-    phase = 'reply';
-  }
-  function clickAdvance(e) {
-    if (phase === 'reply') {
-      $line.textContent = data.close;
-      $choices.innerHTML = `<div class="v2-cutscene-cta">▸ tap to leave ▸</div>`;
-      phase = 'close';
-      return;
-    }
-    if (phase === 'close') {
-      if (done) return;
-      done = true;
-      phase = 'done';
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.removeEventListener('click', clickChoice, true);
-      overlay.removeEventListener('click', clickAdvance);
-      onDone(pickedIdx);
-    }
-  }
-  overlay.addEventListener('click', clickChoice, true);
-  overlay.addEventListener('click', clickAdvance);
 }
 
 
@@ -1421,37 +1172,6 @@ MINIGAMES.vwgt = {
 };
 
 
-// === src/journey/acts/culmination.js ===
-
-/**
- * Act III culmination card. Shows the chapter's closing paragraph, then on
- * tap chains into the existing v1 stage-video player if available.
- * Falls back to immediate onDone if neither overlay nor stage-video exists.
- */
-function showCulmination(chapterId, chapterLabel, onDone) {
-  const text = CULMINATIONS[chapterId] ?? CULMINATIONS.__placeholder ?? '';
-  const $overlay = document.getElementById('v2-culmination');
-  const $text = document.getElementById('v2-culmination-text');
-  if (!$overlay || !$text) { onDone(); return; }
-  $text.textContent = text;
-  $overlay.setAttribute('aria-hidden', 'false');
-
-  function dismiss() {
-    $overlay.removeEventListener('click', dismiss);
-    $overlay.setAttribute('aria-hidden', 'true');
-    // Chain into the v1 stage-video player. It lives inside v1's IIFE and is
-    // only reachable through the bridge — the old `typeof playStageVideo` sniff
-    // resolved to this module's own name (a no-op), so the video never played.
-    const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
-    if (typeof playVid === 'function') {
-      try { playVid(chapterId, chapterLabel); } catch (_) {}
-    }
-    onDone();
-  }
-  $overlay.addEventListener('click', dismiss);
-}
-
-
 // === src/journey/room/geometry.js ===
 
 /**
@@ -1719,6 +1439,16 @@ function buildRoom(chapterId) {
   props.push({ id: 'exit', kind: 'exit', draw: 'door', icon: '→',
     x: 940, y: 332, depth: 0.42, w: 132, h: 300, title: 'step back out' });
 
+  // Guided-sequence copy. INTRO = the chapter's opening line(s) from CUTSCENES
+  // (joined with the same ' · ' divider the rest of the room uses), falling back
+  // to the era subtitle. CLOSING = the culmination paragraph.
+  const cut = (typeof CUTSCENES !== 'undefined' && CUTSCENES[chapterId]) || null;
+  const intro = (cut && Array.isArray(cut.lines) && cut.lines.length)
+    ? cut.lines.join(' · ')
+    : (meta.subtitle || meta.title);
+  const closing = (typeof CULMINATIONS !== 'undefined'
+    && (CULMINATIONS[chapterId] || CULMINATIONS.__placeholder)) || '';
+
   return {
     chapterId,
     title: meta.title,
@@ -1727,6 +1457,8 @@ function buildRoom(chapterId) {
     light: meta.light,
     moteCount: meta.motes,
     props,
+    intro,
+    closing,
   };
 }
 
@@ -1741,7 +1473,13 @@ function buildRoom(chapterId) {
  * request constraint, layered far→near with a volumetric light shaft, drifting
  * motes, and per-prop bloom so it reads as a lit 3D space.
  *
- *   frame = { tMs, motes, hoverId, played:Set, reduced:bool, intro:0..1 }
+ *   frame = { tMs, motes, hoverId, played:Set, reduced:bool, intro:0..1,
+ *             activeIds:Set|null }
+ *
+ * activeIds drives the GUIDED sequence: when it's a Set, props NOT in it are
+ * dimmed (low alpha, no glow/hover) so exactly the current step's interactable
+ * stands out; props IN it draw at full strength. When null (free-explore on a
+ * revisit), every prop draws normally — the original behaviour.
  */
 function drawRoom(ctx, room, layout, frame) {
   const W = layout.canvasW, H = layout.canvasH;
@@ -1857,13 +1595,21 @@ function drawMotes(ctx, W, H, motes, winRect, accent) {
 
 function drawProp(ctx, prop, layout, frame, palette, t) {
   let r = propScreenRect(prop, layout);
-  const hovered = frame.hoverId === prop.id;
+  // During a guided run, only props in activeIds are "live" this stage. The
+  // window (decor light source) is always live so the room stays lit. Dimmed
+  // props get reduced alpha and no glow/hover so the eye lands on the step.
+  const guided = frame.activeIds instanceof Set;
+  const dimmed = guided && prop.kind !== 'decor' && !frame.activeIds.has(prop.id);
+  const hovered = !dimmed && frame.hoverId === prop.id;
   const played = prop.kind === 'memory' && frame.played && frame.played.has(prop.beat);
 
   if (hovered) { r = { ...r, w: r.w * 1.08, h: r.h * 1.08 }; }
 
-  // glow halo for interactable, unplayed / hovered props
-  if (prop.kind !== 'decor') {
+  ctx.save();
+  if (dimmed) ctx.globalAlpha = 0.32;
+
+  // glow halo for interactable, unplayed / hovered props (skipped when dimmed)
+  if (prop.kind !== 'decor' && !dimmed) {
     const pulse = 0.5 + 0.5 * Math.sin(t / 600 + (prop.x || 0));
     const baseA = played ? 0.10 : (hovered ? 0.55 : 0.22 + pulse * 0.16);
     drawHalo(ctx, r.cx, r.cy, Math.max(r.w, r.h) * (hovered ? 0.95 : 0.8), palette.accent, baseA);
@@ -1883,6 +1629,7 @@ function drawProp(ctx, prop, layout, frame, palette, t) {
   if (hovered && prop.title) {
     drawLabel(ctx, r.cx, r.cy - r.h / 2 - 16, prop.title);
   }
+  ctx.restore();
 }
 
 function drawHalo(ctx, x, y, radius, color, alpha) {
@@ -2062,21 +1809,82 @@ function hexA(hex, a) {
 
 /**
  * Memory Room controller — owns the open/close lifecycle, the rAF loop, the
- * parallax camera, pointer/tilt input, the memory cards, and the cinematic
- * enter/exit. The v1 overworld keeps running cheaply underneath an opaque
+ * parallax camera, pointer/tilt input, the memory cards, the cinematic
+ * enter/exit, and (new) the GUIDED SEQUENCER that makes the room itself the
+ * milestone. The v1 overworld keeps running cheaply underneath an opaque
  * overlay; we only suppress its movement keys + shield its pointer listeners
  * while a room is open, then resume the player exactly where they were (no v1
  * surgery, lowest regression risk).
+ *
+ * Guided sequence (first visit, store.getChapter(id).complete === false):
+ *   intro → memories → play → close → exit
+ * Exactly one step's prop(s) are lit + hittable at a time (sess.activeIds); the
+ * renderer dims the rest. A revisit (complete === true) runs free-explore: all
+ * props live, no forced order. The pure advance rule lives in
+ * nextRoomStage()/computeActiveIds() so it's unit-testable without a DOM.
  */
 const MOVE_KEYS = new Set([
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Spacebar',
   'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'h', 'H',
 ]);
 
+const ROOM_STAGES = ['intro', 'memories', 'play', 'close', 'exit'];
+const INTRO_AUTO_MS = 2600;
+
 let _room = null;   // active session or null
 
 function roomStore() { return window.__journeyV2 && window.__journeyV2.store; }
 function isRoomOpen() { return !!_room; }
+
+// ---------------------------------------------------------------------------
+// Pure stage logic (no DOM) — unit-tested in tests/unit/room-sequence.test.js.
+// ---------------------------------------------------------------------------
+
+/** Next stage after `stage`, or the same stage if already at the end. */
+function nextRoomStage(stage) {
+  const i = ROOM_STAGES.indexOf(stage);
+  if (i < 0) return ROOM_STAGES[0];
+  return i >= ROOM_STAGES.length - 1 ? ROOM_STAGES[i] : ROOM_STAGES[i + 1];
+}
+
+/** Ids of the memory props in a room descriptor. */
+function memoryPropIds(room) {
+  return room.props.filter(p => p.kind === 'memory').map(p => p.id);
+}
+
+/**
+ * The set of prop ids that are lit + hittable for a stage. `played` is the Set
+ * of beat ids already viewed (a memory prop's id === its beat id here).
+ *   intro    → none (room dim, just the intro line)
+ *   memories → all memory props
+ *   play     → the arcade
+ *   close    → the projector screen
+ *   exit     → the exit door
+ */
+function computeActiveIds(stage, room) {
+  switch (stage) {
+    case 'memories': return new Set(memoryPropIds(room));
+    case 'play':     return new Set(['arcade']);
+    case 'close':    return new Set(['screen']);
+    case 'exit':     return new Set(['exit']);
+    case 'intro':
+    default:         return new Set();
+  }
+}
+
+/**
+ * True when the `memories` stage is satisfied — every memory beat has been
+ * played (or there are no memory props at all, so the stage is trivially done).
+ */
+function memoriesStageComplete(room, played) {
+  const ids = memoryPropIds(room);
+  if (ids.length === 0) return true;
+  return ids.every(id => played.has(id));
+}
+
+// ---------------------------------------------------------------------------
+// Open / lifecycle
+// ---------------------------------------------------------------------------
 
 function openMemoryRoom(chapterId) {
   if (_room) return;
@@ -2088,6 +1896,8 @@ function openMemoryRoom(chapterId) {
   const store = roomStore();
   const rec = store ? store.getChapter(chapterId) : {};
   const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // First visit runs the guided sequence; a completed chapter is free-explore.
+  const guided = !rec.complete;
 
   const sess = {
     chapterId, room, canvas, overlay,
@@ -2104,11 +1914,16 @@ function openMemoryRoom(chapterId) {
     raf: null,
     detachInput: null,
     handlers: {},
+    // guided sequencer
+    guided,
+    stage: guided ? 'intro' : null,
+    activeIds: null,        // null === free-explore (all props live)
+    introTimer: null,
   };
   _room = sess;
 
   sizeCanvas(sess);
-  if (store && store.markRoomVisited) store.markRoomVisited(chapterId);
+  if (store && store.markVisited) store.markVisited(chapterId);
 
   document.body.classList.add('v2-room-open');
   overlay.setAttribute('aria-hidden', 'false');
@@ -2145,21 +1960,27 @@ function openMemoryRoom(chapterId) {
     window.addEventListener('deviceorientation', sess.handlers.tilt);
   }
 
-  // --- taps select props ---
+  // --- taps select props (guided: only active-stage props; free: any) ---
   sess.detachInput = attachInputRouter(canvas, (gesture) => {
     if (sess.cardOpen) return;            // card eats the next tap (handled by card)
     if (gesture.kind !== 'TAP' && gesture.kind !== 'HOLD') return;
+    // INTRO: any tap dismisses the opening line and advances.
+    if (sess.guided && sess.stage === 'intro') { advanceStage(sess); return; }
     const layout = roomLayout(canvas.width, canvas.height, sess.cam);
     const hit = hitTestProps(sess.room.props, gesture.x, gesture.y, layout);
-    if (hit) handleProp(sess, hit);
+    if (!hit) return;
+    // During a guided run ignore props that aren't lit this stage.
+    if (sess.guided && sess.activeIds && !sess.activeIds.has(hit.id)) return;
+    handleProp(sess, hit);
   });
   // hover highlight on desktop
   sess.handlers.hover = (e) => {
     const layout = roomLayout(canvas.width, canvas.height, sess.cam);
     const pt = canvasPoint(canvas.getBoundingClientRect(), canvas.width, canvas.height, e.clientX, e.clientY);
     const hit = hitTestProps(sess.room.props, pt.x, pt.y, layout);
-    sess.hoverId = hit ? hit.id : null;
-    canvas.style.cursor = hit ? 'pointer' : 'default';
+    const liveHit = hit && (!sess.guided || !sess.activeIds || sess.activeIds.has(hit.id)) ? hit : null;
+    sess.hoverId = liveHit ? liveHit.id : null;
+    canvas.style.cursor = liveHit ? 'pointer' : 'default';
   };
   canvas.addEventListener('mousemove', sess.handlers.hover);
 
@@ -2173,7 +1994,18 @@ function openMemoryRoom(chapterId) {
     card.addEventListener('click', sess.handlers.card);
   }
 
+  // skip affordance — never a hard gate; advances the current guided stage.
+  const skip = document.getElementById('v2-room-skip');
+  if (skip) {
+    sess.handlers.skip = (e) => { e.stopPropagation(); if (sess.guided) advanceStage(sess); };
+    skip.addEventListener('click', sess.handlers.skip);
+  }
+
   startRoomAudio(sess);
+
+  if (sess.guided) enterStage(sess, 'intro');
+  else setRoomHint(sess, 'tap a memory · play · the door takes you back');
+
   loop(sess);
 }
 
@@ -2192,6 +2024,14 @@ function setRoomChrome(sess) {
   if (tEl) tEl.textContent = sess.room.title;
   if (sEl) sEl.textContent = sess.room.subtitle || '';
   updateRoomProgress(sess);
+  // skip chip only matters during a guided run
+  const skip = document.getElementById('v2-room-skip');
+  if (skip) skip.setAttribute('aria-hidden', sess.guided ? 'false' : 'true');
+}
+
+function setRoomHint(sess, text) {
+  const el = document.getElementById('v2-room-hint');
+  if (el) el.textContent = text || '';
 }
 
 function updateRoomProgress(sess) {
@@ -2200,6 +2040,78 @@ function updateRoomProgress(sess) {
   const total = sess.room.props.filter(p => p.kind === 'memory').length;
   const done = sess.room.props.filter(p => p.kind === 'memory' && sess.played.has(p.beat)).length;
   pEl.textContent = total ? `memories · ${done} / ${total}` : '';
+}
+
+// ---------------------------------------------------------------------------
+// Guided stage machine (DOM side; pure rules live above)
+// ---------------------------------------------------------------------------
+
+/** Show a big centered line (intro / closing) over the dim room. */
+function showRoomLine(sess, text) {
+  const el = document.getElementById('v2-room-line');
+  if (!el) return;
+  el.textContent = text || '';
+  el.setAttribute('aria-hidden', text ? 'false' : 'true');
+}
+function hideRoomLine() {
+  const el = document.getElementById('v2-room-line');
+  if (el) el.setAttribute('aria-hidden', 'true');
+}
+
+/** Enter a guided stage: set activeIds, hints, and any side effects. */
+function enterStage(sess, stage) {
+  sess.stage = stage;
+  sess.activeIds = computeActiveIds(stage, sess.room);
+  if (sess.introTimer) { clearTimeout(sess.introTimer); sess.introTimer = null; }
+  hideRoomLine();
+
+  switch (stage) {
+    case 'intro':
+      showRoomLine(sess, sess.room.intro);
+      setRoomHint(sess, 'tap to begin');
+      if (!sess.reduced) sess.introTimer = setTimeout(() => { if (_room === sess) advanceStage(sess); }, INTRO_AUTO_MS);
+      break;
+    case 'memories': {
+      const total = memoryPropIds(sess.room).length;
+      const done = memoryPropIds(sess.room).filter(id => sess.played.has(id)).length;
+      setRoomHint(sess, `tap the glowing memories · ${done}/${total}`);
+      // Player may have already seen every memory on a prior partial visit.
+      if (memoriesStageComplete(sess.room, sess.played)) advanceStage(sess);
+      break;
+    }
+    case 'play':
+      setRoomHint(sess, 'play this moment ▸  ·  skip ▸');
+      break;
+    case 'close':
+      setRoomHint(sess, 'the reel ▸');
+      // Auto-play the stage clip + settle the closing line.
+      {
+        const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
+        const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
+          && window.__journeyV1Bridge.getChapterLabel(sess.chapterId)) || sess.room.title;
+        if (typeof playVid === 'function') { try { playVid(sess.chapterId, label); } catch (_) {} }
+      }
+      showRoomLine(sess, sess.room.closing);
+      break;
+    case 'exit':
+      setRoomHint(sess, 'step back out ▸');
+      break;
+  }
+}
+
+/** Advance to the next guided stage. At `exit` this completes + closes. */
+function advanceStage(sess) {
+  if (!sess.guided) return;
+  if (sess.stage === 'exit') { finishGuided(sess); return; }
+  enterStage(sess, nextRoomStage(sess.stage));
+}
+
+/** Mark the chapter complete and leave the room (end of the guided run). */
+function finishGuided(sess) {
+  const store = roomStore();
+  if (store && store.markComplete) store.markComplete(sess.chapterId);
+  maybeShowEndCard();
+  closeMemoryRoom();
 }
 
 function loop(sess) {
@@ -2221,6 +2133,7 @@ function loop(sess) {
   drawRoom(sess.ctx, sess.room, layout, {
     tMs: sess.tMs, motes: sess.motes, hoverId: sess.hoverId,
     played: sess.played, reduced: sess.reduced, intro: sess.intro,
+    activeIds: sess.guided ? sess.activeIds : null,
   });
 
   sess.raf = requestAnimationFrame(() => loop(sess));
@@ -2236,6 +2149,16 @@ function handleProp(sess, prop) {
         updateRoomProgress(sess);
       }
       openRoomCard(sess, prop.icon + '  ' + prop.title, prop.body);
+      // In the guided run, all memories seen → advance to PLAY.
+      if (sess.guided && sess.stage === 'memories') {
+        const total = memoryPropIds(sess.room).length;
+        const done = memoryPropIds(sess.room).filter(id => sess.played.has(id)).length;
+        setRoomHint(sess, `tap the glowing memories · ${done}/${total}`);
+        if (memoriesStageComplete(sess.room, sess.played)) {
+          // advance once the card is dismissed (handled in closeRoomCard).
+          sess.pendingAdvance = true;
+        }
+      }
       break;
     }
     case 'culmination':
@@ -2247,7 +2170,10 @@ function handleProp(sess, prop) {
           const store = roomStore();
           const prev = store ? (store.getChapter(sess.chapterId).score || 0) : 0;
           if (store && store.setScore && score > prev) store.setScore(sess.chapterId, score);
+          if (sess.guided && sess.stage === 'play' && _room === sess) advanceStage(sess);
         });
+      } else if (sess.guided && sess.stage === 'play') {
+        advanceStage(sess);
       }
       break;
     case 'video': {
@@ -2255,10 +2181,13 @@ function handleProp(sess, prop) {
       const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
         && window.__journeyV1Bridge.getChapterLabel(sess.chapterId)) || sess.room.title;
       if (typeof playVid === 'function') { try { playVid(sess.chapterId, label); } catch (_) {} }
+      // In the guided run the screen is the CLOSE step → advance to EXIT.
+      if (sess.guided && sess.stage === 'close') advanceStage(sess);
       break;
     }
     case 'exit':
-      closeMemoryRoom();
+      if (sess.guided) advanceStage(sess);   // exit stage → finishGuided
+      else closeMemoryRoom();
       break;
   }
 }
@@ -2279,7 +2208,12 @@ function closeRoomCard(sess) {
   const card = document.getElementById('v2-room-card');
   if (card) { card.classList.remove('shown'); card.setAttribute('aria-hidden', 'true'); }
   // defer clearing the flag so the dismiss tap doesn't also hit a prop
-  setTimeout(() => { if (_room === sess) sess.cardOpen = false; }, 60);
+  setTimeout(() => {
+    if (_room !== sess) return;
+    sess.cardOpen = false;
+    // memories-stage auto-advance once the last memory card is dismissed.
+    if (sess.pendingAdvance) { sess.pendingAdvance = false; advanceStage(sess); }
+  }, 60);
 }
 
 function closeMemoryRoom() {
@@ -2288,6 +2222,7 @@ function closeMemoryRoom() {
 
   const finish = () => {
     if (sess.raf) cancelAnimationFrame(sess.raf);
+    if (sess.introTimer) clearTimeout(sess.introTimer);
     if (sess.detachInput) sess.detachInput();
     window.removeEventListener('keydown', sess.handlers.key, true);
     window.removeEventListener('keyup', sess.handlers.key, true);
@@ -2299,6 +2234,10 @@ function closeMemoryRoom() {
       .forEach(t => sess.overlay.removeEventListener(t, sess.handlers.shield));
     const card = document.getElementById('v2-room-card');
     if (card && sess.handlers.card) card.removeEventListener('click', sess.handlers.card);
+    const skip = document.getElementById('v2-room-skip');
+    if (skip && sess.handlers.skip) skip.removeEventListener('click', sess.handlers.skip);
+    if (skip) skip.setAttribute('aria-hidden', 'true');
+    hideRoomLine();
     sess.overlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('v2-room-open');
     stopRoomAudio(sess);
@@ -2316,6 +2255,7 @@ function closeMemoryRoom() {
     drawRoom(sess.ctx, sess.room, layout, {
       tMs: sess.tMs, motes: sess.motes, hoverId: null,
       played: sess.played, reduced: sess.reduced, intro: sess.intro,
+      activeIds: sess.guided ? sess.activeIds : null,
     });
     if (sess.intro > 0) requestAnimationFrame(out); else finish();
   };
@@ -2356,8 +2296,8 @@ function stopRoomAudio(sess) {
 }
 
 // --- Memory Rooms picker — an always-available list so the feature is easy to
-// find. The in-world door alone was too easy to miss; this button lives in the
-// HUD the whole time and lets you jump into any room you've unlocked. ---
+// find. Lives in the HUD the whole time and lets you jump into any room you've
+// entered. Visited rooms re-open in free-explore. ---
 const ROOM_ORDER = ['itics', 'cmr', 'college', 'fever104', 'sakha', 'scripbox', 'vwgt', 'now'];
 
 function openRoomPicker() {
@@ -2366,22 +2306,22 @@ function openRoomPicker() {
   const list = document.getElementById('v2-rooms-list');
   if (!picker || !list) return;
   const store = roomStore();
-  const anyOpen = ROOM_ORDER.some(id => store && store.getChapter(id).phase === 'complete');
+  const anyVisited = ROOM_ORDER.some(id => store && store.getChapter(id).visited);
   list.innerHTML = ROOM_ORDER.map(id => {
     const meta = (typeof ROOM_META !== 'undefined' && (ROOM_META[id] || ROOM_META.__default)) || { title: id, subtitle: '' };
     const ch = store ? store.getChapter(id) : {};
-    const done = ch.phase === 'complete';
-    const visited = !!ch.roomVisited;
-    return `<button class="v2-room-pick${done ? '' : ' locked'}" data-room="${id}"${done ? '' : ' disabled'}>
+    const visited = !!ch.visited;
+    const done = !!ch.complete;
+    return `<button class="v2-room-pick${visited ? '' : ' locked'}" data-room="${id}"${visited ? '' : ' disabled'}>
         <span class="v2-room-pick-name">${meta.title}</span>
-        <span class="v2-room-pick-sub">${done ? (meta.subtitle || '') : 'finish this milestone to unlock'}</span>
-        <span class="v2-room-pick-cta">${done ? (visited ? '↺ revisit' : 'enter ▸') : '🔒'}</span>
+        <span class="v2-room-pick-sub">${visited ? (meta.subtitle || '') : 'step inside on the walk to unlock'}</span>
+        <span class="v2-room-pick-cta">${visited ? (done ? '↺ revisit' : 'continue ▸') : '🔒'}</span>
       </button>`;
   }).join('');
   const hint = document.getElementById('v2-rooms-hint');
-  if (hint) hint.textContent = anyOpen
-    ? 'tap a room to step inside'
-    : 'complete a milestone on the walk to unlock its memory room';
+  if (hint) hint.textContent = anyVisited
+    ? 'tap a room to step back inside'
+    : 'reach a milestone on the walk to step into its memory room';
   list.querySelectorAll('.v2-room-pick:not(.locked)').forEach(btn => {
     btn.onclick = () => { closeRoomPicker(); openMemoryRoom(btn.getAttribute('data-room')); };
   });
@@ -2393,23 +2333,48 @@ function closeRoomPicker() {
   if (picker) picker.setAttribute('aria-hidden', 'true');
 }
 
+// --- End card — when every V2_ENABLED_CHAPTERS room is complete, show a short
+// "the journey, complete" card. Checked after each markComplete. ---
+function allChaptersComplete() {
+  const store = roomStore();
+  if (!store) return false;
+  const ids = (typeof V2_ENABLED_CHAPTERS !== 'undefined') ? Array.from(V2_ENABLED_CHAPTERS) : [];
+  return ids.length > 0 && ids.every(id => store.getChapter(id).complete);
+}
+
+function maybeShowEndCard() {
+  if (!allChaptersComplete()) return;
+  const end = document.getElementById('v2-end');
+  if (!end) return;
+  end.setAttribute('aria-hidden', 'false');
+  if (!end.__wired) {
+    end.__wired = true;
+    const close = document.getElementById('v2-end-close');
+    const dismiss = () => end.setAttribute('aria-hidden', 'true');
+    if (close) close.onclick = (e) => { e.stopPropagation(); dismiss(); };
+    end.addEventListener('click', (e) => { if (e.target === end) dismiss(); });
+  }
+}
+
 
 // === src/journey/bootstrap.js ===
 
 /**
- * Exposes v2 internals on window.__journeyV2 for integration tests and
- * for the v1 game loop to call into during Phase 2 wiring.
+ * Wires v2 to the page: exposes the API on window.__journeyV2, shows the
+ * one-time onboarding intro card, wires the always-visible "memory rooms"
+ * picker button, and starts the STEP-INSIDE prompt poll.
+ *
+ * v1 (journey.js) owns the world + walking and populates window.__journeyV1Bridge
+ * from inside its IIFE; v2 reads from it. The room IS the milestone now — there
+ * is no walk-by vignette layer.
  */
 window.__journeyV2 = {
-  playCutscene,
-  presentNpc,
   initMinigame,
-  showCulmination,
   store: createChapterStore(window.localStorage),
-  // exposed for the chapter-flow polling
+  // chapter detection + prompt poll
   detectActiveV2Chapter,
-  startChapterFlow,
-  // Memory Room API (Phase R)
+  tickChapterFlow,
+  // Memory Room API
   openMemoryRoom,
   closeMemoryRoom,
   isRoomOpen,
@@ -2418,8 +2383,26 @@ window.__journeyV2 = {
   closeRoomPicker,
 };
 
+// Onboarding intro card — shown once per browser (localStorage flag). Two lines:
+// what this is + how to move, then "tap to begin". Dismiss writes the flag so
+// returning visitors go straight to the walk.
+(function wireIntroCard() {
+  const intro = document.getElementById('v2-intro');
+  if (!intro) return;
+  let seen = false;
+  try { seen = !!window.localStorage.getItem('journey_intro_seen'); } catch (_) {}
+  if (seen) { intro.setAttribute('aria-hidden', 'true'); return; }
+  intro.setAttribute('aria-hidden', 'false');
+  const dismiss = () => {
+    intro.setAttribute('aria-hidden', 'true');
+    try { window.localStorage.setItem('journey_intro_seen', '1'); } catch (_) {}
+    intro.removeEventListener('click', dismiss);
+  };
+  intro.addEventListener('click', dismiss);
+})();
+
 // Memory-Rooms picker button — always visible once v2 is loaded so the rooms
-// are discoverable from anywhere, not just by stumbling onto the in-world door.
+// are discoverable from anywhere, not just by stumbling onto the prompt.
 (function wireRoomsButton() {
   const btn = document.getElementById('v2-rooms-btn');
   if (btn) { btn.setAttribute('aria-hidden', 'false'); btn.onclick = openRoomPicker; }
@@ -2431,10 +2414,9 @@ window.__journeyV2 = {
   }
 })();
 
-// Start polling for v2 chapter entry. The v1 bundle (journey.js) is NOT
-// loaded under ?v=2 — that's by design for Phase 2 vertical slice. v2 also
-// has to draw its own minimal "is the player in CMR?" check, so the bridge
-// below is filled by an inline patch in journey.html.
+// Poll for the milestone band → STEP-INSIDE prompt. The bridge is filled by
+// v1's IIFE; until then detectActiveV2Chapter returns null and the prompt stays
+// hidden.
 setInterval(tickChapterFlow, 250);
 
 

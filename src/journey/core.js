@@ -1,25 +1,21 @@
 // === src/journey/core.js ===
 /**
- * v2 chapter flow orchestrator.
+ * v2 milestone orchestrator (room-as-milestone).
  *
- * The v1 game continues to handle the world, parallax, walking, beats, and
- * achievements. v2 sits on top and watches the v1 globals:
- *   - state.playerX (from v1, exposed on window for v2)
- *   - state.discoveredBeats (Set in v1)
- *   - CHAPTERS array (v1)
- *
- * When the player enters a chapter that has v2 content (NPCS[id] !== undefined
- * and id !== '__placeholder'), v2 takes over for the 3-act vignette. Otherwise
- * v1 chapter behavior runs as today.
+ * The v1 game owns the world, parallax, walking, beats, and achievements. v2
+ * sits on top and watches the v1 bridge to know which chapter band the player
+ * is standing in. There is no longer a walk-by vignette — the Memory Room IS
+ * the milestone. core.js shrank to a single job: when the player is in a
+ * v2-enabled band and no room is open, show the deterministic "STEP INSIDE"
+ * prompt wired to open that chapter's room.
  */
 const JOURNEY_V2_VERSION = 2;
 
-const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104', 'vwgt']);   // expand each Phase 3 task
+const V2_ENABLED_CHAPTERS = new Set(['cmr', 'itics', 'scripbox', 'now', 'sakha', 'college', 'fever104', 'vwgt']);
 
 /**
- * Returns the v2 chapter id for the player's current world-x, or null
- * if no v2 chapter is active. Reads window.__journeyV1Bridge populated by
- * v1's game loop (added in the v1 patch below).
+ * Returns the v2 chapter id for the player's current world-x, or null if no v2
+ * chapter is active. Reads window.__journeyV1Bridge populated by v1's loop.
  */
 function detectActiveV2Chapter() {
   const b = window.__journeyV1Bridge;
@@ -28,137 +24,34 @@ function detectActiveV2Chapter() {
   return V2_ENABLED_CHAPTERS.has(id) ? id : null;
 }
 
-let _activeFlow = null;
-
-function startChapterFlow(chapterId) {
-  if (_activeFlow === chapterId) return;
-  const store = window.__journeyV2.store;
-  const phase = store.getChapter(chapterId).phase;
-  // Re-entry: completed chapters don't auto-replay. Medal-mode replay is a
-  // Phase 4 polish item (see docs/journey-v2-status.md).
-  if (phase === 'complete') return;
-  _activeFlow = chapterId;
-  const intertitle = (window.__journeyV1Bridge?.getIntertitle?.(chapterId)) || {};
-
-  if (phase === 'unseen') {
-    store.send(chapterId, 'ENTER');                 // → cutscene
-    playCutscene(chapterId, intertitle, () => {
-      store.send(chapterId, 'DISMISS');             // → exploring
-      enterExploring(chapterId);
-    });
-  } else {
-    enterExploring(chapterId);
-  }
-}
-
-function enterExploring(chapterId) {
-  const collectedMap = collectedBeatsMap();
-  showQuestHud(chapterId, collectedMap);
-  const npcAlreadyAnswered = window.__journeyV2.store.getChapter(chapterId).npcChoice != null;
-  if (!npcAlreadyAnswered) {
-    // First entry · auto-present the NPC after 800ms so the cutscene fade
-    // doesn't step on it. The choice callback feeds into checkQuestComplete.
-    setTimeout(() => {
-      presentNpc(chapterId, idx => {
-        window.__journeyV2.store.setNpcChoice(chapterId, idx);
-        checkQuestComplete(chapterId);
-      });
-    }, 800);
-  } else {
-    // C-2 fix · re-entry · NPC already answered, don't re-present. If the
-    // quest is now complete (player may have collected the remaining beats
-    // while away), advance to Act III immediately.
-    setTimeout(() => checkQuestComplete(chapterId), 100);
-  }
-  pollQuest(chapterId);
-}
-
-function collectedBeatsMap() {
-  const b = window.__journeyV1Bridge;
-  const set = b?.getDiscoveredBeats?.() ?? new Set();
-  const m = {};
-  for (const id of set) m[id] = true;
-  return m;
-}
-
-const _questPollTimers = {};   // { [chapterId]: intervalId }
-function pollQuest(chapterId) {
-  if (_questPollTimers[chapterId]) clearInterval(_questPollTimers[chapterId]);
-  _questPollTimers[chapterId] = setInterval(() => {
-    const cm = collectedBeatsMap();
-    showQuestHud(chapterId, cm);
-    const q = QUESTS[chapterId];
-    if (q && isQuestComplete(q.beats, q.needed, cm)) {
-      checkQuestComplete(chapterId);
-    }
-  }, 500);
-}
-
-const _act3Started = {};       // { [chapterId]: true }
-function checkQuestComplete(chapterId) {
-  if (_act3Started[chapterId]) return;
-  const q = QUESTS[chapterId];
-  const cm = collectedBeatsMap();
-  if (!q || !isQuestComplete(q.beats, q.needed, cm)) return;
-  // Need NPC choice recorded AND quest complete
-  if (window.__journeyV2.store.getChapter(chapterId).npcChoice == null) return;
-  _act3Started[chapterId] = true;
-  if (_questPollTimers[chapterId]) {
-    clearInterval(_questPollTimers[chapterId]);
-    delete _questPollTimers[chapterId];
-  }
-  hideQuestHud();
-  window.__journeyV2.store.send(chapterId, 'QUEST_COMPLETE');   // → closing
-  initMinigame(chapterId, ({ score, label }) => {
-    window.__journeyV2.store.setScore(chapterId, score);
-    window.__journeyV2.store.send(chapterId, 'MINIGAME_DONE');  // → culminating
-    const lbl = window.__journeyV1Bridge?.getChapterLabel?.(chapterId) ?? chapterId.toUpperCase();
-    showCulmination(chapterId, lbl, () => {
-      window.__journeyV2.store.send(chapterId, 'DISMISS');      // → complete
-      delete _act3Started[chapterId];
-      _activeFlow = null;
-    });
-  });
-}
-
-// Polled from a setInterval that bootstrap starts.
+/**
+ * Polled (250ms from bootstrap). The ONLY job: manage the STEP-INSIDE prompt.
+ *   - room open      → hide the prompt
+ *   - in a v2 band   → show "STEP INSIDE · <label>", wire tap → openMemoryRoom
+ *   - otherwise      → hide the prompt
+ * Deterministic — no phase/completion gating, so the prompt appears EVERY time
+ * the player stands at a milestone (fixes "sometimes shows up, sometimes not").
+ */
 function tickChapterFlow() {
   const id = detectActiveV2Chapter();
-  // C-1 fix · if the bridge no longer reports our active chapter (player
-  // walked into a different chapter, or out of any v2-enabled band), tear
-  // down the leftover poll timer + HUD so they don't run forever.
-  if (_activeFlow && _activeFlow !== id) {
-    if (_questPollTimers[_activeFlow]) {
-      clearInterval(_questPollTimers[_activeFlow]);
-      delete _questPollTimers[_activeFlow];
-    }
-    hideQuestHud();
-    _activeFlow = null;
-  }
-  if (id) startChapterFlow(id);
-  updateRoomDoor(id);
-}
-
-/**
- * Show the "step inside the memory" door prompt whenever the player is standing
- * in a chapter band they've already completed. Tapping it enters that chapter's
- * Memory Room. Hidden while a room is open or when not in a completed band.
- */
-function updateRoomDoor(activeId) {
   const door = document.getElementById('v2-room-door');
   if (!door) return;
+
   if (typeof isRoomOpen === 'function' && isRoomOpen()) {
     door.setAttribute('aria-hidden', 'true');
     return;
   }
-  const store = window.__journeyV2 && window.__journeyV2.store;
-  const ready = activeId && store && store.getChapter(activeId).phase === 'complete';
-  if (ready) {
-    if (door.__chapter !== activeId) {
-      door.__chapter = activeId;
+
+  if (id) {
+    const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
+      && window.__journeyV1Bridge.getChapterLabel(id)) || id.toUpperCase();
+    if (door.__chapter !== id) {
+      door.__chapter = id;
+      const labelEl = door.querySelector('.v2-room-door-label');
+      if (labelEl) labelEl.textContent = 'STEP INSIDE · ' + label;
       door.onclick = () => {
         door.setAttribute('aria-hidden', 'true');
-        if (typeof openMemoryRoom === 'function') openMemoryRoom(activeId);
+        if (typeof openMemoryRoom === 'function') openMemoryRoom(id);
       };
     }
     door.setAttribute('aria-hidden', 'false');

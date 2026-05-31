@@ -9,7 +9,7 @@ const path = require('path');
 const SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'src/journey/state/persistence.js'), 'utf8');
 eval(SRC + '\nglobalThis.JourneyPersistence = { loadJourneyState, saveJourneyState, migrateJourneyState };');
 
-test('migrateJourneyState backfills chapters from v1 collected set', () => {
+test('migrateJourneyState backfills chapters from v1 collected set (visited+complete)', () => {
   const v1 = {
     v: 1,
     playerX: 1200,
@@ -20,8 +20,10 @@ test('migrateJourneyState backfills chapters from v1 collected set', () => {
   };
   const v2 = globalThis.JourneyPersistence.migrateJourneyState(v1);
   assert.strictEqual(v2.v, 2);
-  assert.strictEqual(v2.chapters.itics.phase, 'complete');
-  assert.strictEqual(v2.chapters.cmr.phase, 'complete');
+  assert.deepStrictEqual(v2.chapters.itics,
+    { visited: true, complete: true, memoriesPlayed: [], score: null });
+  assert.deepStrictEqual(v2.chapters.cmr,
+    { visited: true, complete: true, memoriesPlayed: [], score: null });
   assert.strictEqual(v2.chapters.college, undefined);
   // existing fields preserved
   assert.strictEqual(v2.playerX, 1200);
@@ -36,8 +38,21 @@ test('migrateJourneyState handles missing v field as v1', () => {
   assert.deepStrictEqual(out.chapters, {});
 });
 
-test('migrateJourneyState is a no-op on already-v2 state', () => {
-  const v2 = { v: 2, chapters: { itics: { phase: 'complete', score: 50, npcChoice: 0 } } };
+test('migrateJourneyState upgrades old v2 phase records → milestone shape', () => {
+  const old = { v: 2, chapters: {
+    itics: { phase: 'complete', score: 50, npcChoice: 0, memoriesPlayed: ['football-match'] },
+    cmr:   { phase: 'exploring', score: null, npcChoice: 1 },
+  } };
+  const out = globalThis.JourneyPersistence.migrateJourneyState(old);
+  assert.strictEqual(out.v, 2);
+  assert.deepStrictEqual(out.chapters.itics,
+    { visited: true, complete: true, memoriesPlayed: ['football-match'], score: 50 });
+  assert.deepStrictEqual(out.chapters.cmr,
+    { visited: false, complete: false, memoriesPlayed: [], score: null });
+});
+
+test('migrateJourneyState is a no-op on already-milestone-shaped v2 state', () => {
+  const v2 = { v: 2, chapters: { itics: { visited: true, complete: true, memoriesPlayed: [], score: 50 } } };
   const out = globalThis.JourneyPersistence.migrateJourneyState(v2);
   assert.strictEqual(out, v2);
 });
@@ -50,7 +65,7 @@ test('loadJourneyState reads + migrates from a mock storage', () => {
   };
   const state = globalThis.JourneyPersistence.loadJourneyState(mockStorage);
   assert.strictEqual(state.v, 2);
-  assert.strictEqual(state.chapters.itics.phase, 'complete');
+  assert.strictEqual(state.chapters.itics.complete, true);
   // and writes back the migrated form
   assert.strictEqual(JSON.parse(store.journey).v, 2);
 });

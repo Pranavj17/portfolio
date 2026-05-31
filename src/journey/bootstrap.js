@@ -1,18 +1,20 @@
 // === src/journey/bootstrap.js ===
 /**
- * Exposes v2 internals on window.__journeyV2 for integration tests and
- * for the v1 game loop to call into during Phase 2 wiring.
+ * Wires v2 to the page: exposes the API on window.__journeyV2, shows the
+ * one-time onboarding intro card, wires the always-visible "memory rooms"
+ * picker button, and starts the STEP-INSIDE prompt poll.
+ *
+ * v1 (journey.js) owns the world + walking and populates window.__journeyV1Bridge
+ * from inside its IIFE; v2 reads from it. The room IS the milestone now — there
+ * is no walk-by vignette layer.
  */
 window.__journeyV2 = {
-  playCutscene,
-  presentNpc,
   initMinigame,
-  showCulmination,
   store: createChapterStore(window.localStorage),
-  // exposed for the chapter-flow polling
+  // chapter detection + prompt poll
   detectActiveV2Chapter,
-  startChapterFlow,
-  // Memory Room API (Phase R)
+  tickChapterFlow,
+  // Memory Room API
   openMemoryRoom,
   closeMemoryRoom,
   isRoomOpen,
@@ -21,8 +23,26 @@ window.__journeyV2 = {
   closeRoomPicker,
 };
 
+// Onboarding intro card — shown once per browser (localStorage flag). Two lines:
+// what this is + how to move, then "tap to begin". Dismiss writes the flag so
+// returning visitors go straight to the walk.
+(function wireIntroCard() {
+  const intro = document.getElementById('v2-intro');
+  if (!intro) return;
+  let seen = false;
+  try { seen = !!window.localStorage.getItem('journey_intro_seen'); } catch (_) {}
+  if (seen) { intro.setAttribute('aria-hidden', 'true'); return; }
+  intro.setAttribute('aria-hidden', 'false');
+  const dismiss = () => {
+    intro.setAttribute('aria-hidden', 'true');
+    try { window.localStorage.setItem('journey_intro_seen', '1'); } catch (_) {}
+    intro.removeEventListener('click', dismiss);
+  };
+  intro.addEventListener('click', dismiss);
+})();
+
 // Memory-Rooms picker button — always visible once v2 is loaded so the rooms
-// are discoverable from anywhere, not just by stumbling onto the in-world door.
+// are discoverable from anywhere, not just by stumbling onto the prompt.
 (function wireRoomsButton() {
   const btn = document.getElementById('v2-rooms-btn');
   if (btn) { btn.setAttribute('aria-hidden', 'false'); btn.onclick = openRoomPicker; }
@@ -34,8 +54,7 @@ window.__journeyV2 = {
   }
 })();
 
-// Start polling for v2 chapter entry. The v1 bundle (journey.js) is NOT
-// loaded under ?v=2 — that's by design for Phase 2 vertical slice. v2 also
-// has to draw its own minimal "is the player in CMR?" check, so the bridge
-// below is filled by an inline patch in journey.html.
+// Poll for the milestone band → STEP-INSIDE prompt. The bridge is filled by
+// v1's IIFE; until then detectActiveV2Chapter returns null and the prompt stays
+// hidden.
 setInterval(tickChapterFlow, 250);

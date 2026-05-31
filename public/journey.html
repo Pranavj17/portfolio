@@ -829,7 +829,7 @@
             }
         }
 
-        /* v2 · Act I cutscene overlay */
+        /* v2 · shared overlay base (used by the mini-game + onboarding intro) */
         .v2-overlay {
           position: fixed; inset: 0; z-index: 60;
           background: rgba(31, 22, 16, 0.94);
@@ -838,72 +838,42 @@
           color: var(--paper);
         }
         .v2-overlay[aria-hidden="false"] { display: flex; }
-        .v2-cutscene-card { max-width: 540px; text-align: center; padding: 24px; }
-        .v2-cutscene-act {
-          font-family: 'Cinzel', serif; letter-spacing: 0.18em;
-          font-size: 0.9rem; opacity: 0.65; margin-bottom: 8px;
-        }
-        .v2-cutscene-lines { font-size: 1.2rem; line-height: 1.6; }
-        .v2-cutscene-lines .v2-line { opacity: 0; animation: v2-fade 0.6s forwards; }
-        /* Reduced-motion override · skip the opacity fade entirely so the lines
-           appear at their final state immediately. Works in concert with the JS
-           branch in src/journey/acts/cutscene.js which also drops the
-           animation-delay attribute when prefers-reduced-motion is set. */
-        @media (prefers-reduced-motion: reduce) {
-          .v2-cutscene-lines .v2-line { animation: none; opacity: 1; }
-        }
-        .v2-cutscene-cta {
-          margin-top: 24px; font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.8rem; opacity: 0.55;
-        }
         @keyframes v2-fade { to { opacity: 1; } }
 
-        /* v2 · Act II NPC dialog overlay */
-        .v2-npc-card { max-width: 460px; padding: 28px; text-align: center; }
-        .v2-npc-sprite { font-size: 3.2rem; margin-bottom: 12px; }
-        .v2-npc-name {
-          font-family: 'Cinzel', serif; letter-spacing: 0.2em;
-          color: var(--accent); font-size: 0.95rem; margin-bottom: 14px;
+        /* v2 · onboarding intro card — shown once, parchment, centered */
+        .v2-intro {
+          position: fixed; inset: 0; z-index: 210; display: none;
+          align-items: center; justify-content: center; padding: 24px; cursor: pointer;
+          background: radial-gradient(ellipse at center, rgba(10,6,3,0.7), rgba(8,5,2,0.94));
         }
-        .v2-npc-line { font-size: 1.15rem; line-height: 1.5; margin-bottom: 22px; }
-        .v2-npc-choices { display: flex; flex-direction: column; gap: 8px; }
-        .v2-npc-choice {
-          background: var(--mahogany); color: var(--paper); border: 1px solid var(--paper-dim);
-          padding: 12px 18px; font-family: 'IM Fell English', serif;
-          font-size: 1rem; cursor: pointer; border-radius: 3px;
+        .v2-intro[aria-hidden="false"] { display: flex; }
+        .v2-intro-card {
+          max-width: 480px; width: 100%; text-align: center; padding: 36px 32px 30px;
+          background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dim) 100%);
+          border: 1.5px solid var(--mahogany); border-radius: 5px;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 50px rgba(212,166,83,0.18),
+                      inset 0 0 26px rgba(90,46,26,0.22);
         }
-        .v2-npc-choice:hover { background: var(--bg-warm); }
+        .v2-intro-title {
+          font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.12em;
+          font-size: clamp(20px, 4vw, 30px); color: var(--ink); margin-bottom: 16px;
+        }
+        .v2-intro-line {
+          font-family: 'IM Fell English', serif; font-style: italic;
+          font-size: clamp(13px, 2vw, 16px); line-height: 1.6; color: var(--mahogany);
+        }
+        .v2-intro-cta {
+          margin-top: 24px; font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.74rem; letter-spacing: 0.18em; color: var(--rust);
+          text-transform: uppercase; animation: tapHintPulse 2.4s ease-in-out infinite;
+        }
 
-        /* v2 · quest checklist HUD */
-        .v2-quest-hud {
-          position: fixed; top: 16px; right: 16px; z-index: 50;
-          background: rgba(31, 22, 16, 0.85); border: 1px solid var(--mahogany);
-          padding: 10px 14px; min-width: 160px; max-width: 220px;
-          font-family: 'IBM Plex Mono', monospace; color: var(--paper);
-          font-size: 0.78rem; line-height: 1.5;
-          transition: opacity 0.4s; opacity: 0;
-        }
-        .v2-quest-hud[aria-hidden="false"] { opacity: 1; }
-        .v2-quest-title { font-family: 'Cinzel', serif; letter-spacing: 0.18em; color: var(--accent); margin-bottom: 4px; font-size: 0.7rem; }
-        .v2-quest-progress { opacity: 0.7; margin-bottom: 6px; }
-        .v2-quest-list { list-style: none; padding: 0; margin: 0; }
-        .v2-quest-list li { padding: 1px 0; }
-        .v2-quest-list li.done { opacity: 0.55; text-decoration: line-through; }
-
-        /* v2 · Act III mini-game overlay */
+        /* v2 · mini-game overlay (launched from the arcade prop in a room) */
         .v2-minigame-card { background: var(--bg-deep); border: 1px solid var(--mahogany); padding: 18px; max-width: 420px; }
         .v2-minigame-header { display: flex; justify-content: space-between; margin-bottom: 10px;
                               font-family: 'Cinzel', serif; letter-spacing: 0.15em; color: var(--accent); font-size: 0.85rem; }
         #v2-minigame-canvas { display: block; width: 100%; height: auto; background: #2a1c10; border: 1px solid var(--mahogany); }
         .v2-minigame-prompt { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; opacity: 0.75; text-align: center; }
-
-        /* v2 · Act III culmination card */
-        .v2-culmination-card { max-width: 540px; padding: 32px; text-align: center; }
-        .v2-culmination-text { font-family: 'IM Fell English', serif; font-style: italic; font-size: 1.25rem; line-height: 1.7; color: var(--paper); }
-        /* I-6 · culmination must sit ABOVE v1's stage-video overlay (z-index 70)
-           so real-user clicks reach the dismiss handler. ID selector outranks the
-           .v2-overlay { z-index: 60 } class. */
-        #v2-culmination { z-index: 80; }
 
         /* ============================================================
            v2 · MEMORY ROOM — full-screen interior you step into after a
@@ -946,6 +916,60 @@
           font-size: 12px; color: var(--paper-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.9);
           animation: tapHintPulse 2.6s ease-in-out infinite;
         }
+        /* guided intro / closing line · centered, fades in over the dim room */
+        .v2-room-line {
+          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: min(620px, 86vw); text-align: center; display: none;
+          font-family: 'IM Fell English', serif; font-style: italic;
+          font-size: clamp(16px, 2.6vw, 24px); line-height: 1.6; color: var(--paper);
+          text-shadow: 0 2px 14px rgba(0,0,0,0.9); opacity: 0;
+          animation: v2-fade 0.9s forwards;
+        }
+        .v2-room-line[aria-hidden="false"] { display: block; }
+        /* skip chip · always-available so the guided run is never a hard gate */
+        .v2-room-skip {
+          position: absolute; bottom: 20px; right: 18px; display: none;
+          padding: 6px 14px; cursor: pointer; pointer-events: auto;
+          font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem;
+          letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-dim);
+          background: rgba(20,12,6,0.6); border: 1px solid var(--mahogany); border-radius: 3px;
+        }
+        .v2-room-skip[aria-hidden="false"] { display: inline-block; }
+        .v2-room-skip:hover { color: var(--paper); background: rgba(58,36,24,0.8); }
+
+        /* v2 · END card */
+        .v2-end {
+          position: fixed; inset: 0; z-index: 215; display: none;
+          align-items: center; justify-content: center; padding: 24px;
+          background: radial-gradient(ellipse at center, rgba(10,6,3,0.7), rgba(8,5,2,0.94));
+        }
+        .v2-end[aria-hidden="false"] { display: flex; }
+        .v2-end-card {
+          position: relative; max-width: 480px; width: 100%; text-align: center; padding: 36px 32px 30px;
+          background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dim) 100%);
+          border: 1.5px solid var(--mahogany); border-radius: 5px;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 50px rgba(212,166,83,0.18);
+        }
+        .v2-end-close {
+          position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
+          background: none; border: 1px solid var(--mahogany); color: var(--mahogany);
+          border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1;
+        }
+        .v2-end-close:hover { background: var(--mahogany); color: var(--paper); }
+        .v2-end-title {
+          font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.12em;
+          font-size: clamp(20px, 4vw, 28px); color: var(--ink); margin-bottom: 16px;
+        }
+        .v2-end-text {
+          font-family: 'IM Fell English', serif; font-style: italic;
+          font-size: clamp(13px, 2vw, 16px); line-height: 1.6; color: var(--mahogany); margin-bottom: 20px;
+        }
+        .v2-end-links { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+        .v2-end-links a {
+          font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; letter-spacing: 0.08em;
+          color: var(--rust); text-decoration: none; border-bottom: 1px solid currentColor;
+        }
+        .v2-end-links a:hover { color: var(--mahogany); }
         /* memory card · parchment modal that rises when a memory is tapped */
         .v2-room-card {
           position: absolute; inset: 0; display: none;
@@ -1060,10 +1084,9 @@
         }
         /* room-launched modals must sit ABOVE the room overlay (z 200) */
         body.v2-room-open #v2-minigame,
-        body.v2-room-open #v2-culmination,
         body.v2-room-open .stage-video-overlay { z-index: 240; }
         @media (prefers-reduced-motion: reduce) {
-          .v2-room-hint, .v2-room-door { animation: none; }
+          .v2-room-hint, .v2-room-door, .v2-room-line, .v2-intro-cta { animation: none; opacity: 1; }
           .v2-room-card-inner { transition: none; }
         }
     </style>
@@ -1171,33 +1194,16 @@
         </div>
     </main>
 
-    <!-- v2 · Act I cutscene overlay -->
-    <div id="v2-cutscene" class="v2-overlay" aria-hidden="true">
-      <div class="v2-cutscene-card">
-        <div class="v2-cutscene-act" id="v2-cutscene-act"></div>
-        <div class="v2-cutscene-lines" id="v2-cutscene-lines"></div>
-        <div class="v2-cutscene-cta">▸ tap to continue ▸</div>
+    <!-- v2 · onboarding intro card (shown once · localStorage journey_intro_seen) -->
+    <div id="v2-intro" class="v2-intro" aria-hidden="true">
+      <div class="v2-intro-card">
+        <div class="v2-intro-title">a walk through 13 years</div>
+        <div class="v2-intro-line">hold → to walk · step into each room to relive it</div>
+        <div class="v2-intro-cta">tap to begin</div>
       </div>
     </div>
 
-    <!-- v2 · Act II NPC dialog overlay -->
-    <div id="v2-npc" class="v2-overlay" aria-hidden="true">
-      <div class="v2-npc-card">
-        <div class="v2-npc-sprite" id="v2-npc-sprite"></div>
-        <div class="v2-npc-name" id="v2-npc-name"></div>
-        <div class="v2-npc-line" id="v2-npc-line"></div>
-        <div class="v2-npc-choices" id="v2-npc-choices"></div>
-      </div>
-    </div>
-
-    <!-- v2 · quest checklist HUD -->
-    <div id="v2-quest-hud" class="v2-quest-hud" aria-hidden="true">
-      <div class="v2-quest-title" id="v2-quest-title">QUEST</div>
-      <div class="v2-quest-progress" id="v2-quest-progress">0 / 3</div>
-      <ul class="v2-quest-list" id="v2-quest-list"></ul>
-    </div>
-
-    <!-- v2 · Act III mini-game overlay -->
+    <!-- v2 · Act III mini-game overlay (now launched only from the arcade in a room) -->
     <div id="v2-minigame" class="v2-overlay" aria-hidden="true">
       <div class="v2-minigame-card">
         <div class="v2-minigame-header">
@@ -1209,18 +1215,10 @@
       </div>
     </div>
 
-    <!-- v2 · Act III culmination card -->
-    <div id="v2-culmination" class="v2-overlay" aria-hidden="true">
-      <div class="v2-culmination-card">
-        <div class="v2-culmination-text" id="v2-culmination-text"></div>
-        <div class="v2-cutscene-cta">▸ tap to continue ▸</div>
-      </div>
-    </div>
-
-    <!-- v2 · "step inside the memory" door prompt (overworld HUD) -->
+    <!-- v2 · STEP INSIDE prompt (overworld HUD) · label set per-chapter by core.js -->
     <button id="v2-room-door" class="v2-room-door" type="button" aria-hidden="true">
       <span class="v2-room-door-icon">🚪</span>
-      <span class="v2-room-door-label">enter this memory room</span>
+      <span class="v2-room-door-label">STEP INSIDE</span>
       <span class="v2-room-door-tap">tap ▸</span>
     </button>
 
@@ -1237,7 +1235,7 @@
       </div>
     </div>
 
-    <!-- v2 · MEMORY ROOM overlay -->
+    <!-- v2 · MEMORY ROOM overlay (the milestone itself · guided sequence inside) -->
     <div id="v2-room" class="v2-room" aria-hidden="true">
       <canvas id="v2-room-canvas"></canvas>
       <div class="v2-room-hud">
@@ -1246,7 +1244,11 @@
           <div class="v2-room-sub" id="v2-room-sub"></div>
         </div>
         <div class="v2-room-progress" id="v2-room-progress"></div>
+        <!-- guided intro / closing line · fades in centered over the dim room -->
+        <div class="v2-room-line" id="v2-room-line" aria-hidden="true"></div>
         <div class="v2-room-hint" id="v2-room-hint">tap the glowing memories · the door takes you back</div>
+        <!-- always-available skip · the guided run is never a hard gate -->
+        <button id="v2-room-skip" class="v2-room-skip" type="button" aria-hidden="true">skip ▸</button>
       </div>
       <div id="v2-room-card" class="v2-room-card" aria-hidden="true">
         <div class="v2-room-card-inner">
@@ -1257,10 +1259,24 @@
       </div>
     </div>
 
+    <!-- v2 · END card · shown when all 8 chapters are complete -->
+    <div id="v2-end" class="v2-end" aria-hidden="true">
+      <div class="v2-end-card">
+        <button id="v2-end-close" class="v2-end-close" type="button" aria-label="close">✕</button>
+        <div class="v2-end-title">the journey, complete</div>
+        <div class="v2-end-text">thirteen years, eight rooms, one walk. thanks for stepping inside.</div>
+        <div class="v2-end-links">
+          <a href="https://pranavjagadish.com" target="_blank" rel="noopener">pranavjagadish.com</a>
+          <a href="https://www.linkedin.com/in/pranavjagadish" target="_blank" rel="noopener">LinkedIn</a>
+          <a href="mailto:hello@pranavjagadish.com">email</a>
+        </div>
+      </div>
+    </div>
+
     <script>
-      // Phase 3 load model: v1 ALWAYS loads (it owns the world + walking).
-      // When ?v=2 is in the URL, v2 also loads after v1, layering the 3-act
-      // vignettes on top. The v1 bundle populates window.__journeyV1Bridge
+      // Load model: v1 ALWAYS loads (it owns the world + walking). When ?v=2 is
+      // in the URL, v2 also loads after v1 — the Memory Room IS the milestone
+      // (no walk-by vignette). The v1 bundle populates window.__journeyV1Bridge
       // from inside its IIFE; the v2 bundle reads from it.
       (function () {
         var v = new URLSearchParams(location.search).get('v');
@@ -1270,7 +1286,7 @@
         if (v === '2') {
           v1.onload = function () {
             var v2 = document.createElement('script');
-            v2.src = '/journey-v2.js?v=20260531a';
+            v2.src = '/journey-v2.js?v=20260531b';
             document.body.appendChild(v2);
           };
         }

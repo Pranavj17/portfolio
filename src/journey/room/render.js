@@ -7,7 +7,13 @@
  * request constraint, layered far→near with a volumetric light shaft, drifting
  * motes, and per-prop bloom so it reads as a lit 3D space.
  *
- *   frame = { tMs, motes, hoverId, played:Set, reduced:bool, intro:0..1 }
+ *   frame = { tMs, motes, hoverId, played:Set, reduced:bool, intro:0..1,
+ *             activeIds:Set|null }
+ *
+ * activeIds drives the GUIDED sequence: when it's a Set, props NOT in it are
+ * dimmed (low alpha, no glow/hover) so exactly the current step's interactable
+ * stands out; props IN it draw at full strength. When null (free-explore on a
+ * revisit), every prop draws normally — the original behaviour.
  */
 function drawRoom(ctx, room, layout, frame) {
   const W = layout.canvasW, H = layout.canvasH;
@@ -123,13 +129,21 @@ function drawMotes(ctx, W, H, motes, winRect, accent) {
 
 function drawProp(ctx, prop, layout, frame, palette, t) {
   let r = propScreenRect(prop, layout);
-  const hovered = frame.hoverId === prop.id;
+  // During a guided run, only props in activeIds are "live" this stage. The
+  // window (decor light source) is always live so the room stays lit. Dimmed
+  // props get reduced alpha and no glow/hover so the eye lands on the step.
+  const guided = frame.activeIds instanceof Set;
+  const dimmed = guided && prop.kind !== 'decor' && !frame.activeIds.has(prop.id);
+  const hovered = !dimmed && frame.hoverId === prop.id;
   const played = prop.kind === 'memory' && frame.played && frame.played.has(prop.beat);
 
   if (hovered) { r = { ...r, w: r.w * 1.08, h: r.h * 1.08 }; }
 
-  // glow halo for interactable, unplayed / hovered props
-  if (prop.kind !== 'decor') {
+  ctx.save();
+  if (dimmed) ctx.globalAlpha = 0.32;
+
+  // glow halo for interactable, unplayed / hovered props (skipped when dimmed)
+  if (prop.kind !== 'decor' && !dimmed) {
     const pulse = 0.5 + 0.5 * Math.sin(t / 600 + (prop.x || 0));
     const baseA = played ? 0.10 : (hovered ? 0.55 : 0.22 + pulse * 0.16);
     drawHalo(ctx, r.cx, r.cy, Math.max(r.w, r.h) * (hovered ? 0.95 : 0.8), palette.accent, baseA);
@@ -149,6 +163,7 @@ function drawProp(ctx, prop, layout, frame, palette, t) {
   if (hovered && prop.title) {
     drawLabel(ctx, r.cx, r.cy - r.h / 2 - 16, prop.title);
   }
+  ctx.restore();
 }
 
 function drawHalo(ctx, x, y, radius, color, alpha) {

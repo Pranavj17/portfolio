@@ -10,15 +10,14 @@ const path = require('path');
 const MANIFEST = [
   'src/journey/core.js',
   'src/journey/state/persistence.js',
-  'src/journey/state/phase.js',
   'src/journey/state/store.js',
+  // Data tables read by the room (the overlay players that used to consume them
+  // are gone): cutscenes → room INTRO line, culminations → room CLOSING line,
+  // quest → per-chapter memory beats, npcs → optional flavour.
   'src/journey/data/cutscenes.js',
   'src/journey/data/culminations.js',
   'src/journey/world/npcs.js',
   'src/journey/ui/input.js',
-  'src/journey/ui/hud.js',
-  'src/journey/acts/cutscene.js',
-  'src/journey/acts/npc.js',
   'src/journey/acts/quest.js',
   'src/journey/acts/minigame.js',
   'src/journey/acts/minigames/mock-test.js',
@@ -29,9 +28,9 @@ const MANIFEST = [
   'src/journey/acts/minigames/cad-snap.js',
   'src/journey/acts/minigames/live-mix.js',
   'src/journey/acts/minigames/parallel-park.js',
-  'src/journey/acts/culmination.js',
-  // Memory Rooms (Phase R) — geometry/motes are pure deps for render+controller;
-  // data.js reads QUESTS/CULMINATIONS/MINIGAMES (all declared earlier).
+  // Memory Rooms — the room IS the milestone. geometry/motes are pure deps for
+  // render+controller; data.js reads QUESTS/CUTSCENES/CULMINATIONS/MINIGAMES
+  // (all declared earlier). controller.js holds the guided sequencer.
   'src/journey/room/geometry.js',
   'src/journey/room/motes.js',
   'src/journey/room/data.js',

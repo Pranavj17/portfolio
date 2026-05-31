@@ -1,7 +1,13 @@
 // === src/journey/state/store.js ===
 /**
- * Chapter store. Wraps localStorage via persistence module, exposes
- * getChapter / send (transition) / setScore / setNpcChoice.
+ * Chapter store. Wraps localStorage via the persistence module.
+ *
+ * Room-as-milestone shape — one record per chapter:
+ *   { visited:false, complete:false, memoriesPlayed:[], score:null }
+ * `visited`  → the room has been entered at least once.
+ * `complete` → the guided sequence has been finished at least once (a revisit
+ *              after this runs in free-explore mode).
+ * The old phase machine + npcChoice are gone; the room IS the milestone.
  */
 function createChapterStore(storage) {
   let state = loadJourneyState(storage);
@@ -9,35 +15,23 @@ function createChapterStore(storage) {
 
   function persist() { saveJourneyState(storage, state); }
 
+  function defaults() {
+    return { visited: false, complete: false, memoriesPlayed: [], score: null };
+  }
+
   function getChapter(id) {
     const existing = state.chapters[id];
-    // roomVisited / memoriesPlayed are additive Memory-Room fields; default them
-    // so chapters saved before the rooms shipped still read cleanly.
-    return existing
-      ? { roomVisited: false, memoriesPlayed: [], ...existing }
-      : { phase: 'unseen', score: null, npcChoice: null, roomVisited: false, memoriesPlayed: [] };
+    // Spread over defaults so records written before a field existed read cleanly.
+    return existing ? { ...defaults(), ...existing } : defaults();
   }
 
-  function send(id, event) {
-    const cur = getChapter(id);
-    const next = transitionChapterPhase(cur.phase, event);
-    state.chapters[id] = { ...cur, phase: next };
-    persist();
-    return next;
-  }
-
-  function setScore(id, score) {
-    state.chapters[id] = { ...getChapter(id), score };
+  function markVisited(id) {
+    state.chapters[id] = { ...getChapter(id), visited: true };
     persist();
   }
 
-  function setNpcChoice(id, idx) {
-    state.chapters[id] = { ...getChapter(id), npcChoice: idx };
-    persist();
-  }
-
-  function markRoomVisited(id) {
-    state.chapters[id] = { ...getChapter(id), roomVisited: true };
+  function markComplete(id) {
+    state.chapters[id] = { ...getChapter(id), visited: true, complete: true };
     persist();
   }
 
@@ -49,9 +43,13 @@ function createChapterStore(storage) {
     persist();
   }
 
+  function setScore(id, score) {
+    state.chapters[id] = { ...getChapter(id), score };
+    persist();
+  }
+
   return {
-    getChapter, send, setScore, setNpcChoice,
-    markRoomVisited, markMemoryPlayed,
+    getChapter, markVisited, markComplete, markMemoryPlayed, setScore,
     _state: () => state,
   };
 }

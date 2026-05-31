@@ -142,6 +142,16 @@ function buildRoom(chapterId) {
   props.push({ id: 'exit', kind: 'exit', draw: 'door', icon: '→',
     x: 940, y: 332, depth: 0.42, w: 132, h: 300, title: 'step back out' });
 
+  // Guided-sequence copy. INTRO = the chapter's opening line(s) from CUTSCENES
+  // (joined with the same ' · ' divider the rest of the room uses), falling back
+  // to the era subtitle. CLOSING = the culmination paragraph.
+  const cut = (typeof CUTSCENES !== 'undefined' && CUTSCENES[chapterId]) || null;
+  const intro = (cut && Array.isArray(cut.lines) && cut.lines.length)
+    ? cut.lines.join(' · ')
+    : (meta.subtitle || meta.title);
+  const closing = (typeof CULMINATIONS !== 'undefined'
+    && (CULMINATIONS[chapterId] || CULMINATIONS.__placeholder)) || '';
+
   return {
     chapterId,
     title: meta.title,
@@ -150,5 +160,7 @@ function buildRoom(chapterId) {
     light: meta.light,
     moteCount: meta.motes,
     props,
+    intro,
+    closing,
   };
 }
