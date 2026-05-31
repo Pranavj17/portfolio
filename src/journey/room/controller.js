@@ -156,8 +156,10 @@ function openMemoryRoom(chapterId) {
   sess.detachInput = attachInputRouter(canvas, (gesture) => {
     if (sess.cardOpen) return;            // card eats the next tap (handled by card)
     if (gesture.kind !== 'TAP' && gesture.kind !== 'HOLD') return;
-    // INTRO: any tap dismisses the opening line and advances.
-    if (sess.guided && sess.stage === 'intro') { advanceStage(sess); return; }
+    // INTRO + CLOSE are "reading" steps with a single forward action — any tap
+    // continues (the close clip plays an overlay on top, so requiring a precise
+    // prop tap there was a dead-end). Memories/play/exit still need a real prop.
+    if (sess.guided && (sess.stage === 'intro' || sess.stage === 'close')) { advanceStage(sess); return; }
     const layout = roomLayout(canvas.width, canvas.height, sess.cam);
     const hit = hitTestProps(sess.room.props, gesture.x, gesture.y, layout);
     if (!hit) return;
@@ -275,7 +277,7 @@ function enterStage(sess, stage) {
       setRoomHint(sess, 'play this moment ▸  ·  skip ▸');
       break;
     case 'close':
-      setRoomHint(sess, 'the reel ▸');
+      setRoomHint(sess, 'the closing word · tap anywhere to continue ▸');
       // Auto-play the stage clip + settle the closing line.
       {
         const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
