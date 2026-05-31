@@ -17,7 +17,22 @@ window.__journeyV2 = {
   closeMemoryRoom,
   isRoomOpen,
   buildRoom,
+  openRoomPicker,
+  closeRoomPicker,
 };
+
+// Memory-Rooms picker button — always visible once v2 is loaded so the rooms
+// are discoverable from anywhere, not just by stumbling onto the in-world door.
+(function wireRoomsButton() {
+  const btn = document.getElementById('v2-rooms-btn');
+  if (btn) { btn.setAttribute('aria-hidden', 'false'); btn.onclick = openRoomPicker; }
+  const picker = document.getElementById('v2-rooms-picker');
+  if (picker) {
+    picker.addEventListener('click', (e) => { if (e.target === picker) closeRoomPicker(); });
+    const close = document.getElementById('v2-rooms-close');
+    if (close) close.onclick = closeRoomPicker;
+  }
+})();
 
 // Start polling for v2 chapter entry. The v1 bundle (journey.js) is NOT
 // loaded under ?v=2 — that's by design for Phase 2 vertical slice. v2 also

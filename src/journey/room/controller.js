@@ -293,3 +293,41 @@ function stopRoomAudio(sess) {
   } catch (_) {}
   sess.audio = null;
 }
+
+// --- Memory Rooms picker — an always-available list so the feature is easy to
+// find. The in-world door alone was too easy to miss; this button lives in the
+// HUD the whole time and lets you jump into any room you've unlocked. ---
+const ROOM_ORDER = ['itics', 'cmr', 'college', 'fever104', 'sakha', 'scripbox', 'vwgt', 'now'];
+
+function openRoomPicker() {
+  if (_room) return;                       // not while already inside a room
+  const picker = document.getElementById('v2-rooms-picker');
+  const list = document.getElementById('v2-rooms-list');
+  if (!picker || !list) return;
+  const store = roomStore();
+  const anyOpen = ROOM_ORDER.some(id => store && store.getChapter(id).phase === 'complete');
+  list.innerHTML = ROOM_ORDER.map(id => {
+    const meta = (typeof ROOM_META !== 'undefined' && (ROOM_META[id] || ROOM_META.__default)) || { title: id, subtitle: '' };
+    const ch = store ? store.getChapter(id) : {};
+    const done = ch.phase === 'complete';
+    const visited = !!ch.roomVisited;
+    return `<button class="v2-room-pick${done ? '' : ' locked'}" data-room="${id}"${done ? '' : ' disabled'}>
+        <span class="v2-room-pick-name">${meta.title}</span>
+        <span class="v2-room-pick-sub">${done ? (meta.subtitle || '') : 'finish this milestone to unlock'}</span>
+        <span class="v2-room-pick-cta">${done ? (visited ? '↺ revisit' : 'enter ▸') : '🔒'}</span>
+      </button>`;
+  }).join('');
+  const hint = document.getElementById('v2-rooms-hint');
+  if (hint) hint.textContent = anyOpen
+    ? 'tap a room to step inside'
+    : 'complete a milestone on the walk to unlock its memory room';
+  list.querySelectorAll('.v2-room-pick:not(.locked)').forEach(btn => {
+    btn.onclick = () => { closeRoomPicker(); openMemoryRoom(btn.getAttribute('data-room')); };
+  });
+  picker.setAttribute('aria-hidden', 'false');
+}
+
+function closeRoomPicker() {
+  const picker = document.getElementById('v2-rooms-picker');
+  if (picker) picker.setAttribute('aria-hidden', 'true');
+}

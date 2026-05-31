@@ -978,22 +978,80 @@
         }
         /* "step inside the memory" door prompt · overworld HUD */
         .v2-room-door {
-          position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%);
-          z-index: 90; display: none; align-items: center; gap: 10px;
-          padding: 11px 22px; cursor: pointer;
-          font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 600;
+          position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
+          z-index: 95; display: none; flex-direction: column; align-items: center; gap: 2px;
+          padding: 14px 30px 12px; cursor: pointer;
+          font-family: 'Cinzel', serif; font-weight: 700;
           letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink);
-          background: linear-gradient(180deg, var(--accent) 0%, #b8901a 100%);
-          border: 1.5px solid var(--gold); border-radius: 3px;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.6), 0 0 28px rgba(212,166,83,0.5);
-          pointer-events: auto; animation: doorPulse 2.2s ease-in-out infinite;
+          background: linear-gradient(180deg, #f0c75f 0%, var(--accent) 55%, #b8901a 100%);
+          border: 2px solid var(--gold); border-radius: 5px;
+          box-shadow: 0 8px 26px rgba(0,0,0,0.65), 0 0 40px rgba(212,166,83,0.6);
+          pointer-events: auto; animation: doorBounce 1.5s ease-in-out infinite;
+          text-align: center;
         }
         .v2-room-door[aria-hidden="false"] { display: inline-flex; }
-        .v2-room-door:hover { transform: translateX(-50%) translateY(-2px); }
-        .v2-room-door-icon { font-size: 17px; }
-        @keyframes doorPulse {
-          0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.6), 0 0 22px rgba(212,166,83,0.4); }
-          50%      { box-shadow: 0 6px 24px rgba(0,0,0,0.6), 0 0 38px rgba(212,166,83,0.85); }
+        .v2-room-door:hover { filter: brightness(1.08); }
+        .v2-room-door-icon { font-size: 26px; line-height: 1; }
+        .v2-room-door-label { font-size: 14px; }
+        .v2-room-door-tap { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.3em; opacity: 0.7; text-transform: uppercase; }
+        @keyframes doorBounce {
+          0%, 100% { transform: translateX(-50%) translateY(0);
+                     box-shadow: 0 8px 26px rgba(0,0,0,0.65), 0 0 30px rgba(212,166,83,0.5); }
+          50%      { transform: translateX(-50%) translateY(-6px);
+                     box-shadow: 0 14px 30px rgba(0,0,0,0.6), 0 0 52px rgba(212,166,83,0.95); }
+        }
+
+        /* always-visible "memory rooms" button — top-center, teaches the feature */
+        .v2-rooms-btn {
+          position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+          z-index: 92; display: none; cursor: pointer; pointer-events: auto;
+          padding: 6px 16px; font-family: 'Cinzel', serif; font-weight: 600;
+          font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper);
+          background: rgba(31,22,16,0.78); border: 1px solid var(--accent); border-radius: 20px;
+          box-shadow: 0 3px 12px rgba(0,0,0,0.5), 0 0 16px rgba(212,166,83,0.25);
+          transition: transform 0.15s ease, box-shadow 0.3s ease, background 0.2s ease;
+        }
+        .v2-rooms-btn[aria-hidden="false"] { display: inline-block; }
+        .v2-rooms-btn:hover { transform: translateX(-50%) translateY(-1px); background: rgba(58,36,24,0.9);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.55), 0 0 26px rgba(212,166,83,0.5); }
+
+        /* room picker overlay */
+        .v2-rooms-picker {
+          position: fixed; inset: 0; z-index: 150; display: none;
+          align-items: center; justify-content: center; padding: 24px;
+          background: radial-gradient(ellipse at center, rgba(10,6,3,0.6), rgba(8,5,2,0.9));
+        }
+        .v2-rooms-picker[aria-hidden="false"] { display: flex; }
+        .v2-rooms-panel {
+          width: 100%; max-width: 640px; max-height: 86vh; overflow-y: auto;
+          background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dim) 100%);
+          border: 1.5px solid var(--mahogany); border-radius: 5px; padding: 18px 20px 16px;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 50px rgba(212,166,83,0.18);
+        }
+        .v2-rooms-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .v2-rooms-title { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.2em; color: var(--ink); font-size: 1rem; }
+        .v2-rooms-close { background: none; border: 1px solid var(--mahogany); color: var(--mahogany);
+          width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1; }
+        .v2-rooms-close:hover { background: var(--mahogany); color: var(--paper); }
+        .v2-rooms-list { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+        .v2-room-pick {
+          display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+          padding: 11px 14px; cursor: pointer; border-radius: 4px;
+          background: linear-gradient(180deg, rgba(90,46,26,0.12), rgba(90,46,26,0.05));
+          border: 1.5px solid var(--mahogany); transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .v2-room-pick:hover { transform: translateY(-2px); background: rgba(212,166,83,0.22);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.25), 0 0 18px rgba(212,166,83,0.3); }
+        .v2-room-pick.locked { opacity: 0.5; cursor: default; }
+        .v2-room-pick.locked:hover { transform: none; background: linear-gradient(180deg, rgba(90,46,26,0.12), rgba(90,46,26,0.05)); box-shadow: none; }
+        .v2-room-pick-name { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.08em; color: var(--ink); font-size: 0.92rem; }
+        .v2-room-pick-sub { font-family: 'IM Fell English', serif; font-style: italic; font-size: 0.74rem; color: var(--mahogany); }
+        .v2-room-pick-cta { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--rust); margin-top: 3px; }
+        .v2-rooms-foot { margin-top: 12px; text-align: center; font-family: 'IM Fell English', serif; font-style: italic; font-size: 0.8rem; color: var(--mahogany); opacity: 0.85; }
+        @media (max-width: 600px) {
+          .v2-rooms-list { grid-template-columns: 1fr; }
+          .v2-rooms-btn { top: 44px; font-size: 10px; padding: 5px 12px; }
+          .v2-room-door { bottom: 84px; }
         }
         @media (max-width: 600px) {
           .v2-room-door { bottom: 80px; font-size: 11px; padding: 9px 16px; }
@@ -1162,8 +1220,22 @@
     <!-- v2 · "step inside the memory" door prompt (overworld HUD) -->
     <button id="v2-room-door" class="v2-room-door" type="button" aria-hidden="true">
       <span class="v2-room-door-icon">🚪</span>
-      <span class="v2-room-door-label">step inside the memory</span>
+      <span class="v2-room-door-label">enter this memory room</span>
+      <span class="v2-room-door-tap">tap ▸</span>
     </button>
+
+    <!-- v2 · always-visible "memory rooms" button + picker (discoverability) -->
+    <button id="v2-rooms-btn" class="v2-rooms-btn" type="button" aria-hidden="true">✦ memory rooms</button>
+    <div id="v2-rooms-picker" class="v2-rooms-picker" aria-hidden="true">
+      <div class="v2-rooms-panel">
+        <div class="v2-rooms-head">
+          <span class="v2-rooms-title">MEMORY ROOMS</span>
+          <button id="v2-rooms-close" class="v2-rooms-close" type="button" aria-label="close">✕</button>
+        </div>
+        <div id="v2-rooms-list" class="v2-rooms-list"></div>
+        <div id="v2-rooms-hint" class="v2-rooms-foot"></div>
+      </div>
+    </div>
 
     <!-- v2 · MEMORY ROOM overlay -->
     <div id="v2-room" class="v2-room" aria-hidden="true">
@@ -1198,7 +1270,7 @@
         if (v === '2') {
           v1.onload = function () {
             var v2 = document.createElement('script');
-            v2.src = '/journey-v2.js?v=20260530r';
+            v2.src = '/journey-v2.js?v=20260531a';
             document.body.appendChild(v2);
           };
         }

@@ -47,6 +47,28 @@ const ROOM_META = {
 // Fallback emoji if a beat has no hint and isn't found in v1 BEATS.
 const MEMORY_FALLBACK_ICON = '🖼️';
 
+// Distinct, meaningful icon per quest beat — the primary source so every memory
+// reads differently at a glance (v1 BEATS hints don't always match the quest ids,
+// which made every frame fall back to the same generic 🖼️).
+const MEMORY_ICONS = {
+  // itics
+  'football-match': '⚽', 'cricket-match': '🏏', 'sports-day': '🏅', 'assembly-stage': '🎤',
+  // cmr
+  'tuition-rush': '🛺', 'mock-test': '📝', 'study-lamp': '🪔', 'first-crush': '🌹',
+  // college (DSCE)
+  'bosch-intern': '🔧', 'abb-intern': '⚙️', 'fest-stage': '🎸', 'convocation': '🎓',
+  // fever104
+  'headphones': '🎧', 'script-binder': '📋', 'sound-engineer': '🎚️', 'trainee-cert': '📜',
+  // sakha
+  'interview-day': '🤝', 'first-paycheck': '💰', 'wfh-covid': '🏠', 'late-night-coding': '🌙',
+  // scripbox
+  'pr-review': '🔀', 'anthropic-catalog': '📚', 'claude-code': '🤖', 'whiteboard': '📊', 'anthropic-talk': '🎙️',
+  // vwgt (the GT)
+  'test-drive': '🚗', 'documents-signing': '✍️', 'keys-handover': '🔑', 'first-drive-out': '🛣️',
+  // now
+  'morning-routine': '☕', 'code-flow': '💻', 'anthropic-goal': '🎯', 'forward-horizon': '🌅',
+};
+
 /** Look up a chapter's authored beat lore from v1 (window.__journey.BEATS). */
 function lookupBeat(chapterId, beatId) {
   const all = (typeof window !== 'undefined' && window.__journey && window.__journey.BEATS) || [];
@@ -100,7 +122,7 @@ function buildRoom(chapterId) {
     props.push({
       id: beatId, kind: 'memory', draw: 'frame', beat: beatId,
       x: s.x, y: s.y, depth: s.depth, w: s.w, h: s.h,
-      icon: (beat && beat.hint) || MEMORY_FALLBACK_ICON,
+      icon: MEMORY_ICONS[beatId] || (beat && beat.hint) || MEMORY_FALLBACK_ICON,
       title: (beat && beat.title) || humanize(beatId),
       body: (beat && beat.lore) || 'a memory from this chapter.',
     });
