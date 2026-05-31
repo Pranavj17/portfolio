@@ -12,7 +12,8 @@
 const ROOM_W = 1000;
 const ROOM_H = 600;
 const ROOM_OVERSCAN = 1.08;   // draw a touch larger than fit so parallax never reveals an edge
-const CAM_PARALLAX_PX = 48;   // max room-space camera shift from a full pointer deflection
+const CAM_PARALLAX_PX = 16;   // max room-space camera shift from a full pointer deflection
+                              // (kept small — a big value read as "shaky/wobbly")
 
 function clampUnit(v) { return v < -1 ? -1 : (v > 1 ? 1 : v); }
 function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }

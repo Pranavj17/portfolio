@@ -139,18 +139,14 @@ function openMemoryRoom(chapterId) {
     const p = e.touches ? e.touches[0] : e;
     if (!p || p.clientX == null) return;
     const w = window.innerWidth || 1, h = window.innerHeight || 1;
-    sess.cam.tx = clampUnit((p.clientX / w) * 2 - 1);
-    sess.cam.ty = clampUnit(((p.clientY / h) * 2 - 1) * 0.6);
+    // Damped: a full-screen pointer sweep nudges the room only a little, so it
+    // feels like a steady space you peek around — not a hand-held camera.
+    sess.cam.tx = clampUnit(((p.clientX / w) * 2 - 1) * 0.45);
+    sess.cam.ty = clampUnit(((p.clientY / h) * 2 - 1) * 0.30);
   };
   overlay.addEventListener('mousemove', sess.handlers.move);
-  if (window.DeviceOrientationEvent && !reduced) {
-    sess.handlers.tilt = (e) => {
-      if (e.gamma == null) return;
-      sess.cam.tx = clampUnit(e.gamma / 28);
-      sess.cam.ty = clampUnit(((e.beta || 45) - 45) / 36);
-    };
-    window.addEventListener('deviceorientation', sess.handlers.tilt);
-  }
+  // Device-tilt parallax removed — the gyro made the room read as shaky/wobbly
+  // on phones. Pointer parallax (desktop) stays; touch users get a steady room.
 
   // --- taps select props (guided: only active-stage props; free: any) ---
   sess.detachInput = attachInputRouter(canvas, (gesture) => {
@@ -277,14 +273,11 @@ function enterStage(sess, stage) {
       setRoomHint(sess, 'play this moment ▸  ·  skip ▸');
       break;
     case 'close':
+      // Just the closing line + tap-to-continue. The stage clip is NOT auto-
+      // played here: it raised a v1 overlay on top of the room, which made the
+      // "tap anywhere to continue" hint a lie until the clip was dismissed. The
+      // clip stays available from the projector on a revisit (free-explore).
       setRoomHint(sess, 'the closing word · tap anywhere to continue ▸');
-      // Auto-play the stage clip + settle the closing line.
-      {
-        const playVid = window.__journeyV1Bridge && window.__journeyV1Bridge.playStageVideo;
-        const label = (window.__journeyV1Bridge && window.__journeyV1Bridge.getChapterLabel
-          && window.__journeyV1Bridge.getChapterLabel(sess.chapterId)) || sess.room.title;
-        if (typeof playVid === 'function') { try { playVid(sess.chapterId, label); } catch (_) {} }
-      }
       showRoomLine(sess, sess.room.closing);
       break;
     case 'exit':
@@ -315,10 +308,11 @@ function loop(sess) {
   sess.last = now;
   sess.tMs += dt;
 
-  // ease camera toward target + a slow idle drift so the room always breathes
-  const drift = sess.reduced ? 0 : Math.sin(sess.tMs / 3200) * 0.10;
-  sess.cam.x = lerp(sess.cam.x, sess.cam.tx + drift, 0.06);
-  sess.cam.y = lerp(sess.cam.y, sess.cam.ty, 0.06);
+  // Ease the camera toward the pointer target. NO idle drift — the constant
+  // sine sway read as "wobbly". The room still breathes via motes + light + the
+  // prop glow pulse, which move/shift far less than a whole-scene camera drift.
+  sess.cam.x = lerp(sess.cam.x, sess.cam.tx, 0.08);
+  sess.cam.y = lerp(sess.cam.y, sess.cam.ty, 0.08);
 
   if (!sess.reduced && typeof stepMotes === 'function') stepMotes(sess.motes, dt);
   if (sess.intro < 1) sess.intro = Math.min(1, sess.intro + dt / 680);
