@@ -13,11 +13,22 @@ export class InteractionManager {
    * @param {object} controls  FirstPersonControls (provides position + lookDir)
    * @param {object} ui         UI object exposing showPrompt(active, label) + hidePrompt()
    */
-  constructor(controls, ui) {
+  constructor(controls, ui, opts = {}) {
     this.controls = controls;
     this.ui = ui;
     this.interactables = [];
     this.active = null; // currently-highlighted interactable
+    // optional callback fired when the hovered interactable changes (for audio)
+    this.onHoverChange = opts.onHoverChange || (() => {});
+    // ids of memory objects that are currently "out" (floating to camera): we
+    // suppress the idle float/spin animation for those so the choreography owns
+    // their transform. Caller toggles via setFrozen().
+    this._frozen = new Set();
+  }
+
+  setFrozen(id, frozen) {
+    if (frozen) this._frozen.add(id);
+    else this._frozen.delete(id);
   }
 
   setInteractables(list) {
@@ -43,11 +54,12 @@ export class InteractionManager {
       this.active = next;
       if (next) this.ui.showPrompt(true, this._promptLabel(next));
       else this.ui.showPrompt(false);
+      this.onHoverChange(this.active);
     }
 
     // Gentle float + spin for memory objects so they read as alive.
     for (const o of this.interactables) {
-      if (o.kind === 'memory' && o.group) {
+      if (o.kind === 'memory' && o.group && !this._frozen.has(o.id)) {
         o.group.rotation.y += dt * 0.6;
         if (o.baseY != null) o.group.position.y = o.baseY + Math.sin(tNow * 0.0018 + o.worldPos.x) * 0.08;
         const emph = (o === this.active);

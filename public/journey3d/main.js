@@ -16,6 +16,8 @@ import { buildWorld, buildRoom, makeCollider, HALL_WIDTH } from './world.js';
 import { InteractionManager } from './interact.js';
 import * as State from './state.js';
 import { UI } from './ui.js';
+import { AudioEngine } from './audio.js';
+import { gradeMood } from './mood.js';
 
 function detectMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -28,6 +30,38 @@ function boot() {
     matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const ui = new UI({ isMobile, reducedMotion });
+  const audio = new AudioEngine({ isMobile, reducedMotion });
+
+  // Per-era colour wash (soft-light blend over the whole frame) — eases between
+  // moods via CSS transitions. Below the vignette (999995), above the canvas.
+  const gradeEl = document.createElement('div');
+  gradeEl.id = 'j3d-grade';
+  gradeEl.style.cssText = 'position:fixed;inset:0;z-index:999994;pointer-events:none;' +
+    'mix-blend-mode:soft-light;opacity:0;transition:background-color .9s ease,opacity .9s ease;';
+  document.body.appendChild(gradeEl);
+
+  // Mute toggle (top-right). Reflects + persists via the audio engine.
+  const muteBtn = document.createElement('button');
+  muteBtn.id = 'j3d-mute';
+  muteBtn.style.cssText = `position:fixed;top:${isMobile ? 12 : 16}px;right:${isMobile ? 12 : 16}px;z-index:1000001;pointer-events:auto;` +
+    'cursor:pointer;background:rgba(12,8,4,0.72);border:1px solid rgba(240,192,96,0.45);' +
+    `color:#f0c060;border-radius:8px;padding:${isMobile ? '7px 9px' : '8px 12px'};font:${isMobile ? 12 : 14}px Georgia,serif;letter-spacing:.5px;`;
+  const reflectMute = () => { muteBtn.textContent = audio.isMuted() ? '♪ muted' : '♪ sound'; };
+  reflectMute();
+  muteBtn.addEventListener('click', () => { audio.toggleMute(); reflectMute(); });
+  document.body.appendChild(muteBtn);
+
+  // Colour-grade targets (eased in the render loop). fogTarget = the era fog
+  // tint; gradeLight scales the room point-light for mood.
+  const fogTarget = new THREE.Color('#33271a');
+  let gradeLight = 1.0;
+  function applyGrade(id) {
+    const gm = gradeMood(id);
+    fogTarget.set(gm.fog);
+    gradeLight = gm.light;
+    gradeEl.style.backgroundColor = gm.overlay.color;
+    gradeEl.style.opacity = String(gm.overlay.opacity);
+  }
 
   // --- renderer / WebGL probe ----------------------------------------------
   const canvas = document.createElement('canvas');
@@ -158,8 +192,9 @@ function boot() {
     room.group.visible = true;
     currentRoom = chapterId;
     roomWalls = room.walls.slice();
-    // place the player just inside the room doorway, facing in (+x).
-    controls.setPosition(room.anchor.x - 4.2, room.anchor.z, -Math.PI / 2);
+    // place the player in a centered gallery view, facing the memory wall.
+    controls.setPosition(room.anchor.x, room.anchor.z + 3.1, 0);
+    resetStepOrigin();
     // interactables = memory objects + an exit target.
     const list = room.interactables.concat([{
       kind: 'exit', id: 'exit', worldPos: room.exitPos,
@@ -168,6 +203,7 @@ function boot() {
     progress = State.markVisited(progress, chapterId);
     State.saveState(window.localStorage, progress);
     refreshObjective();
+    audio.setMood(chapterId); audio.whoosh(); applyGrade(chapterId);
   }
 
   function exitRoom() {
@@ -181,7 +217,9 @@ function boot() {
     // place the player back in the hall, just in front of that doorway.
     controls.setPosition(0, door.hallZ, Math.PI); // face back up the hall by default
     controls.setPosition(0, door.hallZ);
+    resetStepOrigin();
     refreshObjective();
+    audio.setMood(null); audio.whoosh(); applyGrade(null);
   }
 
   // door-entry detection: when in the hall and close to a doorway gap on +X.
@@ -204,6 +242,8 @@ function boot() {
     if (target.kind === 'memory') {
       const beat = target.beat;
       ui.showCard({ icon: beat.icon, title: beat.title, body: beat.lore });
+      audio.chime(); audio.swell(true);
+      setTimeout(() => audio.swell(false), 900);
       progress = State.markMemorySeen(progress, target.chapterId, target.id);
       State.saveState(window.localStorage, progress);
       refreshObjective();
@@ -220,6 +260,12 @@ function boot() {
   // --- loop ----------------------------------------------------------------
   let last = performance.now();
   let running = false;
+  let prevActive = null;
+  let prevX = controls.position.x, prevZ = controls.position.z;
+  function resetStepOrigin() {
+    prevX = controls.position.x;
+    prevZ = controls.position.z;
+  }
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min((now - last) / 1000, 0.05);
@@ -230,6 +276,40 @@ function boot() {
     if (pendingInteract) { pendingInteract = false; resolveInteract(); }
     checkDoorEntry();
     interaction.update(dt, now);
+
+    // footsteps: feed distance moved this frame into the audio stride counter.
+    const dx = controls.position.x - prevX, dz = controls.position.z - prevZ;
+    prevX = controls.position.x; prevZ = controls.position.z;
+    audio.stepWalk(Math.hypot(dx, dz));
+
+    // a hover change pings a soft tick.
+    if (interaction.active !== prevActive) {
+      prevActive = interaction.active;
+      if (interaction.active) audio.tick();
+    }
+
+    // world life: drifting motes, flickering lamps, breathing door glows.
+    const t = now * 0.001;
+    if (world.motes) world.motes.update(dt);
+    for (const hl of world.hallLights || []) {
+      hl.light.intensity = hl.base * (0.82 + 0.13 * Math.sin(t * 3.5 + hl.phase)) + (Math.random() - 0.5) * 0.5;
+      if (hl.sprite && hl.sprite.material) hl.sprite.material.opacity = 0.36 + 0.14 * Math.sin(t * 3.5 + hl.phase);
+    }
+    for (const id in (world.doorGlows || {})) {
+      const dg = world.doorGlows[id];
+      const s = 0.7 + 0.3 * Math.sin(t * 1.6 + dg.phase);
+      if (dg.sprite && dg.sprite.material) dg.sprite.material.opacity = dg.baseOpacity * s;
+      if (dg.strip && dg.strip.material) dg.strip.material.opacity = 0.22 + 0.16 * s;
+    }
+    if (currentRoom && builtRooms[currentRoom]) {
+      const rm = builtRooms[currentRoom];
+      if (rm.motes) rm.motes.update(dt);
+      if (rm.lamp) rm.lamp.intensity = rm.lampBase * gradeLight * (0.88 + 0.1 * Math.sin(t * 5.0)) + (Math.random() - 0.5) * 0.6;
+    }
+
+    // per-era colour grade: ease the fog toward the mood tint.
+    scene.fog.color.lerp(fogTarget, Math.min(1, dt * 2.0));
+
     renderer.render(scene, camera);
   }
   requestAnimationFrame(frame);
@@ -241,10 +321,14 @@ function boot() {
   ui.showEnter(() => {
     running = true;
     controls.requestPointerLock();
+    resetStepOrigin();
+    audio.start();        // AudioContext must start from this user gesture
+    audio.setMood(null);  // begin the neutral hall drone immediately
+    applyGrade(null);     // hall mood
   });
 
   // expose a tiny handle for browser smoke tests / debugging.
-  window.__journey3d = { renderer, scene, camera, controls, world, enterRoom, exitRoom, get progress() { return progress; }, tier };
+  window.__journey3d = { renderer, scene, camera, controls, world, audio, enterRoom, exitRoom, get progress() { return progress; }, tier };
 }
 
 if (document.readyState === 'loading') {

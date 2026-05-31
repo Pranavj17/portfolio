@@ -89,6 +89,17 @@ const CSS = `
   display: none; pointer-events: none;
 }
 #j3d-joystick.show { display: block; }
+@media (max-width: 640px) {
+  #j3d-objective {
+    left: 12px; top: 12px; max-width: calc(100vw - 132px);
+    padding: 8px 10px; font-size: 12px; line-height: 1.3;
+  }
+  #j3d-objective .lbl { font-size: 10px; letter-spacing: .8px; }
+  #j3d-controls-hint {
+    right: 12px; bottom: 16px; max-width: calc(100vw - 148px);
+    font-size: 11px; padding: 7px 10px;
+  }
+}
 `;
 
 export class UI {

@@ -68,6 +68,95 @@ function makeLabelTexture(title, sub, accent) {
   return tex;
 }
 
+// --- additive radial-glow sprite (cheap "bloom" — see main.js header note) --
+let _glowTex = null;
+function glowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0.0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.6, 'rgba(255,255,255,0.12)');
+  g.addColorStop(1.0, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  _glowTex = new THREE.CanvasTexture(c);
+  return _glowTex;
+}
+
+/**
+ * An additive glow sprite (fakes bloom around a light/label). Returns the Sprite;
+ * caller positions it. `size` in world units, `color` hex, `opacity` 0..1.
+ */
+export function makeGlowSprite(color, size = 2, opacity = 0.6) {
+  const mat = new THREE.SpriteMaterial({
+    map: glowTexture(),
+    color: new THREE.Color(color),
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(size, size, 1);
+  return sp;
+}
+
+/**
+ * A drifting field of warm glowing motes (THREE.Points, additive). Motes rise +
+ * sway and wrap within a box of half-extents `ext` centred on `center`. Returns
+ * { points, update(dt) }. Counts are caller-controlled (fewer on mobile).
+ */
+export function makeMoteField(center, ext, count, color, opts = {}) {
+  const n = Math.max(0, count | 0);
+  const positions = new Float32Array(n * 3);
+  const vel = new Float32Array(n);       // upward speed
+  const sway = new Float32Array(n);      // sway frequency
+  const phase = new Float32Array(n);     // sway phase
+  const baseX = new Float32Array(n);     // sway anchor x
+  for (let i = 0; i < n; i++) {
+    const x = center.x + (Math.random() * 2 - 1) * ext.x;
+    const y = center.y + Math.random() * ext.y * 2;
+    const z = center.z + (Math.random() * 2 - 1) * ext.z;
+    positions[i * 3] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z;
+    baseX[i] = x;
+    vel[i] = 0.08 + Math.random() * 0.16;
+    sway[i] = 0.3 + Math.random() * 0.7;
+    phase[i] = Math.random() * Math.PI * 2;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    map: glowTexture(),
+    color: new THREE.Color(color),
+    size: opts.size || 0.22,
+    transparent: true,
+    opacity: opts.opacity != null ? opts.opacity : 0.55,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  const topY = center.y + ext.y * 2;
+  const botY = center.y - ext.y * 0.2;
+  function update(dt) {
+    const p = geo.attributes.position.array;
+    for (let i = 0; i < n; i++) {
+      let y = p[i * 3 + 1] + vel[i] * dt;
+      phase[i] += dt * sway[i];
+      const x = baseX[i] + Math.sin(phase[i]) * (ext.x * 0.12);
+      if (y > topY) { y = botY; baseX[i] = center.x + (Math.random() * 2 - 1) * ext.x; }
+      p[i * 3] = x;
+      p[i * 3 + 1] = y;
+    }
+    geo.attributes.position.needsUpdate = true;
+  }
+  return { points, update };
+}
+
 function makeTextSprite(text, color, scale = 1) {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 128;
@@ -87,6 +176,15 @@ function makeTextSprite(text, color, scale = 1) {
 // --- material helpers -------------------------------------------------------
 function wallMat(hex) {
   return new THREE.MeshStandardMaterial({ color: new THREE.Color(hex), roughness: 0.92, metalness: 0.02 });
+}
+
+/** Scale an #rrggbb colour's channels toward white by `factor` (>1 brightens). */
+function lighten(hex, factor) {
+  const c = new THREE.Color(hex);
+  c.r = Math.min(1, c.r * factor);
+  c.g = Math.min(1, c.g * factor);
+  c.b = Math.min(1, c.b * factor);
+  return '#' + c.getHexString();
 }
 
 /**
@@ -114,25 +212,27 @@ export function buildWorld(scene, quality) {
   const hallLen = plan.hallStartZ - plan.hallEndZ;
   const hallMidZ = (plan.hallStartZ + plan.hallEndZ) / 2;
 
-  // Floor + ceiling (no collision boxes — handled by Y).
-  const floorMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#2c2116'), roughness: 0.95 });
+  // Floor + ceiling (no collision boxes — handled by Y). Brightened so mid
+  // surfaces no longer read near-black (was #2c2116 / #1d150d).
+  const floorMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#4a3a26'), roughness: 0.9 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALL_WIDTH, hallLen + 6), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, hallMidZ);
   floor.receiveShadow = true;
   group.add(floor);
 
-  const ceilMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#1d150d'), roughness: 1 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#322516'), roughness: 1 });
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(HALL_WIDTH, hallLen + 6), ceilMat);
   ceil.rotation.x = Math.PI / 2;
   ceil.position.set(0, HALL_HEIGHT, hallMidZ);
   group.add(ceil);
 
-  // Left wall (solid) at x = -HALL_WIDTH/2.
-  addWallBox(-HALL_WIDTH / 2 - WALL_T / 2, hallMidZ, WALL_T, hallLen + 6, wallMat('#2a1d10'));
+  // Left wall (solid) at x = -HALL_WIDTH/2. Walls brightened from #2a1d10.
+  const HALL_WALL = '#4a3320';
+  addWallBox(-HALL_WIDTH / 2 - WALL_T / 2, hallMidZ, WALL_T, hallLen + 6, wallMat(HALL_WALL));
   // End cap walls.
-  addWallBox(0, plan.hallStartZ + 3, HALL_WIDTH + WALL_T * 2, WALL_T, wallMat('#2a1d10'));
-  addWallBox(0, plan.hallEndZ - 3, HALL_WIDTH + WALL_T * 2, WALL_T, wallMat('#2a1d10'));
+  addWallBox(0, plan.hallStartZ + 3, HALL_WIDTH + WALL_T * 2, WALL_T, wallMat(HALL_WALL));
+  addWallBox(0, plan.hallEndZ - 3, HALL_WIDTH + WALL_T * 2, WALL_T, wallMat(HALL_WALL));
 
   // Right wall is segmented to leave doorway gaps. Build segments between doors.
   const rightX = HALL_WIDTH / 2 + WALL_T / 2;
@@ -148,19 +248,22 @@ export function buildWorld(scene, quality) {
   for (const [zA, zB] of segments) {
     const len = Math.abs(zA - zB);
     if (len < 0.05) continue;
-    addWallBox(rightX, (zA + zB) / 2, WALL_T, len, wallMat('#2a1d10'));
+    addWallBox(rightX, (zA + zB) / 2, WALL_T, len, wallMat(HALL_WALL));
   }
   // Lintel above each doorway so the gap is a doorway, not a full slot.
   for (const d of plan.doors) {
     const lintel = new THREE.Mesh(
       new THREE.BoxGeometry(WALL_T, HALL_HEIGHT - DOOR_H, DOOR_W),
-      wallMat('#2a1d10'));
+      wallMat(HALL_WALL));
     lintel.position.set(rightX, DOOR_H + (HALL_HEIGHT - DOOR_H) / 2, d.hallZ);
     group.add(lintel);
   }
 
-  // Per-door era label (glowing CanvasTexture) above each doorway, facing the hall.
+  // Per-door era label (glowing CanvasTexture) above each doorway, facing the
+  // hall. Each label/doorway also gets an additive glow sprite (cheap bloom)
+  // whose breathing is animated in main.js via the returned `doorGlows` map.
   const doorLabels = {};
+  const doorGlows = {};
   for (const d of plan.doors) {
     const ch = CHAPTERS[d.index];
     const tex = makeLabelTexture(d.label, d.years, ch.palette.accent);
@@ -173,14 +276,42 @@ export function buildWorld(scene, quality) {
     doorLabels[d.id] = plane;
 
     // A warm glow strip framing the doorway.
-    const glowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(ch.palette.accent), transparent: true, opacity: 0.35 });
+    const glowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(ch.palette.accent), transparent: true, opacity: 0.4 });
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W + 0.2, DOOR_H + 0.2), glowMat);
     glow.position.set(HALL_WIDTH / 2 - 0.03, DOOR_H / 2, d.hallZ);
     glow.rotation.y = -Math.PI / 2;
     labelGroup.add(glow);
+
+    // Additive bloom-glow sprite over the label so the doorway "pops".
+    const bloom = makeGlowSprite(ch.palette.accent, 4.2, 0.5);
+    bloom.position.set(HALL_WIDTH / 2 - 0.05, DOOR_H + 0.45, d.hallZ);
+    labelGroup.add(bloom);
+    doorGlows[d.id] = { sprite: bloom, strip: glow, baseOpacity: 0.5, phase: d.index * 1.3 };
   }
 
-  return { group, plan, walls, doorLabels, labelGroup };
+  // Warm hall point-lights along the ceiling so the corridor reads lit (these
+  // are flickered/breathed in main.js). One light near every other doorway.
+  const hallLights = [];
+  for (let i = 0; i < plan.doors.length; i += 2) {
+    const z = plan.doors[i].hallZ;
+    const lamp = new THREE.PointLight(new THREE.Color('#ffce8a'), 14, 22, 2);
+    lamp.position.set(-HALL_WIDTH / 2 + 1.0, HALL_HEIGHT - 0.4, z);
+    group.add(lamp);
+    const bulb = makeGlowSprite('#ffce8a', 1.6, 0.45);
+    bulb.position.copy(lamp.position);
+    group.add(bulb);
+    hallLights.push({ light: lamp, sprite: bulb, base: 14, phase: i * 0.9 });
+  }
+
+  // Dust motes drifting down the length of the hall (denser near the lit end).
+  const moteCount = (quality && quality.fillLight) ? 220 : 90;
+  const motes = makeMoteField(
+    { x: 0, y: 0.4, z: hallMidZ },
+    { x: HALL_WIDTH / 2 - 0.6, y: HALL_HEIGHT / 2, z: hallLen / 2 },
+    moteCount, '#f2d9a0', { size: 0.18, opacity: 0.5 });
+  group.add(motes.points);
+
+  return { group, plan, walls, doorLabels, doorGlows, hallLights, motes, labelGroup };
 }
 
 /** Collision predicate factory: blocks if (x,z) is inside any wall AABB (+ player radius). */
@@ -209,22 +340,30 @@ export function buildRoom(chapter, anchor, quality) {
   const half = ROOM_SIZE / 2;
   const p = chapter.palette;
 
+  // Brighten the very-dark palette wall/floor colours so mid surfaces are not
+  // near-black, while keeping each era's hue. (Original palettes were tuned for
+  // a much dimmer look.) lighten() scales each channel toward white.
+  const wallCol = lighten(p.wall1, 1.7);
+  const floorCol = lighten(p.floor, 2.3);
+  const ceilCol = lighten(p.wall2, 1.9);
+
   const walls = [];
   const addRoomWall = (ox, oz, sx, sz) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, HALL_HEIGHT, sz), wallMat(p.wall1));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, HALL_HEIGHT, sz),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(wallCol), roughness: 0.9, metalness: 0.02 }));
     m.position.set(cx + ox, HALL_HEIGHT / 2, cz + oz);
     m.receiveShadow = true;
     g.add(m);
     walls.push({ minX: cx + ox - sx / 2, maxX: cx + ox + sx / 2, minZ: cz + oz - sz / 2, maxZ: cz + oz + sz / 2 });
   };
 
-  // Floor + ceiling tinted by palette.
+  // Floor + ceiling tinted by palette (brightened).
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_SIZE, ROOM_SIZE),
-    new THREE.MeshStandardMaterial({ color: new THREE.Color(p.floor), roughness: 0.95 }));
+    new THREE.MeshStandardMaterial({ color: new THREE.Color(floorCol), roughness: 0.92 }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0, cz); floor.receiveShadow = true;
   g.add(floor);
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_SIZE, ROOM_SIZE),
-    new THREE.MeshStandardMaterial({ color: new THREE.Color(p.wall2), roughness: 1 }));
+    new THREE.MeshStandardMaterial({ color: new THREE.Color(ceilCol), roughness: 1 }));
   ceil.rotation.x = Math.PI / 2; ceil.position.set(cx, HALL_HEIGHT, cz);
   g.add(ceil);
 
@@ -251,12 +390,16 @@ export function buildRoom(chapter, anchor, quality) {
     g.add(ped);
   }
 
-  // Per-room warm point light.
-  const lamp = new THREE.PointLight(new THREE.Color(p.accent), 26, 28, 2);
+  // Per-room warm point light (intensity is breathed/flickered in main.js via
+  // the returned `lamp`/`lampBase` handle). Brightened from 26.
+  const lamp = new THREE.PointLight(new THREE.Color(p.accent), 34, 30, 2);
   lamp.position.set(cx, HALL_HEIGHT - 0.6, cz);
   if (quality && quality.shadows) { lamp.castShadow = true; lamp.shadow.mapSize.set(quality.shadowMapSize || 512, quality.shadowMapSize || 512); }
   g.add(lamp);
-  const ambient = new THREE.AmbientLight(new THREE.Color(p.wall1), 0.95);
+  const lampGlow = makeGlowSprite(p.accent, 2.6, 0.5);
+  lampGlow.position.copy(lamp.position);
+  g.add(lampGlow);
+  const ambient = new THREE.AmbientLight(new THREE.Color(lighten(p.wall1, 1.6)), 1.2);
   g.add(ambient);
 
   // Memory objects: glowing labeled shapes arranged in an arc on the far wall.
@@ -281,6 +424,10 @@ export function buildRoom(chapter, anchor, quality) {
     shape.castShadow = true;
     objGroup.add(shape);
 
+    // additive glow halo so the memory object reads as a glowing artefact
+    const halo = makeGlowSprite(p.accent, 1.3, 0.45);
+    objGroup.add(halo);
+
     // floating label sprite above the shape
     const label = makeTextSprite(beat.title, '#f0e2c2', 0.8);
     label.position.set(0, 0.7, 0);
@@ -296,10 +443,19 @@ export function buildRoom(chapter, anchor, quality) {
       chapterId: chapter.id,
       group: objGroup,
       mesh: shape,
+      halo,
       worldPos: { x: mx, y: my, z: mz },
       baseY: my,
     });
   });
+
+  // Room dust motes (warmly tinted by the era accent; fewer on mobile).
+  const roomMoteCount = (quality && quality.fillLight) ? 120 : 50;
+  const motes = makeMoteField(
+    { x: cx, y: 0.4, z: cz },
+    { x: half - 0.8, y: HALL_HEIGHT / 2, z: half - 0.8 },
+    roomMoteCount, p.accent, { size: 0.16, opacity: 0.45 });
+  g.add(motes.points);
 
   // Exit marker: a glowing portal plane at the -X doorway facing into the room.
   const exitMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#e8d9b8'), transparent: true, opacity: 0.4 });
@@ -313,5 +469,9 @@ export function buildRoom(chapter, anchor, quality) {
 
   const exitPos = { x: cx - half + 0.6, y: DOOR_H / 2, z: cz };
 
-  return { group: g, interactables, exitPos, walls, anchor: { x: cx, y: 0, z: cz } };
+  return {
+    group: g, interactables, exitPos, walls,
+    anchor: { x: cx, y: 0, z: cz },
+    lamp, lampBase: 34, lampGlow, motes,
+  };
 }

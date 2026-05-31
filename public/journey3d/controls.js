@@ -74,7 +74,10 @@ export class FirstPersonControls {
 
   requestPointerLock() {
     if (!this.isMobile && this.dom.requestPointerLock) {
-      try { this.dom.requestPointerLock(); } catch (e) { /* drag-look fallback */ }
+      try {
+        const lock = this.dom.requestPointerLock();
+        if (lock && typeof lock.catch === 'function') lock.catch(() => {});
+      } catch (e) { /* drag-look fallback */ }
     }
   }
 
