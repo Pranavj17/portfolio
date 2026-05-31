@@ -57,22 +57,22 @@ function boot() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; // cinematic base
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.42;
   renderer.shadowMap.enabled = qs.shadows;
   if (qs.shadows) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // --- scene / fog / camera ------------------------------------------------
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0a0703');
-  scene.fog = new THREE.FogExp2(new THREE.Color('#1c1206'), 0.022); // warm depth fog
+  scene.background = new THREE.Color('#231a10');
+  scene.fog = new THREE.FogExp2(new THREE.Color('#33271a'), 0.0085); // warm depth fog (thinned — was swallowing the hall)
 
   const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
 
   // --- lighting: warm key + fill + ambient ---------------------------------
-  const ambient = new THREE.AmbientLight(new THREE.Color('#5a4326'), 0.55);
+  const ambient = new THREE.AmbientLight(new THREE.Color('#74592f'), 1.05);
   scene.add(ambient);
 
-  const key = new THREE.DirectionalLight(new THREE.Color('#ffd9a0'), 2.0);
+  const key = new THREE.DirectionalLight(new THREE.Color('#ffd9a0'), 2.7);
   key.position.set(6, 14, 8);
   if (qs.shadows) {
     key.castShadow = true;
@@ -91,7 +91,7 @@ function boot() {
   }
 
   // Hemisphere for soft warm ambient gradient.
-  const hemi = new THREE.HemisphereLight(new THREE.Color('#3a2a14'), new THREE.Color('#0a0703'), 0.5);
+  const hemi = new THREE.HemisphereLight(new THREE.Color('#6a522e'), new THREE.Color('#1a120a'), 0.95);
   scene.add(hemi);
 
   // --- world ---------------------------------------------------------------

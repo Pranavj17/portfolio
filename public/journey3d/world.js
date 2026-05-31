@@ -115,14 +115,14 @@ export function buildWorld(scene, quality) {
   const hallMidZ = (plan.hallStartZ + plan.hallEndZ) / 2;
 
   // Floor + ceiling (no collision boxes — handled by Y).
-  const floorMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#15100a'), roughness: 0.95 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#2c2116'), roughness: 0.95 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALL_WIDTH, hallLen + 6), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, hallMidZ);
   floor.receiveShadow = true;
   group.add(floor);
 
-  const ceilMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#0c0805'), roughness: 1 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#1d150d'), roughness: 1 });
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(HALL_WIDTH, hallLen + 6), ceilMat);
   ceil.rotation.x = Math.PI / 2;
   ceil.position.set(0, HALL_HEIGHT, hallMidZ);
@@ -252,11 +252,11 @@ export function buildRoom(chapter, anchor, quality) {
   }
 
   // Per-room warm point light.
-  const lamp = new THREE.PointLight(new THREE.Color(p.accent), 14, 18, 2);
+  const lamp = new THREE.PointLight(new THREE.Color(p.accent), 26, 28, 2);
   lamp.position.set(cx, HALL_HEIGHT - 0.6, cz);
   if (quality && quality.shadows) { lamp.castShadow = true; lamp.shadow.mapSize.set(quality.shadowMapSize || 512, quality.shadowMapSize || 512); }
   g.add(lamp);
-  const ambient = new THREE.AmbientLight(new THREE.Color(p.wall1), 0.5);
+  const ambient = new THREE.AmbientLight(new THREE.Color(p.wall1), 0.95);
   g.add(ambient);
 
   // Memory objects: glowing labeled shapes arranged in an arc on the far wall.
